@@ -24,6 +24,7 @@ pub enum Panel {
     Graph,
     Diff,
     Stashes,
+    CommitDetail,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -73,6 +74,8 @@ pub struct Workspace {
     pub status_rect: Rect,
     pub branches_rect: Rect,
     pub help: bool,
+    pub help_rect: Rect,
+    pub detail_rect: Rect,
     pub commit_error: Option<String>,
     revision: u64,
     loaded: bool,
@@ -499,6 +502,9 @@ impl App {
     }
 
     pub fn workspace_open_diff(&mut self) {
+        if self.workspace.focus == Panel::CommitDetail {
+            self.workspace_graph_target();
+        }
         if self.workspace.focus != Panel::Diff {
             self.workspace.diff_return = self.workspace.focus;
         }
@@ -510,6 +516,10 @@ impl App {
         if panel == Panel::Diff {
             self.workspace_open_diff();
             return;
+        }
+        if panel == Panel::CommitDetail {
+            self.workspace.diff_visible = false;
+            self.workspace_graph_target();
         }
         self.workspace.focus = panel;
         if panel != Panel::Diff {
@@ -624,7 +634,11 @@ impl App {
                     Panel::Branches,
                     Panel::Stashes,
                     Panel::Graph,
-                    Panel::Diff,
+                    if self.workspace.diff_visible {
+                        Panel::Diff
+                    } else {
+                        Panel::CommitDetail
+                    },
                 ];
                 if !self.workspace.diff_visible {
                     panels.retain(|panel| *panel != Panel::Diff);
@@ -717,6 +731,15 @@ impl App {
                         }
                         self.workspace_graph_target();
                     }
+                    Panel::CommitDetail => {
+                        let rect = self.workspace.detail_rect;
+                        let max = crate::ui::commit_detail::CommitDetailWidget::new(self)
+                            .estimated_height(rect.width.saturating_sub(2))
+                            .saturating_sub(rect.height.saturating_sub(2));
+                        self.detail_scroll = (i64::from(self.detail_scroll) + i64::from(delta))
+                            .clamp(0, i64::from(max))
+                            as u16;
+                    }
                     Panel::Diff => {
                         let max = self
                             .workspace
@@ -763,11 +786,11 @@ impl App {
                     }
                 }
                 Panel::Files => self.workspace_open_diff(),
-                Panel::Graph => {
+                Panel::Graph | Panel::CommitDetail => {
                     self.workspace.tabs.files = crate::workspace_tabs::FilesTab::Files;
                     self.workspace_graph_target();
                     self.workspace.diff_visible = true;
-                    self.workspace.diff_return = Panel::Graph;
+                    self.workspace.diff_return = focus;
                     self.workspace.focus = Panel::Files;
                 }
                 Panel::Branches => {
@@ -904,6 +927,7 @@ impl App {
             (self.workspace.branches_rect, Panel::Branches),
             (self.workspace.stash_rect, Panel::Stashes),
             (self.layout.graph, Panel::Graph),
+            (self.workspace.detail_rect, Panel::CommitDetail),
             (self.layout.commit_detail, Panel::Diff),
             (self.workspace.status_rect, Panel::Status),
         ]

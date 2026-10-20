@@ -30,6 +30,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     app.workspace.status_rect = Rect::default();
     app.workspace.branches_rect = Rect::default();
     app.workspace.stash_rect = Rect::default();
+    app.workspace.detail_rect = Rect::default();
+    app.workspace.help_rect = Rect::default();
     app.status_hints.clear();
     if area.width < 20 || area.height < 10 {
         frame.render_widget(Paragraph::new("Terminal too small (20 × 10 minimum)"), area);
@@ -47,7 +49,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         let auxiliary = if focus == Panel::Graph && app.workspace.diff_visible {
             Some(Panel::Diff)
         } else if matches!(focus, Panel::Graph | Panel::Status) {
-            None
+            Some(Panel::CommitDetail)
         } else {
             Some(focus)
         };
@@ -63,6 +65,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                 Panel::Branches => app.workspace.branches_rect = rows[1],
                 Panel::Stashes => app.workspace.stash_rect = rows[1],
                 Panel::Diff => app.layout.commit_detail = rows[1],
+                Panel::CommitDetail => app.workspace.detail_rect = rows[1],
                 _ => {}
             }
         } else {
@@ -90,7 +93,13 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             app.layout.graph = right[0];
             app.layout.commit_detail = right[1];
         } else {
-            app.layout.graph = columns[1];
+            let right = Layout::vertical([
+                Constraint::Min(5),
+                Constraint::Length((body.height / 3).clamp(7, 12)),
+            ])
+            .split(columns[1]);
+            app.layout.graph = right[0];
+            app.workspace.detail_rect = right[1];
         }
     }
     let repo_name = std::path::Path::new(&app.repo_path)
@@ -381,6 +390,16 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             title.push_str(&format!(" · {}", file.path.display()));
         }
     }
+    if app.workspace.detail_rect.height > 0 {
+        let rect = app.workspace.detail_rect;
+        let widget = super::commit_detail::CommitDetailWidget::new(app)
+            .with_focus(focus == Panel::CommitDetail);
+        let max = widget
+            .estimated_height(rect.width.saturating_sub(2))
+            .saturating_sub(rect.height.saturating_sub(2));
+        app.detail_scroll = app.detail_scroll.min(max);
+        frame.render_widget(widget.with_scroll(app.detail_scroll), rect);
+    }
     app.workspace.diff_height = app.layout.commit_detail.height.saturating_sub(2);
     if app.layout.commit_detail.height > 0 {
         let lines: Vec<Line> = app
@@ -426,7 +445,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             "REVERT: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
         }
         None => {
-            "? help  Tab focus  2 files  3 branches  4 graph  5 stash  0 diff"
+            "? help  Tab focus  2 files  3 branches  4 graph  5 stash  6 detail  0 diff"
         }
     };
     let graph_hint = format!(
@@ -452,6 +471,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             "Space: apply · p: pop · d: drop · Enter: diff · s: save stash"
         } else if focus == Panel::Graph {
             &graph_hint
+        } else if focus == Panel::CommitDetail {
+            "j/k scroll detail · Enter commit diff · 4 graph"
         } else if focus == Panel::Branches {
             "[ / ] tabs · Enter checkout · M merge · r rebase · b create"
         } else if focus == Panel::Diff
@@ -539,7 +560,15 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         _ => {}
     }
     if app.workspace.help {
-        let rect = super::centered_rect(90, 90, area);
+        let width = area.width.saturating_sub(4).min(88);
+        let height = area.height.saturating_sub(4).min(24);
+        let rect = Rect::new(
+            area.x + (area.width - width) / 2,
+            area.y + (area.height - height) / 2,
+            width,
+            height,
+        );
+        app.workspace.help_rect = rect;
         frame.render_widget(Clear, rect);
         let lines = super::workspace_help::lines(rect.width.saturating_sub(2) as usize);
         let max_scroll = lines

@@ -48,6 +48,11 @@ impl CommitDetailWidget {
         }
     }
 
+    pub fn with_focus(mut self, focused: bool) -> Self {
+        self.focused = focused;
+        self
+    }
+
     pub fn with_scroll(mut self, scroll: u16) -> Self {
         self.scroll = scroll;
         self
@@ -56,11 +61,9 @@ impl CommitDetailWidget {
     /// Estimate the rendered height (in rows) for the given inner width,
     /// accounting for word wrap. Used to clamp the scroll offset.
     pub fn estimated_height(&self, inner_width: u16) -> u16 {
-        let width = inner_width.max(1) as usize;
-        self.commit_lines
-            .iter()
-            .map(|line| line.width().max(1).div_ceil(width))
-            .sum::<usize>()
+        Paragraph::new(self.commit_lines.clone())
+            .wrap(Wrap { trim: false })
+            .line_count(inner_width.max(1))
             .min(u16::MAX as usize) as u16
     }
 
@@ -102,7 +105,7 @@ impl CommitDetailWidget {
                 )),
                 Line::from(""),
                 Line::from(Span::styled(
-                    " Space: open files / stage / commit",
+                    " 2: working files · Space: stage / unstage",
                     Style::default().fg(Color::DarkGray),
                 )),
             ];

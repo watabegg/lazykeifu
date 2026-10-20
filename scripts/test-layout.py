@@ -29,11 +29,14 @@ def run():
             assert 'clean' in closed.splitlines()[0]
             assert 'Clean working tree' in closed and 'No stashes' in closed
             assert '0 Diff' not in closed
-            assert tui.state()['layout']['graph'][3] >= 27
+            assert tui.state()['layout']['graph'][3] >= 16
+            assert tui.state()['layout']['detail'][3] >= 7
             assert tui.state()['layout']['files'][3] >= 6
             assert tui.state()['layout']['files'][2] == 48
             # Moving through panels never reveals a hidden preview.
             tui.keys('4 <tab>')
+            assert tui.state()['workspace_focus'] == 'CommitDetail'
+            tui.keys('<tab>')
             assert tui.state()['workspace_focus'] == 'Files'
             assert not tui.state()['workspace_diff_visible']
             tui.keys('4 j')
@@ -49,7 +52,8 @@ def run():
             assert tui.state()['workspace_focus'] == 'Graph'
             assert tui.state()['selected_commit'] == selected
             assert '0 Diff' not in tui.screen()
-            assert tui.state()['layout']['graph'][3] >= 27
+            assert tui.state()['layout']['graph'][3] >= 16
+            assert tui.state()['layout']['detail'][3] >= 7
             (root / 'file.txt').write_text('local edit\n')
             tui.keys('R 2 <enter>')
             tui.loaded()

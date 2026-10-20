@@ -14,7 +14,7 @@ cargo build --locked
 /path/to/lazykeifu/target/debug/lazykeifu
 ```
 
-グラフは常に表示します。Files／Graph／Stashesの`Enter`、または`0`でdiffを開き、`Esc`で閉じます。閉じているdiffはTab巡回の対象外です。狭い端末ではグラフと操作中のペインを上下に並べます（最小20列×10行）。`?`のヘルプは`j`／`k`やマウスホイールでスクロールできます。
+グラフは常に表示し、その下にkeifuのCommit Detail（作者・日時・親・ブランチ・メッセージ）を表示します。`6`で詳細に移動し、`j`／`k`やホイールでスクロールできます。差分を開く間は下段をDiffに切り替え、閉じると詳細に戻ります。Files／Graph／Stashesの`Enter`、または`0`でdiffを開き、`Esc`で閉じます。閉じているdiffはTab巡回の対象外です。狭い端末ではグラフと操作中のペインを上下に並べます（最小20列×10行）。`?`のヘルプは小さめのポップアップで、`j`／`k`やマウスホイールでスクロールし、`Esc`・`?`または外側クリックで閉じます。
 
 作業ペインは画面幅の約4割です。Filesの高さは作業領域の半分で、変更件数やタブを切り替えても動きません。Filesペイン（`2`）ではFiles／Worktrees／Submodules、Branchesペイン（`3`）ではLocal／Remotes／Tagsを`[`／`]`または見出しのクリックで切り替えます。Remotesはリモート追跡ブランチの一覧です。Worktrees／初期化済みSubmodulesの`Enter`でそのリポジトリを開き、Tagsの`Enter`でコミット差分を表示します。
 

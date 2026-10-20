@@ -54,6 +54,7 @@ jobs:
           python3 scripts/test-layout.py
           python3 scripts/test-tabs.py
           python3 scripts/test-polish.py
+          python3 scripts/test-detail.py
 
   security:
     name: Security Audit

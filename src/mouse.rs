@@ -90,6 +90,7 @@ fn selection_area(app: &App, position: Position) -> Rect {
                 app.layout.commit_detail,
                 app.layout.files,
                 app.workspace.branches_rect,
+                app.workspace.detail_rect,
                 app.workspace.stash_rect,
                 app.workspace.status_rect,
             ]
@@ -235,6 +236,13 @@ fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
 }
 
 fn handle_click(app: &mut App, x: u16, y: u16) {
+    if app.workspace.help {
+        if !contains(app.workspace.help_rect, x, y) {
+            app.workspace.help = false;
+            app.last_click = None;
+        }
+        return;
+    }
     if matches!(app.mode, AppMode::Normal) {
         app.workspace_click(x, y);
         return;

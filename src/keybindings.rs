@@ -49,6 +49,7 @@ fn map_normal_mode(key: KeyEvent) -> Option<Action> {
         (_, KeyCode::Char('3')) => Some(Action::FocusPanel(Panel::Branches)),
         (_, KeyCode::Char('4')) => Some(Action::FocusPanel(Panel::Graph)),
         (_, KeyCode::Char('5')) => Some(Action::FocusPanel(Panel::Stashes)),
+        (_, KeyCode::Char('6')) => Some(Action::FocusPanel(Panel::CommitDetail)),
         (_, KeyCode::Char('0')) => Some(Action::FocusPanel(Panel::Diff)),
         (_, KeyCode::Char('j') | KeyCode::Down) => Some(Action::MoveDown),
         (_, KeyCode::Char('k') | KeyCode::Up) => Some(Action::MoveUp),

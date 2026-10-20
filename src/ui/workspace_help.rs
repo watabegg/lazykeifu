@@ -14,6 +14,7 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
                     "1 / 2 / 3 / 4 / 5",
                     "Status / Files / Branches / Graph / Stashes",
                 ),
+                ("6", "Commit detail; j / k: scroll, Enter: inspect diff"),
                 ("Tab / Shift-Tab", "Next / previous pane (also h / l)"),
                 ("j / k · ↑ / ↓", "Move selection; Ctrl-d / Ctrl-u: page"),
                 ("g / G", "First / last loaded row"),
