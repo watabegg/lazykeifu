@@ -60,6 +60,7 @@ jobs:
           python3 scripts/test-history-edit.py
           python3 scripts/test-diff-polish.py
           python3 scripts/test-keybindings.py
+          python3 scripts/test-graph-navigation.py
 
   security:
     name: Security Audit

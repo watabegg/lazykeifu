@@ -2101,11 +2101,30 @@ impl App {
     }
 
     pub fn move_selection(&mut self, delta: i32) {
-        let max = self.graph_layout.nodes.len().saturating_sub(1);
-        let current = self.graph_list_state.selected().unwrap_or(0);
-        let new = (current as i32 + delta).clamp(0, max as i32) as usize;
-        self.graph_list_state.select(Some(new));
-        self.sync_branch_selection_to_node(new);
+        let nodes = &self.graph_layout.nodes;
+        if nodes.is_empty() || delta == 0 {
+            return;
+        }
+        let current = self
+            .graph_list_state
+            .selected()
+            .unwrap_or(0)
+            .min(nodes.len() - 1);
+        // Connector-only rows carry no diff target. Count commits (including the
+        // explicit working-tree node), rather than drawing rows, when navigating.
+        let selectable = |i: &usize| nodes[*i].commit.is_some() || nodes[*i].is_uncommitted;
+        let steps = delta.unsigned_abs() as usize;
+        let next = if delta > 0 {
+            (current + 1..nodes.len())
+                .filter(selectable)
+                .take(steps)
+                .last()
+        } else {
+            (0..current).rev().filter(selectable).take(steps).last()
+        };
+        if let Some(next) = next {
+            self.select_node(next);
+        }
     }
 
     /// Select a graph node by absolute index (mouse click)
@@ -2643,6 +2662,44 @@ mod tests {
             has_collapsed_untracked_dirs: false,
         };
         make_base_app(node, DiffTarget::Uncommitted, Some(wts))
+    }
+
+    #[test]
+    fn graph_navigation_skips_connectors_but_keeps_working_tree_selectable() {
+        let mut app = make_uncommitted_app();
+        let commit = make_app(
+            Oid::from_str("1111111111111111111111111111111111111111").unwrap(),
+            None,
+        )
+        .graph_layout
+        .nodes
+        .remove(0);
+        let mut connector = commit.clone();
+        connector.commit = None;
+        app.graph_layout
+            .nodes
+            .extend([commit.clone(), connector.clone(), connector, commit]);
+        app.select_node(1);
+        app.move_selection(1);
+        assert_eq!(app.graph_list_state.selected(), Some(4));
+        app.move_selection(1);
+        assert_eq!(app.graph_list_state.selected(), Some(4));
+        app.move_selection(-1);
+        assert_eq!(app.graph_list_state.selected(), Some(1));
+        app.move_selection(-1);
+        assert_eq!(app.graph_list_state.selected(), Some(0));
+        assert!(app.is_uncommitted_selected());
+        app.move_selection(-1);
+        assert_eq!(app.graph_list_state.selected(), Some(0));
+        app.move_selection(10);
+        assert_eq!(app.graph_list_state.selected(), Some(4));
+        app.select_node(2); // Moving away from a connector selected with the mouse.
+        app.move_selection(1);
+        assert_eq!(app.graph_list_state.selected(), Some(4));
+        app.graph_layout.nodes.clear();
+        app.graph_list_state.select(None);
+        app.move_selection(1);
+        assert_eq!(app.graph_list_state.selected(), None);
     }
 
     #[test]
