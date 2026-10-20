@@ -99,6 +99,8 @@ pub enum ConfirmAction {
     Push(String),
     Pull(String),
     Discard(crate::git::changes::Discard),
+    Recovery(crate::git::recovery::Operation, bool),
+    Resolve(crate::git::recovery::Resolution),
     Stash(
         crate::git::stash::StashEntry,
         crate::git::stash::StashOperation,
@@ -1911,6 +1913,16 @@ impl App {
                     }
                     ConfirmAction::Stash(entry, operation) => {
                         self.workspace_stash_execute(entry, operation);
+                        self.mode = AppMode::Normal;
+                        return Ok(());
+                    }
+                    ConfirmAction::Recovery(operation, abort) => {
+                        self.workspace_recovery(operation, abort);
+                        self.mode = AppMode::Normal;
+                        return Ok(());
+                    }
+                    ConfirmAction::Resolve(target) => {
+                        self.workspace_resolve(target);
                         self.mode = AppMode::Normal;
                         return Ok(());
                     }

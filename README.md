@@ -32,3 +32,5 @@ python3 scripts/test-workspace.py
 `s`で作業ツリーをstashに保存します（未追跡ファイルを含み、ignoredファイルは除外）。`5`のstash一覧では`Space`でapply、`p`でpop、`d`でdrop、`Enter`で差分へ移動します。apply／popはGitの既定動作と同じく元のstage状態を復元しません。競合したpopではstashを残します。外部でstashを変更したときは`R`で一覧を更新してください。
 
 ファイル一覧の`d`で未stageの変更を確認後に破棄します（indexは保持、未追跡ファイルは削除）。差分ペインでは`[`／`]`でhunkを選び、`Space`でstage／unstageします。hunk操作は変更済みのUTF-8通常ファイルに対応し、新規・削除・rename・モード変更・バイナリはファイル単位で操作します。表示後に差分が変わった場合は`R`で再確認してください。
+
+作業ファイルの`e`でGitのエディタ設定（`GIT_EDITOR`／`core.editor`など）を使って編集し、終了後に再読込します。GUIエディタは`code --wait`のように終了を待つ設定が必要です。競合ファイルの`Space`は確認後に現在の内容を解消済みとしてstageします（競合マーカーの意味判断は行いません）。merge／rebase中は`C`で続行、`A`で中止を確認後に実行できます。続行時はGitのエディタ・フック・署名にも端末を渡します。外部エディタの起動には`sh`を使います（WindowsではGit付属の`sh`をPATHに追加する必要があります）。

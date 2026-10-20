@@ -58,6 +58,16 @@ fn main() -> Result<()> {
     // Load syntax highlighting in the background so the first file open is fast
     std::thread::spawn(ui::file_diff_view::prewarm);
 
+    // Catch terminal interrupts in the parent; exec resets these caught handlers
+    // in the editor/Git child, which remains free to handle Ctrl-C itself.
+    #[cfg(unix)]
+    let interrupted = {
+        let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        signal_hook::flag::register(signal_hook::consts::SIGINT, flag.clone())?;
+        signal_hook::flag::register(signal_hook::consts::SIGQUIT, flag.clone())?;
+        flag
+    };
+
     // Initialize application
     let mut app = App::new()?;
 
@@ -74,6 +84,10 @@ fn main() -> Result<()> {
 
     // Main loop
     loop {
+        #[cfg(unix)]
+        if interrupted.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            app.should_quit = true;
+        }
         // Render
         let draw_started = std::time::Instant::now();
         terminal.draw(|frame| {
@@ -143,6 +157,48 @@ fn main() -> Result<()> {
                     command.request,
                 );
                 let _ = command.reply.send(response);
+            }
+        }
+
+        if let Some(request) = app.workspace.external.take() {
+            // Prepare before surrendering the terminal so validation errors remain in the TUI.
+            match request.command(&app.repo.repo) {
+                Err(error) => {
+                    let _ = app.refresh(true);
+                    app.show_error(error.to_string());
+                }
+                Ok(mut command) => {
+                    drop(event_reader);
+                    terminal.show_cursor()?;
+                    tui::restore()?;
+                    let result = command.status();
+                    #[cfg(unix)]
+                    interrupted.store(false, std::sync::atomic::Ordering::SeqCst);
+                    terminal = tui::init()?;
+                    terminal.clear()?;
+                    event_reader = match EventReader::new() {
+                        Ok(reader) => reader,
+                        Err(error) => {
+                            let _ = tui::restore();
+                            return Err(error);
+                        }
+                    };
+                    app.text_selection = None;
+                    app.last_click = None;
+                    app.workspace.commit = None;
+                    app.workspace.stash_preview = None;
+                    app.workspace.invalidate();
+                    let refresh = app.refresh(true);
+                    match result {
+                        Ok(status) if status.success() => app.set_message("Returned from Git / editor; files refreshed"),
+                        Ok(status) => app.show_error(format!("Git / editor exited with {status}; inspect the refreshed files and operation status")),
+                        Err(error) => app.show_error(format!("Could not launch Git / editor: {error}")),
+                    }
+                    if let Err(error) = refresh {
+                        app.show_error(format!("Refresh failed: {error}"));
+                    }
+                    last_user_input = Instant::now();
+                }
             }
         }
 

@@ -25,3 +25,5 @@ pub mod command;
 pub mod stash;
 
 pub mod changes;
+
+pub mod recovery;

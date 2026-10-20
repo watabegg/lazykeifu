@@ -27,11 +27,16 @@ def init(root):
 
 
 class Tui:
-    def __init__(self, root, config, slow_diff=False):
+    def __init__(self, root, config, slow_diff=False, env_overrides=None, stdin_pipe=False):
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             self.port = sock.getsockname()[1]
         env = dict(os.environ, XDG_CONFIG_HOME=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null')
+        for key, value in (env_overrides or {}).items():
+            if value is None:
+                env.pop(key, None)
+            else:
+                env[key] = value
         # All interpolated values are generated paths / integers; quote the binary path.
         import shlex
         if slow_diff:
@@ -46,7 +51,7 @@ class Tui:
         # otherwise clears hit-test rectangles between debug requests.
         command = f'stty rows 32 cols 120; exec {shlex.quote(str(BINARY))} --debug-listen 127.0.0.1:{self.port} --log-file {shlex.quote(str(config.parent / "tui-test.log"))}'
         self.proc = subprocess.Popen(['script', '-qec', command, '/dev/null'], cwd=root, env=env,
-                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                     stdin=subprocess.PIPE if stdin_pipe else subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             self.wait(lambda: self.state()['mode'] == 'normal')
         except BaseException:

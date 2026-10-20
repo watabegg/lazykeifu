@@ -35,6 +35,9 @@ pub enum Action {
     Push,
     Pull,
     StashSave,
+    EditFile,
+    ContinueOperation,
+    AbortOperation,
 
     // Clipboard
     CopyHash,

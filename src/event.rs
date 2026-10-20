@@ -2,7 +2,7 @@
 
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TryRecvError, TrySendError};
 use std::sync::{
-    atomic::{AtomicUsize, Ordering},
+    atomic::{AtomicBool, AtomicUsize, Ordering},
     Arc,
 };
 use std::thread;
@@ -66,6 +66,8 @@ enum InputMessage {
 pub struct EventReader {
     receiver: Receiver<InputMessage>,
     raw_count: Arc<AtomicUsize>,
+    stop: Arc<AtomicBool>,
+    thread: Option<thread::JoinHandle<()>>,
 }
 
 impl EventReader {
@@ -73,11 +75,22 @@ impl EventReader {
         let (sender, receiver) = mpsc::sync_channel(MAX_BUFFERED_EVENTS);
         let raw_count = Arc::new(AtomicUsize::new(0));
         let reader_raw_count = Arc::clone(&raw_count);
-        let _reader_thread = thread::Builder::new()
+        let stop = Arc::new(AtomicBool::new(false));
+        let reader_stop = Arc::clone(&stop);
+        let reader_thread = thread::Builder::new()
             .name("lazykeifu-input".to_string())
             .spawn(move || {
                 let mut scroll = ScrollNormalizer::default();
-                loop {
+                while !reader_stop.load(Ordering::Acquire) {
+                    match event::poll(Duration::from_millis(50)) {
+                        Ok(false) => continue,
+                        Ok(true) if reader_stop.load(Ordering::Acquire) => break,
+                        Ok(true) => {}
+                        Err(error) => {
+                            let _ = sender.send(InputMessage::Error(error.to_string()));
+                            break;
+                        }
+                    }
                     match event::read() {
                         Ok(event) => {
                             reader_raw_count.fetch_add(1, Ordering::Relaxed);
@@ -102,6 +115,8 @@ impl EventReader {
         Ok(Self {
             receiver,
             raw_count,
+            stop,
+            thread: Some(reader_thread),
         })
     }
 
@@ -148,6 +163,18 @@ impl EventReader {
         match message {
             InputMessage::Event(event) => Ok(event),
             InputMessage::Error(error) => Err(anyhow!("Terminal input failed: {error}")),
+        }
+    }
+}
+
+impl Drop for EventReader {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+        // Disconnect before joining: a full key queue can block the sender.
+        let (_, replacement) = mpsc::sync_channel(1);
+        drop(std::mem::replace(&mut self.receiver, replacement));
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
         }
     }
 }

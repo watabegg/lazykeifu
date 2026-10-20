@@ -70,7 +70,13 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     }
     let status = format!(
         "{} · {} files{}{}",
-        app.head_name.as_deref().unwrap_or("unborn HEAD"),
+        app.head_name
+            .as_deref()
+            .unwrap_or(if app.repo.repo.head().is_ok() {
+                "detached HEAD"
+            } else {
+                "unborn HEAD"
+            }),
         app.workspace.files.len(),
         if app.workspace.busy() || app.is_pushing() {
             " · busy"
@@ -234,8 +240,17 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             .block(pane_block(&title, focus == Panel::Diff)),
         app.layout.commit_detail,
     );
-    let hints =
-        "2 files 3 branches 4 graph 5 stash 0 diff · Tab/h/l focus · Space stage · c commit · ? help";
+    let hints = match crate::git::recovery::kind(&app.repo.repo) {
+        Some(crate::git::recovery::Kind::Merge) => {
+            "MERGE: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
+        }
+        Some(crate::git::recovery::Kind::Rebase) => {
+            "REBASE: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
+        }
+        None => {
+            "2 files 3 branches 4 graph 5 stash 0 diff · Tab/h/l focus · e edit · c commit · ? help"
+        }
+    };
     let message = app.get_message().unwrap_or(if focus == Panel::Stashes {
         "Space: apply · p: pop · d: drop · Enter: diff · s: save stash"
     } else if focus == Panel::Diff
@@ -304,6 +319,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.workspace.help {
         let rect = super::centered_rect(90, 90, area);
         frame.render_widget(Clear, rect);
-        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
+        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.\ne: edit working file using Git editor settings (wait for editor exit)\nMerge/rebase: C continue · A abort (confirmation)\nConflicted file: Space marks current contents resolved (confirmation)").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
     }
 }

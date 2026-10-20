@@ -49,6 +49,7 @@ struct PreviewKey {
 #[derive(Default)]
 pub struct Workspace {
     pub focus: Panel,
+    pub external: Option<crate::external::Request>,
     pub stashes: Vec<crate::git::stash::StashEntry>,
     pub stash_state: ListState,
     pub stash_rect: Rect,
@@ -264,7 +265,7 @@ impl Workspace {
     }
 
     pub fn busy(&self) -> bool {
-        self.job.is_some()
+        self.job.is_some() || self.external.is_some()
     }
     pub fn preview_loading(&self) -> bool {
         let key = PreviewKey {
@@ -502,6 +503,9 @@ impl App {
         if focus == Panel::Files {
             self.workspace.load_files(&self.repo.repo)?;
         }
+        if self.workspace_recovery_action(action)? {
+            return Ok(true);
+        }
         if self.workspace_changes_action(action)? {
             return Ok(true);
         }
@@ -673,6 +677,9 @@ impl App {
                     self.set_message("Select working files with 2 first");
                 } else {
                     if *action == Action::StageAll {
+                        if self.repo.repo.index()?.has_conflicts() {
+                            bail!("Resolve conflicts individually with Space before staging all");
+                        }
                         git_output(&self.repo.repo, &["add".as_ref(), "--all".as_ref()])?;
                     } else {
                         if self.repo.repo.head().is_ok() {
@@ -1039,5 +1046,89 @@ impl App {
     }
     pub fn workspace_discard(&mut self, target: crate::git::changes::Discard) {
         self.workspace_git_job(move |repo| crate::git::changes::discard(repo, &target));
+    }
+}
+
+impl App {
+    fn workspace_recovery_action(&mut self, action: &Action) -> Result<bool> {
+        use crate::{
+            app::ConfirmAction,
+            external::Request,
+            git::recovery::{Operation, Resolution},
+        };
+        if matches!(action, Action::ContinueOperation | Action::AbortOperation) {
+            let operation = Operation::capture(&self.repo.repo)?;
+            let abort = *action == Action::AbortOperation;
+            self.mode = AppMode::Confirm {
+                message: format!(
+                    "{} {}? {}",
+                    if abort { "Abort" } else { "Continue" },
+                    operation.kind.command(),
+                    if abort {
+                        "Git may discard conflict-resolution edits."
+                    } else {
+                        "Git will use the terminal for its editor and hooks."
+                    }
+                ),
+                action: ConfirmAction::Recovery(operation, abort),
+            };
+            return Ok(true);
+        }
+        let resolve = matches!(self.workspace.focus, Panel::Files | Panel::Diff)
+            && *action == Action::StageToggle;
+        if *action != Action::EditFile && !resolve {
+            return Ok(false);
+        }
+        if self.workspace.commit.is_some()
+            || self.workspace.stash_preview.is_some()
+            || !matches!(self.workspace.focus, Panel::Files | Panel::Diff)
+        {
+            if *action == Action::EditFile {
+                self.set_message("Select a working file with 2 first");
+                return Ok(true);
+            }
+            return Ok(false);
+        }
+        let Some(row) = self
+            .workspace
+            .file_state
+            .selected()
+            .and_then(|i| self.workspace.files.get(i))
+            .cloned()
+        else {
+            return Ok(false);
+        };
+        if *action == Action::EditFile {
+            self.workspace.external = Some(Request::Edit(row.path));
+            return Ok(true);
+        }
+        if row.conflict {
+            if self.workspace.preview_loading() {
+                self.set_message("Wait for the current diff to load");
+                return Ok(true);
+            }
+            if let Some(key) = &self.workspace.preview_key {
+                if preview(&self.repo.repo, key)? != self.workspace.preview {
+                    bail!("Diff changed; refresh and review the resolution first");
+                }
+            }
+            let target = Resolution::capture(&self.repo.repo, &row.path)?;
+            self.mode = AppMode::Confirm {
+                message: format!("Mark {} resolved and stage current contents? Review any conflict markers before confirming.", row.path.display()),
+                action: ConfirmAction::Resolve(target),
+            };
+            return Ok(true);
+        }
+        Ok(false)
+    }
+    pub fn workspace_recovery(&mut self, operation: crate::git::recovery::Operation, abort: bool) {
+        if abort {
+            self.workspace_git_job(move |repo| operation.abort(repo));
+        } else {
+            self.workspace.external = Some(crate::external::Request::Continue(operation));
+        }
+    }
+    pub fn workspace_resolve(&mut self, target: crate::git::recovery::Resolution) {
+        self.workspace_git_job(move |repo| target.stage(repo));
     }
 }

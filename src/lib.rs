@@ -17,3 +17,5 @@ pub mod tui;
 pub mod ui;
 
 pub mod workspace;
+
+pub mod external;

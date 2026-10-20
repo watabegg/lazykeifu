@@ -208,6 +208,7 @@ fn state_json(app: &App) -> Value {
     json!({
         "ok": true,
         "mode": mode,
+        "git_operation": crate::git::recovery::kind(&app.repo.repo).map(|kind| kind.command()),
         "workspace_hunk": app.workspace.hunk_index,
         "workspace_stash_count": app.workspace.stashes.len(),
         "workspace_stash": app.workspace.stash_preview.map(|oid| oid.to_string()),
