@@ -37,4 +37,4 @@ after a fix.
 - `origin` is `watabegg/pedigit`; `upstream` is `trasta298/keifu`.
 - Preserve upstream copyright notices and graph regression tests.
 - The executable/crate is `pedigit`; use `PEDIGIT_LOG` and the `pedigit` config directory.
-- Release automation is parked in `.github/workflows/release.yaml.disabled`; Cargo publishing is disabled until distribution is ready. Do not use the inherited release skill without adapting it first.
+- Distribution uses crates.io and the mise Cargo backend. Follow `.agents/skills/release/SKILL.md`. GitHub binary release automation remains disabled in `.github/workflows/release.yaml.disabled`.
