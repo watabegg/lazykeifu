@@ -37,6 +37,7 @@ pub enum Action {
     StageAll,
     UnstageAll,
     CommitDialog,
+    GitMenu,
     Push,
     Pull,
     StashSave,

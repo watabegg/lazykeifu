@@ -197,6 +197,7 @@ fn render_to_text(app: &mut App, width: u16, height: u16) -> Result<String> {
 fn state_json(app: &App) -> Value {
     let mode = match &app.mode {
         AppMode::Normal => "normal",
+        AppMode::GitMenu(_) => "git_menu",
         AppMode::Help => "help",
         AppMode::Input { .. } => "input",
         AppMode::Confirm { .. } => "confirm",
@@ -220,7 +221,7 @@ fn state_json(app: &App) -> Value {
         "staged_count": app.workspace.composer.staged.len(),
         "fields": app.workspace.composer.fields.iter().map(|r| [r.x,r.y,r.width,r.height]).collect::<Vec<_>>(),
     });
-    json!({
+    let mut state = json!({
         "ok": true,
         "mode": mode,
         "git_operation": crate::git::recovery::kind(&app.repo.repo).map(|kind| kind.command()),
@@ -241,6 +242,7 @@ fn state_json(app: &App) -> Value {
         },
         "detail_scroll": app.detail_scroll,
         "composer": composer,
+
         "workspace_hunk": app.workspace.hunk_index,
         "workspace_stash_count": app.workspace.stashes.len(),
         "workspace_stash": app.workspace.stash_preview.map(|oid| oid.to_string()),
@@ -270,7 +272,13 @@ fn state_json(app: &App) -> Value {
         "selected_text": app.text_selection.as_ref().filter(|s| s.dragged).map(|s| s.text()),
         "is_fetching": app.is_fetching(),
         "is_pushing": app.is_pushing(),
-    })
+    });
+    state["git_menu"] = if let AppMode::GitMenu(menu) = &app.mode {
+        json!({"title":menu.title,"items":menu.rows.iter().map(|(label,_)|label).collect::<Vec<_>>(),"selected":menu.selected})
+    } else {
+        json!(null)
+    };
+    state
 }
 
 /// Parse a key sequence like "j j <enter> G <c-d> @"

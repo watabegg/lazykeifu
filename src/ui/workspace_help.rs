@@ -25,6 +25,26 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
             ],
         ),
         (
+            "History & refs",
+            &[
+                (
+                    "x",
+                    "Git actions: amend / reword HEAD, undo, reset, reflog, tag",
+                ),
+                ("x in Local", "Rename selected local branch"),
+                (
+                    "Amend / Reword",
+                    "Include staged changes / change message only",
+                ),
+                ("Undo", "Move HEAD to first parent; keep changes staged"),
+                (
+                    "Reset",
+                    "Soft: keep index; mixed: unstage; hard: clean worktree only",
+                ),
+                ("Reflog", "Last 200 HEAD entries; Enter chooses reset mode"),
+            ],
+        ),
+        (
             "Files & staging",
             &[
                 ("Space", "Stage / unstage selected file"),

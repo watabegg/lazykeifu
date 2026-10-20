@@ -435,3 +435,5 @@ fn bottom_rect(percent_x: u16, height: u16, area: Rect) -> Rect {
 
     Rect::new(horizontal[1].x, y, horizontal[1].width, clamped_height)
 }
+
+pub mod patch;

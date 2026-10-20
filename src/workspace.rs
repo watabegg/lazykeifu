@@ -49,6 +49,11 @@ struct PreviewKey {
     staged: bool,
 }
 
+type PreviewResult = (
+    PreviewKey,
+    Result<(String, crate::ui::patch::PatchView), String>,
+);
+
 #[derive(Default)]
 pub struct Workspace {
     pub focus: Panel,
@@ -67,6 +72,7 @@ pub struct Workspace {
     pub commit: Option<Oid>,
     pub staged: bool,
     pub preview: String,
+    pub patch: crate::ui::patch::PatchView,
     pub scroll: u16,
     pub horizontal: u16,
     pub diff_height: u16,
@@ -83,7 +89,7 @@ pub struct Workspace {
     loaded: bool,
     files_commit: Option<Oid>,
     preview_key: Option<PreviewKey>,
-    preview_rx: Option<Receiver<(PreviewKey, Result<String, String>)>>,
+    preview_rx: Option<Receiver<PreviewResult>>,
     job: Option<Receiver<Result<String, String>>>,
     commit_message: Option<String>,
 }
@@ -196,10 +202,14 @@ fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
         if bytes.contains(&0) {
             return Ok("Binary untracked file".into());
         }
+        let text = String::from_utf8_lossy(&bytes);
+        let count = text.lines().count();
         return Ok(format!(
-            "Untracked: {}\n{}",
+            "diff --git a/{0} b/{0}\nnew file (untracked)\n@@ -0,0 +1,{count} @@\n{1}",
             path.display(),
-            String::from_utf8_lossy(&bytes)
+            text.lines()
+                .map(|line| format!("+{line}\n"))
+                .collect::<String>()
         ));
     }
     if key.commit.is_none() {
@@ -409,6 +419,8 @@ impl App {
             self.workspace.files.clear();
             self.workspace.loaded = true;
             self.workspace.preview = e.to_string();
+            self.workspace.patch =
+                crate::ui::patch::PatchView::build(&self.workspace.preview, None);
             return;
         }
         if !self.composing() {
@@ -432,8 +444,21 @@ impl App {
             staged: self.workspace.staged,
         };
         if self.composing() && self.workspace.composer.staged.is_empty() {
-            self.workspace.preview =
-                "No staged changes. Esc returns to Files; the draft is kept.".into();
+            self.workspace.preview = if self
+                .workspace
+                .composer
+                .amend
+                .as_ref()
+                .is_some_and(|(_, only)| *only)
+            {
+                "Message-only amend. Staged changes are kept for your next commit.".into()
+            } else if self.workspace.composer.amend.is_some() {
+                "No new staged changes. Amend keeps the current HEAD contents.".into()
+            } else {
+                "No staged changes. Esc returns to Files; the draft is kept.".into()
+            };
+            self.workspace.patch =
+                crate::ui::patch::PatchView::build(&self.workspace.preview, None);
             self.workspace.preview_rx = None;
             self.workspace.preview_key = Some(key);
             return;
@@ -443,6 +468,8 @@ impl App {
             // Returning to that file while another result is in flight must reload it.
             self.workspace.preview_key = None;
             self.workspace.preview = "Loading diff…".into();
+            self.workspace.patch =
+                crate::ui::patch::PatchView::build(&self.workspace.preview, None);
             self.workspace.hunk_index = 0;
             self.workspace.scroll = 0;
             self.workspace.horizontal = 0;
@@ -452,13 +479,20 @@ impl App {
                 Ok((received, result)) => {
                     self.workspace.preview_rx = None;
                     if received == key {
-                        self.workspace.preview = result.unwrap_or_else(|e| e);
+                        let (text, patch) = result.unwrap_or_else(|e| {
+                            let patch = crate::ui::patch::PatchView::build(&e, None);
+                            (e, patch)
+                        });
+                        self.workspace.preview = text;
+                        self.workspace.patch = patch;
                         self.workspace.preview_key = Some(received);
                     }
                 }
                 Err(mpsc::TryRecvError::Disconnected) => {
                     self.workspace.preview_rx = None;
                     self.workspace.preview = "Diff worker stopped".into();
+                    self.workspace.patch =
+                        crate::ui::patch::PatchView::build(&self.workspace.preview, None);
                     self.workspace.preview_key = Some(key.clone());
                 }
                 Err(mpsc::TryRecvError::Empty) => {}
@@ -472,7 +506,18 @@ impl App {
             thread::spawn(move || {
                 let result = Repository::open(path)
                     .map_err(anyhow::Error::from)
-                    .and_then(|r| preview(&r, &key));
+                    .and_then(|r| preview(&r, &key))
+                    .map(|text| {
+                        let patch = crate::ui::patch::PatchView::build(
+                            &text,
+                            if key.stash_view {
+                                None
+                            } else {
+                                key.path.as_deref()
+                            },
+                        );
+                        (text, patch)
+                    });
                 let _ = tx.send((key, result.map_err(|e| e.to_string())));
             });
         }
@@ -497,12 +542,17 @@ impl App {
         self.workspace.job = Some(rx);
         self.workspace.commit_message = Some(message.clone());
         let path = self.repo_path.clone();
+        let amend = self.workspace.composer.amend.clone();
         self.set_message("Committing… (hooks and signing enabled)");
         thread::spawn(move || {
             let result = Repository::open(path)
                 .map_err(anyhow::Error::from)
                 .and_then(|repo| {
-                    git_output(&repo, &["commit".as_ref(), "-m".as_ref(), message.as_ref()])
+                    if let Some((snapshot, message_only)) = amend {
+                        crate::git::history::amend(&repo, &snapshot, &message, message_only)
+                    } else {
+                        git_output(&repo, &["commit".as_ref(), "-m".as_ref(), message.as_ref()])
+                    }
                 });
             let _ = tx.send(result.map_err(|e| e.to_string()));
         });
@@ -571,6 +621,10 @@ impl App {
     /// Returns true for actions owned by the workspace, false for shared dialogs/operations.
     pub fn workspace_action(&mut self, action: &Action) -> Result<bool> {
         let focus = self.workspace.focus;
+        if *action == Action::GitMenu {
+            self.open_git_menu()?;
+            return Ok(true);
+        }
         if self.workspace_tabs_action(action)? {
             return Ok(true);
         }
@@ -779,9 +833,9 @@ impl App {
                     Panel::Diff => {
                         let max = self
                             .workspace
-                            .preview
-                            .lines()
-                            .count()
+                            .patch
+                            .lines
+                            .len()
                             .saturating_sub(self.workspace.diff_height as usize)
                             .min(u16::MAX as usize) as i64;
                         self.workspace.scroll = (i64::from(self.workspace.scroll)
@@ -1159,7 +1213,7 @@ impl App {
     ) {
         self.workspace_git_job(move |repo| crate::git::stash::execute(repo, &entry, operation));
     }
-    fn workspace_git_job(
+    pub(crate) fn workspace_git_job(
         &mut self,
         operation: impl FnOnce(&Repository) -> Result<String> + Send + 'static,
     ) {
@@ -1189,8 +1243,13 @@ impl App {
                 } else {
                     self.workspace.hunk_index.saturating_sub(1)
                 };
-                self.workspace.scroll = hunks[self.workspace.hunk_index]
-                    .start
+                self.workspace.scroll = self
+                    .workspace
+                    .patch
+                    .hunks
+                    .get(self.workspace.hunk_index)
+                    .copied()
+                    .unwrap_or(0)
                     .min(u16::MAX as usize) as u16;
             }
             return Ok(true);

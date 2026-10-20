@@ -18,6 +18,34 @@ use crate::{
 const DOUBLE_CLICK_WINDOW: Duration = Duration::from_millis(400);
 
 pub fn handle_mouse(app: &mut App, event: MouseEvent) {
+    if let AppMode::GitMenu(menu) = &mut app.mode {
+        let action = match event.kind {
+            MouseEventKind::ScrollDown => Some(Action::MoveDown),
+            MouseEventKind::ScrollUp => Some(Action::MoveUp),
+            MouseEventKind::Down(MouseButton::Left) => {
+                let pos = Position::new(event.column, event.row);
+                if !menu.rect.contains(pos) {
+                    Some(Action::Cancel)
+                } else if event.row > menu.rect.y
+                    && event.row < menu.rect.bottom().saturating_sub(2)
+                {
+                    menu.selected = (menu.offset + (event.row - menu.rect.y - 1) as usize)
+                        .min(menu.rows.len().saturating_sub(1));
+                    Some(Action::Checkout)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        if let Some(action) = action {
+            if let Err(e) = app.handle_action(action) {
+                app.set_message(e.to_string());
+            }
+        }
+        return;
+    }
+
     match event.kind {
         MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => handle_scroll(app, event, 1),
         MouseEventKind::Down(MouseButton::Left) => {

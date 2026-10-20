@@ -175,7 +175,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                     "▾"
                 };
                 return ListItem::new(Line::styled(
-                    format!("   {indent}{marker} {name}/"),
+                    format!("{indent}{marker} {name}/"),
                     Style::default().fg(Color::Cyan),
                 ));
             };
@@ -200,6 +200,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                 Color::Reset
             };
             ListItem::new(Line::from(vec![
+                Span::raw(indent),
                 Span::styled(
                     row.index_status.to_string(),
                     Style::default().fg(index_color),
@@ -208,7 +209,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                     row.worktree_status.to_string(),
                     Style::default().fg(worktree_color),
                 ),
-                Span::styled(format!(" {indent}{name}"), Style::default().fg(path_color)),
+                Span::styled(format!(" {name}"), Style::default().fg(path_color)),
             ]))
         })
         .collect();
@@ -386,23 +387,12 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         )
     };
     let hunks = crate::git::changes::hunks(&app.workspace.preview);
-    let selected_hunk = hunks.get(app.workspace.hunk_index);
     if focus == Panel::Diff && !hunks.is_empty() {
         title.push_str(&format!(
             " · hunk {}/{}",
             app.workspace.hunk_index + 1,
             hunks.len()
         ));
-    }
-    if let Some(file) = app
-        .workspace
-        .file_state
-        .selected()
-        .and_then(|i| app.workspace.files.get(i))
-    {
-        if app.workspace.stash_preview.is_none() {
-            title.push_str(&format!(" · {}", file.path.display()));
-        }
     }
     if app.workspace.detail_rect.height > 0 {
         let rect = app.workspace.detail_rect;
@@ -414,35 +404,27 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         app.detail_scroll = app.detail_scroll.min(max);
         frame.render_widget(widget.with_scroll(app.detail_scroll), rect);
     }
-    app.workspace.diff_height = app.layout.commit_detail.height.saturating_sub(2);
+    app.workspace.diff_height = app.layout.commit_detail.height.saturating_sub(3);
     if app.layout.commit_detail.height > 0 {
-        let lines: Vec<Line> = app
+        let path = app
             .workspace
-            .preview
-            .lines()
-            .enumerate()
-            .map(|(index, line)| {
-                let color = if line.starts_with('+') {
-                    Color::Green
-                } else if line.starts_with('-') {
-                    Color::Red
-                } else if line.starts_with("@@") {
-                    Color::Cyan
-                } else {
-                    Color::Reset
-                };
-                let mut style = Style::default().fg(color);
-                if focus == Panel::Diff && selected_hunk.is_some_and(|range| range.start == index) {
-                    style = style.bg(Color::DarkGray).add_modifier(Modifier::BOLD);
-                }
-                Line::styled(line.to_string(), style)
-            })
-            .collect();
-        frame.render_widget(
-            Paragraph::new(lines)
-                .scroll((app.workspace.scroll, app.workspace.horizontal))
-                .block(pane_block(&title, focus == Panel::Diff)),
+            .file_state
+            .selected()
+            .and_then(|i| app.workspace.files.get(i))
+            .filter(|_| app.workspace.stash_preview.is_none())
+            .map(|f| f.path.as_path());
+        super::patch::draw(
+            frame,
             app.layout.commit_detail,
+            &title,
+            path,
+            &app.workspace.patch,
+            super::patch::Viewport {
+                scroll: app.workspace.scroll,
+                horizontal: app.workspace.horizontal,
+                selected: (focus == Panel::Diff).then_some(app.workspace.hunk_index),
+                focused: focus == Panel::Diff,
+            },
         );
     }
     let context = super::context_keys::line(app);
@@ -472,6 +454,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         ]),
         footer,
     );
+    if matches!(app.mode, AppMode::GitMenu(_)) {
+        crate::git_actions::draw(frame, app);
+    }
     match &app.mode {
         AppMode::Input {
             title,
@@ -500,20 +485,19 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             let rect = super::centered_rect(80, 30, area);
             frame.render_widget(InputDialog::new(title, input), rect);
         }
-        AppMode::Confirm { message, action } => {
-            let height = if matches!(
-                action,
-                crate::app::ConfirmAction::Integrate(_)
-                    | crate::app::ConfirmAction::CommitOperation(_)
-            ) {
-                80
-            } else {
-                30
-            };
-            frame.render_widget(
-                ConfirmDialog::new(message),
-                super::centered_rect(80, height, area),
+        AppMode::Confirm { message, .. } => {
+            let width = (area.width * 4 / 5).clamp(1, 100);
+            let lines = Paragraph::new(format!("  {message}"))
+                .wrap(Wrap { trim: false })
+                .line_count(width.saturating_sub(2).max(1));
+            let height = (lines as u16 + 6).min(area.height.saturating_sub(2));
+            let rect = Rect::new(
+                (area.width - width) / 2,
+                (area.height - height) / 2,
+                width,
+                height,
             );
+            frame.render_widget(ConfirmDialog::new(message), rect);
         }
         AppMode::Error { message } => {
             let rect = super::centered_rect(85, 60, area);

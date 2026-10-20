@@ -88,27 +88,19 @@ impl CommitDetailWidget {
 
         // Handle uncommitted changes node
         if node.is_uncommitted {
-            return vec![
-                Line::from(Span::styled(
-                    " Uncommitted Changes",
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                )),
-                Line::from(""),
-                Line::from(Span::styled(
-                    match node.uncommitted_count {
-                        Some(count) => format!(" {} files with changes", count),
-                        None => " files with changes".to_string(),
-                    },
-                    Style::default().fg(Color::DarkGray),
-                )),
-                Line::from(""),
-                Line::from(Span::styled(
-                    " 2: working files · Space: stage / unstage",
-                    Style::default().fg(Color::DarkGray),
-                )),
-            ];
+            let mut lines = vec![Line::styled(
+                " Uncommitted Changes",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )];
+            lines.push(Self::change_summary(app));
+            lines.push(Line::styled(
+                " Working tree + index · untracked included",
+                Style::default().fg(Color::DarkGray),
+            ));
+            Self::changed_files(app, &mut lines);
+            return lines;
         }
 
         // Handle connector rows (no commit)
@@ -150,6 +142,8 @@ impl CommitDetailWidget {
             ]),
         ];
 
+        lines.insert(1, Self::change_summary(app));
+
         // Parent commits
         if !commit.parent_oids.is_empty() {
             let parents: Vec<String> = commit
@@ -180,17 +174,55 @@ impl CommitDetailWidget {
             lines.push(Line::from(spans));
         }
 
-        lines.push(Line::from(Span::styled(
-            " ".to_string() + &"─".repeat(28),
-            Style::default().fg(Color::DarkGray),
-        )));
-
         // Message
         for line in commit.full_message.lines() {
             lines.push(Line::from(Span::raw(format!(" {}", line))));
         }
 
+        Self::changed_files(app, &mut lines);
         lines
+    }
+    fn change_summary(app: &App) -> Line<'static> {
+        if let Some(diff) = app.cached_diff() {
+            let mut line = super::patch::totals(
+                Some(diff.total_files),
+                diff.total_insertions,
+                diff.total_deletions,
+            );
+            line.spans.insert(0, Span::raw(" "));
+            line
+        } else {
+            Line::styled(" Changes · loading…", Style::default().fg(Color::DarkGray))
+        }
+    }
+    fn changed_files(app: &App, lines: &mut Vec<Line<'static>>) {
+        if let Some(diff) = app.cached_diff() {
+            lines.push(Line::styled(
+                " Changed files",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ));
+            for file in &diff.files {
+                let mut line = if file.is_binary {
+                    Line::styled(" binary", Style::default().fg(Color::Yellow))
+                } else {
+                    super::patch::totals(None, file.insertions, file.deletions)
+                };
+                line.spans
+                    .push(Span::raw(format!("  {}", file.path.display())));
+                lines.push(line);
+            }
+            if diff.truncated {
+                lines.push(Line::styled(
+                    format!(
+                        " … {} more files; open Files to inspect",
+                        diff.total_files.saturating_sub(diff.files.len())
+                    ),
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+        }
     }
 }
 

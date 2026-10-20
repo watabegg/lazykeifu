@@ -85,7 +85,7 @@ impl StatusBar {
         let mut mode_label = None;
 
         match &app.mode {
-            AppMode::Normal => {
+            AppMode::GitMenu(_) | AppMode::Normal => {
                 if let Some(msg) = app.get_message() {
                     // Yellow for in-progress, Cyan for success
                     let bg = if app.is_fetching() || app.is_pushing() {

@@ -25,3 +25,5 @@ pub mod workspace_tabs;
 pub mod commit_composer;
 
 pub mod file_tree;
+
+pub mod git_actions;

@@ -128,6 +128,7 @@ pub enum Field {
 }
 #[derive(Default)]
 pub struct Composer {
+    pub amend: Option<(crate::git::history::Snapshot, bool)>,
     pub subject: Editor,
     pub body: Editor,
     pub field: Field,
@@ -199,6 +200,12 @@ impl App {
             .map(|(i, _)| i)
             .collect();
         c.selected = c.selected.min(c.staged.len().saturating_sub(1));
+        if c.amend
+            .as_ref()
+            .is_some_and(|(_, message_only)| *message_only)
+        {
+            c.staged.clear();
+        }
         self.composer_select();
         Ok(())
     }
@@ -216,7 +223,7 @@ impl App {
     }
     pub(crate) fn open_composer(&mut self) -> Result<()> {
         self.composer_refresh()?;
-        if self.workspace.composer.staged.is_empty() {
+        if self.workspace.composer.staged.is_empty() && self.workspace.composer.amend.is_none() {
             if self.workspace.files.is_empty() {
                 self.set_message("No changes to commit");
             } else {
@@ -254,8 +261,15 @@ impl App {
             );
             return Ok(());
         }
-        if self.workspace.composer.staged.is_empty() {
+        if self.workspace.composer.staged.is_empty() && self.workspace.composer.amend.is_none() {
             bail!("No staged changes; return to Files to stage a change");
+        }
+        if let Some((snapshot, _)) = &mut self.workspace.composer.amend {
+            let current = crate::git::history::Snapshot::capture(&self.repo.repo)?;
+            if current.head != snapshot.head || current.reference != snapshot.reference {
+                bail!("HEAD or branch changed; close this draft and reopen amend from Git actions");
+            }
+            snapshot.tree = current.tree;
         }
         self.workspace_commit(self.workspace.composer.message());
         Ok(())
@@ -327,9 +341,9 @@ impl App {
                 };
                 let max = self
                     .workspace
-                    .preview
-                    .lines()
-                    .count()
+                    .patch
+                    .lines
+                    .len()
                     .saturating_sub(self.workspace.diff_height as usize);
                 self.workspace.scroll = (i64::from(self.workspace.scroll) + delta)
                     .clamp(0, max.min(u16::MAX as usize) as i64)
@@ -463,9 +477,9 @@ impl App {
         {
             let max = self
                 .workspace
-                .preview
-                .lines()
-                .count()
+                .patch
+                .lines
+                .len()
                 .saturating_sub(self.workspace.diff_height as usize);
             self.workspace.scroll = (i64::from(self.workspace.scroll) + i64::from(delta))
                 .clamp(0, max.min(u16::MAX as usize) as i64)

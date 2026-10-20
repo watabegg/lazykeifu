@@ -34,6 +34,7 @@ use crate::{
 pub enum AppMode {
     Normal,
     Help,
+    GitMenu(crate::git_actions::Menu),
     Input {
         title: String,
         input: String,
@@ -70,6 +71,8 @@ pub enum InputAction {
     Search,
     CommitMessage,
     StashMessage,
+    CreateTag(Oid),
+    RenameBranch(crate::git::history::Rename),
 }
 
 /// Focusable panes in Normal mode
@@ -93,6 +96,8 @@ pub struct LayoutMap {
 #[derive(Debug, Clone)]
 pub enum ConfirmAction {
     StageAllCommit,
+    Amend(crate::git::history::Snapshot, bool),
+    Reset(crate::git::history::Reset),
     DeleteBranch(String),
     Integrate(crate::git::integrate::Integration),
     CommitOperation(crate::git::commit_operation::CommitOperation),
@@ -1196,6 +1201,10 @@ impl App {
             self.set_message("Git operation in progress…");
             return Ok(());
         }
+        if matches!(self.mode, AppMode::GitMenu(_)) {
+            return self.git_menu_action(action);
+        }
+
         if self.workspace.help {
             if matches!(action, Action::ToggleHelp | Action::Cancel | Action::Quit) {
                 self.workspace.help = false;
@@ -1216,6 +1225,7 @@ impl App {
         }
 
         match &self.mode {
+            AppMode::GitMenu(_) => {}
             AppMode::Normal => self.handle_normal_action(action)?,
             AppMode::Help => self.handle_help_action(action),
             AppMode::Input { .. } => self.handle_input_action(action)?,
@@ -1815,6 +1825,17 @@ impl App {
         match action {
             Action::Confirm => {
                 match input_action {
+                    InputAction::CreateTag(target) => {
+                        let message =
+                            crate::git::history::create_tag(&self.repo.repo, input.trim(), target)?;
+                        self.refresh(true)?;
+                        self.set_message(message);
+                    }
+                    InputAction::RenameBranch(target) => {
+                        let message = target.execute(&self.repo.repo, input.trim())?;
+                        self.refresh(true)?;
+                        self.set_message(message);
+                    }
                     InputAction::CreateBranch => {
                         if !input.is_empty() {
                             if let Some(node) = self.selected_commit_node() {
@@ -1961,6 +1982,16 @@ impl App {
         match action {
             Action::Confirm => {
                 match confirm_action {
+                    ConfirmAction::Amend(snapshot, message_only) => {
+                        snapshot.verify(&self.repo.repo)?;
+                        self.open_amend(message_only)?;
+                        return Ok(());
+                    }
+                    ConfirmAction::Reset(target) => {
+                        self.workspace_git_job(move |repo| target.execute(repo));
+                        self.mode = AppMode::Normal;
+                        return Ok(());
+                    }
                     ConfirmAction::StageAllCommit => {
                         if self.repo.repo.index()?.has_conflicts() {
                             anyhow::bail!("Resolve conflicts before staging all");

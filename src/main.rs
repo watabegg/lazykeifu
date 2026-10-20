@@ -208,6 +208,7 @@ fn main() -> Result<()> {
         }
 
         app.workspace_tick();
+        app.update_diff_cache();
         let allow_repository_refresh = last_user_input.elapsed() >= MAINTENANCE_IDLE_PERIOD;
         app.update_fetch_status(allow_repository_refresh && !app.workspace.busy());
         app.update_push_status(allow_repository_refresh && !app.workspace.busy());

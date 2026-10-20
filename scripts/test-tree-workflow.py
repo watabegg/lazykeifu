@@ -26,7 +26,7 @@ def run():
             assert tui.state()['workspace_file'] is None
             assert 'fold' in screen.splitlines()[-2]
             tui.keys('<enter>'); screen = tui.screen()
-            assert '▸ src/' in screen and 'nested/' not in screen, screen
+            assert '▸ src/' in screen and 'nested/' not in '\n'.join(line[:tui.state()['layout']['files'][2]] for line in screen.splitlines()), screen
             tui.keys('R'); assert '▸ src/' in tui.screen()
             assert not git(root, 'diff', '--cached', '--name-only').stdout.strip()
             tui.keys('<right> <right>'); tui.loaded()
@@ -38,7 +38,7 @@ def run():
             assert '+changed-src/a' in tui.screen()
             assert 'unstage hunk' in tui.screen().splitlines()[-2]
             tui.keys('<esc> <left> <space>')
-            assert 'nested/' not in tui.screen()
+            assert 'nested/' not in '\n'.join(line[:tui.state()['layout']['files'][2]] for line in tui.screen().splitlines())
             assert git(root, 'diff', '--cached', '--name-only').stdout.strip() == 'src/a'
             # Clicking a folder expands it without selecting/staging an unrelated file.
             screen = tui.screen(); y = next(i for i, line in enumerate(screen.splitlines()) if '▸ src/' in line)

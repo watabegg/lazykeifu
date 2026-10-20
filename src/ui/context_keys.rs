@@ -121,7 +121,15 @@ pub fn line(app: &App) -> Line<'static> {
             ],
         }
     };
-    let mut spans = Vec::new();
+    let mut spans = vec![
+        Span::styled(
+            "x",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" Git actions · "),
+    ];
     for (i, (key, label)) in keys.iter().enumerate() {
         if i > 0 {
             spans.push(Span::styled(" · ", Style::default().fg(Color::DarkGray)));

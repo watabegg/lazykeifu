@@ -13,6 +13,7 @@ pub fn map_key_to_action(key: KeyEvent, mode: &AppMode) -> Option<Action> {
         return None;
     }
     match mode {
+        AppMode::GitMenu(_) => map_normal_mode(key),
         AppMode::Normal => map_normal_mode(key),
         AppMode::Help => map_help_mode(key),
         AppMode::Input { action, .. } => {
@@ -71,6 +72,7 @@ fn map_normal_mode(key: KeyEvent) -> Option<Action> {
         (_, KeyCode::Char('a')) => Some(Action::StageAll),
         (_, KeyCode::Char('u')) => Some(Action::UnstageAll),
         (_, KeyCode::Char('c')) => Some(Action::CommitDialog),
+        (_, KeyCode::Char('x')) => Some(Action::GitMenu),
         (_, KeyCode::Char('y')) => Some(Action::CherryPick),
         (_, KeyCode::Char('V')) => Some(Action::Revert),
         (_, KeyCode::Char('+')) => Some(Action::LoadMoreHistory),

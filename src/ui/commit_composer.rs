@@ -30,7 +30,16 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         "Committing…".to_string()
     } else {
         format!(
-            "Commit · {}",
+            "{} · {}",
+            if let Some((_, only)) = app.workspace.composer.amend.as_ref() {
+                if *only {
+                    "Reword HEAD"
+                } else {
+                    "Amend HEAD"
+                }
+            } else {
+                "Commit"
+            },
             app.repo.head_name().unwrap_or_else(|| "HEAD".into())
         )
     };
@@ -59,31 +68,23 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     };
     let inner = parts[0];
     app.workspace.composer.diff_rect = parts[1];
-    app.workspace.diff_height = parts[1].height.saturating_sub(2);
-    let diff: Vec<Line> = app
+    app.workspace.diff_height = parts[1].height.saturating_sub(3);
+    let path = app
         .workspace
-        .preview
-        .lines()
-        .map(|line| {
-            Line::styled(
-                line.to_string(),
-                Style::default().fg(if line.starts_with('+') {
-                    Color::Green
-                } else if line.starts_with('-') {
-                    Color::Red
-                } else if line.starts_with("@@") {
-                    Color::Cyan
-                } else {
-                    Color::Reset
-                }),
-            )
-        })
-        .collect();
-    frame.render_widget(
-        Paragraph::new(diff)
-            .scroll((app.workspace.scroll, 0))
-            .block(pane_block("STAGED diff", false)),
+        .file_state
+        .selected()
+        .and_then(|i| app.workspace.files.get(i))
+        .map(|f| f.path.as_path());
+    super::patch::draw(
+        frame,
         parts[1],
+        "STAGED diff",
+        path,
+        &app.workspace.patch,
+        super::patch::Viewport {
+            scroll: app.workspace.scroll,
+            ..Default::default()
+        },
     );
     let field = app.workspace.composer.field;
     let compact = inner.height < 14;

@@ -57,6 +57,8 @@ jobs:
           python3 scripts/test-detail.py
           python3 scripts/test-composer.py
           python3 scripts/test-tree-workflow.py
+          python3 scripts/test-history-edit.py
+          python3 scripts/test-diff-polish.py
 
   security:
     name: Security Audit
