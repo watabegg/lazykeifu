@@ -1,68 +1,62 @@
-# lazykeifu（仮称）
+# pedigit
 
-A lightweight Git TUI client in Rust featuring a persistent graph and intuitive navigation.
+A lightweight Rust Git TUI combining keifu's graph with lazygit-inspired workflows.
 
-lazykeifu は、常設された Git グラフと詳細なコミット表示を特徴とする Rust 製の軽量 TUI クライアントです。作業ペインでのステージング、コミット、ブランチや stash の操作をキーボードから素早く実行できます。
+pedigit（pedigree + Git）は、Rust 製の軽量な Git 向け TUI です。[keifu](https://github.com/trasta298/keifu) v0.7.0 の Git グラフとコミット詳細表示を基盤とし、[lazygit](https://github.com/jesseduffield/lazygit) に着想を得たキー操作と作業ペインによって日常の Git 操作を完結させます。
 
-- [M1実装時の対応範囲](docs/workspace-m1.md)
-- [当面の開発計画](docs/development-plan.md) / [初期化の検証結果](docs/bootstrap-validation.md)
-- [設定](docs/configuration.md) / [TUIデバッグ](docs/debugging.md)
-- [上流keifuの操作説明](docs/upstream/README.md)
-- [参照用lazygit fork](https://github.com/watabegg/lazygit)
+## 特徴
 
-```sh
-cargo build --locked
-# 対象のGitリポジトリ内で実行
-/path/to/lazykeifu/target/debug/lazykeifu
+- **常設グラフと詳細表示**: 常時表示される Git グラフで履歴の全体像を把握しながら、選択したコミットの詳細情報を確認できます。
+- **ペイン内タブとファイルツリー**: Files / Worktrees / Submodules や Local / Remotes / Tags のペイン内タブを備え、変更ファイルは折り畳み可能なツリー形式で整理して扱えます。
+- **差分確認とコミットダイアログ**: ステージ済み差分を確認できるコミットダイアログを備え、diff 表示では行番号、構文の色分け、単語単位の変更強調に対応しています。
+- **日常操作の完結と多言語対応**: fetch、pull、push、stash や merge、rebase、cherry-pick、revert、競合時の続行・中止に対応しています。UI は 9 言語（en, ja, ko, nl, pl, pt, ru, zh-CN, zh-TW）をサポートします。
+
+## インストール
+
+現在はプレリリース段階のため、ソースコードからのビルドのみ提供しています。配布手順の整備が完了するまで、Cargo への公開停止（`publish = false`）および自動リリースの停止を維持します。
+
+リポジトリ: [watabegg/pedigit](https://github.com/watabegg/pedigit)
+
+```bash
+git clone https://github.com/watabegg/pedigit.git
+cd pedigit
+cargo build --release --locked
 ```
 
-グラフは常に表示し、その下にkeifuのCommit Detail（作者・日時・親・ブランチ・メッセージ）を表示します。`6`で詳細に移動し、`j`／`k`やホイールでスクロールできます。差分を開く間は下段をDiffに切り替え、閉じると詳細に戻ります。Files／Graph／Stashesの`Enter`、または`0`でdiffを開き、`Esc`で閉じます。閉じているdiffはTab巡回の対象外です。狭い端末ではグラフと操作中のペインを上下に並べます（最小20列×10行）。`?`のヘルプは小さめのポップアップで、`j`／`k`やマウスホイールでスクロールし、`Esc`・`?`または外側クリックで閉じます。
+ビルド後、対象リポジトリ内で生成されたバイナリを実行します。
 
-作業ペインは画面幅の約4割です。Filesの高さは作業領域の半分で、変更件数やタブを切り替えても動きません。Filesペイン（`2`）ではFiles／Worktrees／Submodules、Branchesペイン（`3`）ではLocal／Remotes／Tagsを`[`／`]`または見出しのクリックで切り替えます。Remotesはリモート追跡ブランチの一覧です。Worktrees／初期化済みSubmodulesの`Enter`でそのリポジトリを開き、Tagsの`Enter`でコミット差分を表示します。
+```bash
+/path/to/pedigit/target/release/pedigit
+```
 
-ファイル状態はGitの2列表示です。左がstage済み、右が未stageです。`M`変更（黄）、`A`追加（緑）、`D`削除（赤）、`R`rename（水色）、`??`未追跡（紫）、`UU`などの競合（明るい赤）で種類を区別します。部分stageは`MM`のように両方を表示します。
+## 設定
 
-設定はOSの設定ディレクトリ内の `lazykeifu/config.toml`（Linuxでは通常 `~/.config/lazykeifu/config.toml`）、ログレベルは `LAZYKEIFU_LOG` を使用します。既存のkeifuの設定は読みません。現在の既定動作では60秒ごとにGit設定に従ってfetchします。変更方法は設定ドキュメントを参照してください。
+設定ファイルは OS の設定ディレクトリ（Linux の場合は通常 `~/.config/pedigit/config.toml`）に配置します。表示言語は設定ファイルの `ui.language = "ja"` や CLI オプション `--language ja` で指定でき、ログ出力の制御には環境変数 `PEDIGIT_LOG` を使用します。
 
-UIはlazygitと同じ9言語に対応します。`[ui]`の`language = "ja"`、または`lazykeifu --language ja`で日本語にできます。既定の`auto`は端末の言語設定を使います。
+旧設定ファイルや旧環境変数からの引き継ぎは行いません。設定やログ出力の制御には、`pedigit` の設定ファイルおよび環境変数を使用してください。
 
-```sh
-cargo fmt --check
+## ドキュメント
+
+詳細な情報は以下のドキュメントを参照してください。
+
+- 操作方法: [docs/usage.md](docs/usage.md)
+- 設定一覧: [docs/configuration.md](docs/configuration.md)
+- 開発計画: [docs/development-plan.md](docs/development-plan.md)
+- デバッグ: [docs/debugging.md](docs/debugging.md)
+
+開発時のコード検証:
+
+```bash
 cargo test --locked
 cargo clippy --all-targets --locked -- -D warnings
-# Linuxで実TUIを検証（scriptコマンドが必要）
-cargo build --locked
-python3 scripts/test-workspace.py
+cargo fmt --check
 ```
 
-名称と配布方針が固まるまでCargo publishと自動リリースを停止しています。
+## 出自と謝辞
 
-Filesはディレクトリごとに畳めるツリー表示です。フォルダの`Enter`で開閉、`Space`でディレクトリ内をstage／unstage、`-`／`=`で全て折り畳み／展開します。`a`は全ファイルのstage／unstage切替です。ペイン移動は`h`／`l`、`←`／`→`または`Tab`です。画面下には選択中のペインでよく使うキーを表示し、通知が出ていても操作を確認できます。
+本製品は [keifu](https://github.com/trasta298/keifu) の履歴および著作権を保持して開発を継続している独立したフォークです。また、操作体系の設計や一部の翻訳において [lazygit](https://github.com/jesseduffield/lazygit) を参照・利用しています。
 
-Filesの`c`で中央のコミットダイアログを開きます。stage済みの変更がなければ全stageの確認が出て、`Enter`で未追跡ファイルを含む変更をstageしてダイアログへ進みます。stage済みファイルと選択ファイルのSTAGED差分を並べ、`Tab`／`Shift-Tab`で件名・本文・対象一覧を切り替えます。一覧の`j`／`k`でファイルを確認し、`Space`で対象から外せます（作業ファイルは保持）。件名の`Enter`または`Ctrl-s`でコミットし、本文の`Enter`は改行します。`Ctrl-d/u`で差分をスクロールできます。
-
-`Esc`はコミットの下書きを保持してFilesへ戻り、`c`で再開します（起動中の同じリポジトリ内）。フック・署名の失敗時も入力を保持し、Git出力は`Alt-j/k`やホイールで読めます。入力中にindexやHEADが変わった場合は対象を更新して再確認を求めます。複数行ペーストは件名と本文へ分けて入力し、それだけではコミットしません。
-
-現在の同期操作: Status／Filesの`f`でfetch、`p`でpull、`P`でpush（Graphの`p`とTagsの`P`は未割当）。追跡先・`pushRemote`・pull方針などはGit設定に従います。pull／push前には確認画面を表示し、設定不足や競合はGitのエラーを表示します。pullによる自動マージのメッセージはGitの既定値を使用します。
-
-Filesの`s`で作業ツリーをstashに保存します（未追跡ファイルを含み、ignoredファイルは除外）。`5`のstash一覧では`Space`でapply、`g`でpop、`d`でdrop、`Enter`で差分へ移動します。apply／popはGitの既定動作と同じく元のstage状態を復元しません。競合したpopではstashを残します。外部でstashを変更したときは`R`で一覧を更新してください。
-
-ファイル一覧の`d`で未stageの変更を確認後に破棄します（indexは保持、未追跡ファイルは削除）。差分ペインでは`h`／`l`でhunkを選び、`Tab`でstage側を切り替え、`n`／`N`で次／前のファイルへ移動し、`Space`でstage／unstageします。hunk操作は変更済みのUTF-8通常ファイルに対応し、新規・削除・rename・モード変更・バイナリはファイル単位で操作します。表示後に差分が変わった場合は`R`で再確認してください。
-
-Branches（`3`）でブランチを選び、`M`で現在のブランチへmerge、`r`で現在のブランチを選択先へrebaseします。確認画面に方向と対象を表示し、Git本体のエディタ・フック・署名を使って実行します。未コミット変更の自動stashは行いません。Graphからのmerge／rebaseは`m`で選択します。競合時はファイルを解消して`m`から続行／中止を選びます。
-
-作業ファイルの`e`でGitのエディタ設定（`GIT_EDITOR`／`core.editor`など）を使って編集し、終了後に再読込します。GUIエディタは`code --wait`のように終了を待つ設定が必要です。競合ファイルの`Space`は確認後に現在の内容を解消済みとしてstageします（競合マーカーの意味判断は行いません）。merge／rebase中は`m`から続行／中止を選び、確認後に実行できます。続行時はGitのエディタ・フック・署名にも端末を渡します。外部エディタの起動には`sh`を使います（WindowsではGit付属の`sh`をPATHに追加する必要があります）。
-
-Graph（`4`）でコミットを選び、`C`でコピーして`V`でcherry-pick、`t`でrevertします。コピーは`Ctrl-r`で解除できます。対象コミットと現在のブランチを確認して実行し、競合時は`m`から続行／中止を選べます。マージコミットの基準親指定には未対応です。
-
-履歴は最初に500件を表示し、Graphの`Ctrl-l`のログメニューから500件ずつ追加読み込みします。選択位置と読み込み範囲は更新後も維持され、フッターで件数と残りの有無を確認できます。`Home`／`End`（`<`／`>`）で読み込み済み範囲の先頭／末尾へ移動します。
-
-`@`でExtrasメニューを開きます。HEADのamend（stage済み変更も含める）、reword（メッセージだけ変更しstageは保持）、直前コミットのUndo（変更をstage済みに戻す）、soft／mixed／hard reset、直近200件のHEAD reflogからの復元ができます。履歴操作は対象を確認して実行し、hard resetは未追跡ファイルも含めて作業ツリーがcleanな場合に限ります。
-
-直接操作はFilesの`A`でamend、Graphの`r`でHEADのreword、`g`でreset、`T`で軽量タグ作成です。古いコミットのamend／rewordは未対応です。BranchesのLocalタブでは`Space`でcheckout、`Enter`で履歴へ移動、`n`でブランチ作成、`R`で名前変更できます。既存の名前は上書きしません。Commit Detailにはコミット全体とファイル別の`+/-`、未コミットノードには作業中の変更量を表示します。Diffとコミットダイアログは行番号・構文色・単語単位の変更強調に対応し、ファイルの変更量を上部に固定表示します。
-
-## 謝辞とライセンス
-
-本ソフトウェアは [trasta298/keifu](https://github.com/trasta298/keifu) をフォークして機能を拡張した独立したプロジェクトであり、上流の公式後継や共同開発プロジェクトではありません。コードベースには [LICENSE](LICENSE)（MIT License, Copyright (c) 2025 trasta298, Copyright (c) 2026 watabegg）を適用しています。
-
-また、UI の操作感やキー配置の設計にあたっては [jesseduffield/lazygit](https://github.com/jesseduffield/lazygit) を参照し、一部の共通翻訳リソースを MIT License のもとで利用しています（lazygit の Go 実装本体を移植したものではありません）。翻訳リソースのライセンス全文は [locales/LICENSE.lazygit](locales/LICENSE.lazygit) をご確認ください。
+- ソフトウェアライセンス: [MIT License](LICENSE) (Copyright (c) 2025 trasta298, Copyright (c) 2026 watabegg)
+- 共通翻訳ライセンス: [locales/LICENSE.lazygit](locales/LICENSE.lazygit) (Copyright (c) 2018 Jesse Duffield)
+- 上流との差分の基点を追跡できるよう、keifu のベースコミット（[015f0b25](https://github.com/trasta298/keifu/commit/015f0b25b85d068b1e2c8c0c8c137bc87d4b7c91)）への固定リンクを設けています。過去のコミット履歴の改変や削除は行っていません。
+- [keifu の基点から pedigit で加えた変更](https://github.com/watabegg/pedigit/compare/015f0b25b85d068b1e2c8c0c8c137bc87d4b7c91...main)

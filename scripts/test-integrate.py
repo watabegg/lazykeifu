@@ -9,11 +9,11 @@ Tui, git, init = (workspace[name] for name in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-integrate-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-integrate-') as temp:
         base = Path(temp)
         config = base / 'config'
-        (config / 'lazykeifu').mkdir(parents=True)
-        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'pedigit').mkdir(parents=True)
+        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         for rebase in (False, True):
             for conflict in (False, True):
                 root = base / f'repo-{rebase}-{conflict}'

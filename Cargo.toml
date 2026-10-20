@@ -1,11 +1,11 @@
 [package]
-name = "lazykeifu"
+name = "pedigit"
 version = "0.1.0-dev"
 edition = "2021"
-description = "A graph-first Git TUI evolving toward lazygit-style workflows"
+description = "A graph-first Git TUI with lazygit-inspired workflows"
 license = "MIT"
 authors = ["trasta298", "watabegg"]
-repository = "https://github.com/watabegg/lazykeifu"
+repository = "https://github.com/watabegg/pedigit"
 publish = false
 readme = "README.md"
 keywords = ["git", "tui", "cli", "graph", "visualization"]

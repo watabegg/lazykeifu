@@ -9,7 +9,7 @@ Tui, git, init = (workspace[name] for name in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-stash-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-stash-') as temp:
         base = Path(temp)
         root = base / 'repo'
         root.mkdir()
@@ -18,8 +18,8 @@ def run():
         git(root, 'add', 'file')
         git(root, 'commit', '-m', 'base')
         config = base / 'config'
-        (config / 'lazykeifu').mkdir(parents=True)
-        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'pedigit').mkdir(parents=True)
+        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             tui.keys('5 0 5')

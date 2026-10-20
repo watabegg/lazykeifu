@@ -9,15 +9,15 @@ Tui,git,init=(w[n] for n in ('Tui','git','init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-compose-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-compose-') as temp:
         base=Path(temp); root=base/'project'; root.mkdir(); hooks=init(root)
         for name in ('a','b'): (root/name).write_text('base\n')
         git(root,'add','.'); git(root,'commit','-m','base')
         original=git(root,'rev-parse','HEAD').stdout.strip()
         (root/'a').write_text('staged-a\n'); (root/'b').write_text('staged-b\n');git(root,'add','a','b')
         (root/'a').write_text('worktree-only-a\n')
-        config=base/'config';(config/'lazykeifu').mkdir(parents=True)
-        (config/'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        config=base/'config';(config/'pedigit').mkdir(parents=True)
+        (config/'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui=Tui(root,config,stdin_pipe=True)
         try:
             tui.keys('c'); tui.loaded(); screen=tui.screen()
@@ -72,8 +72,8 @@ def run():
             for width,height in ((120,32),(80,24),(54,20)):
                 screen=tui.screen(width,height)
                 assert '4 Graph' in screen and 'STAGED' in screen,screen
-                if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
-                    dest=Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS']);dest.mkdir(parents=True,exist_ok=True)
+                if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
+                    dest=Path(os.environ['PEDIGIT_TEST_ARTIFACTS']);dest.mkdir(parents=True,exist_ok=True)
                     (dest/f'composer-{width}.txt').write_text(screen)
             tui.keys('<tab> <space>');tui.loaded()
             assert tui.state()['composer']['staged_count']==0

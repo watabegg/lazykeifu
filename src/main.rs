@@ -1,4 +1,4 @@
-//! lazykeifu: a TUI tool that shows Git commit graphs
+//! pedigit: a TUI tool that shows Git commit graphs
 
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::Parser;
 use crossterm::event::Event;
 
-use lazykeifu::{
+use pedigit::{
     app::App,
     debug_server,
     event::{self, EventReader, InputEvent},
@@ -19,10 +19,10 @@ use lazykeifu::{
 const MAINTENANCE_IDLE_PERIOD: Duration = Duration::from_millis(250);
 
 #[derive(Parser)]
-#[command(name = "lazykeifu")]
+#[command(name = "pedigit")]
 #[command(
     version,
-    about = "A TUI tool to visualize Git commit graphs with branch genealogy"
+    about = "A graph-first Git TUI with lazygit-inspired workflows"
 )]
 struct Cli {
     /// UI language (overrides ui.language): auto, en, ja, ko, nl, pl, pt, ru, zh-CN, zh-TW
@@ -30,7 +30,7 @@ struct Cli {
     language: Option<String>,
 
     /// Append debug logs and a perf summary on exit to this file
-    /// (level via LAZYKEIFU_LOG, default "debug")
+    /// (level via PEDIGIT_LOG, default "debug")
     #[arg(long, value_name = "PATH")]
     log_file: Option<PathBuf>,
 
@@ -41,8 +41,8 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let config = lazykeifu::config::Config::load();
-    lazykeifu::i18n::init(cli.language.as_deref().unwrap_or(&config.ui.language))?;
+    let config = pedigit::config::Config::load();
+    pedigit::i18n::init(cli.language.as_deref().unwrap_or(&config.ui.language))?;
 
     if let Some(path) = &cli.log_file {
         logging::init(path)?;
@@ -136,7 +136,7 @@ fn main() -> Result<()> {
                         }
                     }
                     InputEvent::Terminal(Event::Paste(text)) => {
-                        if let Err(e) = app.handle_action(lazykeifu::action::Action::Paste(text)) {
+                        if let Err(e) = app.handle_action(pedigit::action::Action::Paste(text)) {
                             app.show_error(e.to_string());
                         }
                     }

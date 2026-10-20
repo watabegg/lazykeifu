@@ -1,5 +1,5 @@
 use git2::Repository;
-use lazykeifu::git::{
+use pedigit::git::{
     integrate::Integration,
     recovery::{Kind, Operation},
     BranchInfo,

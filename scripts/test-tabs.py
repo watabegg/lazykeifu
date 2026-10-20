@@ -9,7 +9,7 @@ Tui, git, init = (w[n] for n in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-tabs-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-tabs-') as temp:
         base = Path(temp)
         root = base / 'project'
         root.mkdir()
@@ -41,8 +41,8 @@ def run():
         git(root, 'add', 'added')
         (root / 'unknown').write_text('untracked\n')
         config = base / 'config'
-        (config / 'lazykeifu').mkdir(parents=True)
-        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'pedigit').mkdir(parents=True)
+        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             tui.loaded()
@@ -117,8 +117,8 @@ def run():
             assert Path(tui.state()['repo_path']).resolve() == root.resolve()
             tui.keys('<esc> [ [')
             tui.loaded()
-            if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
-                dest = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
+            if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
+                dest = Path(os.environ['PEDIGIT_TEST_ARTIFACTS'])
                 dest.mkdir(parents=True, exist_ok=True)
                 (dest / 'tabs-wide.txt').write_text(tui.screen())
                 (dest / 'tabs-narrow.txt').write_text(tui.screen(54, 20))

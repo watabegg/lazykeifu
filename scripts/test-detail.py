@@ -9,7 +9,7 @@ Tui, git, init = (w[n] for n in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-detail-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-detail-') as temp:
         base = Path(temp)
         root = base / 'project'
         root.mkdir()
@@ -21,8 +21,8 @@ def run():
         git(root, 'commit', '-am', 'second subject\n\n' + '\n'.join(f'Body line {i:02}' for i in range(30)))
         head = git(root, 'rev-parse', 'HEAD').stdout.strip()
         config = base / 'config'
-        (config / 'lazykeifu').mkdir(parents=True)
-        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'pedigit').mkdir(parents=True)
+        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             tui.loaded()
@@ -69,8 +69,8 @@ def run():
             tui.keys('<esc> 6 <home>')
             narrow_detail = tui.screen(54, 20)
             assert '4 Graph' in narrow_detail and 'Commit Detail' in narrow_detail
-            if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
-                dest = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
+            if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
+                dest = Path(os.environ['PEDIGIT_TEST_ARTIFACTS'])
                 dest.mkdir(parents=True, exist_ok=True)
                 (dest / 'detail-wide.txt').write_text(tui.screen())
                 (dest / 'detail-narrow.txt').write_text(narrow_detail)

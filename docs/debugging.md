@@ -1,19 +1,19 @@
-# Debugging lazykeifu
+# Debugging pedigit
 
-lazykeifu ships two debugging facilities aimed at both humans and AI agents:
+pedigit ships two debugging facilities aimed at both humans and AI agents:
 file-based logging and a remote control server.
 
 ## Logging
 
 ```bash
-lazykeifu --log-file /tmp/lazykeifu.log
+pedigit --log-file /tmp/pedigit.log
 ```
 
 Appends `tracing` logs to the file. The level filter is read from the
-`LAZYKEIFU_LOG` environment variable using `RUST_LOG` syntax (default: `debug`).
+`PEDIGIT_LOG` environment variable using `RUST_LOG` syntax (default: `debug`).
 
 ```bash
-LAZYKEIFU_LOG=trace lazykeifu --log-file /tmp/lazykeifu.log
+PEDIGIT_LOG=trace pedigit --log-file /tmp/pedigit.log
 ```
 
 The log rotates once it exceeds 5 MB (one `.old` generation is kept).
@@ -23,9 +23,9 @@ The log rotates once it exceeds 5 MB (one `.old` generation is kept).
 The log is enough to diagnose slowness — no debug server needed:
 
 ```bash
-lazykeifu --log-file /tmp/lazykeifu.log
+pedigit --log-file /tmp/pedigit.log
 # ...reproduce the slow interaction, then quit with q...
-tail -30 /tmp/lazykeifu.log
+tail -30 /tmp/pedigit.log
 ```
 
 - Operations slower than 10 ms are logged live as `slow operation`
@@ -36,7 +36,7 @@ tail -30 /tmp/lazykeifu.log
 ## Remote control server
 
 ```bash
-lazykeifu --debug-listen 127.0.0.1:7167
+pedigit --debug-listen 127.0.0.1:7167
 ```
 
 Listens for newline-delimited JSON commands over TCP. Each request line gets
@@ -70,7 +70,7 @@ For performance questions, use the log instead (see above).
 ### Example session
 
 ```bash
-script -qec "lazykeifu --debug-listen 127.0.0.1:7167" /dev/null &
+script -qec "pedigit --debug-listen 127.0.0.1:7167" /dev/null &
 sleep 2
 printf '%s\n' '{"cmd":"keys","keys":"j j"}' | nc -q1 127.0.0.1 7167
 printf '%s\n' '{"cmd":"dump","width":100,"height":30}' | nc -q1 127.0.0.1 7167

@@ -1,5 +1,5 @@
 use git2::Repository;
-use lazykeifu::git::recovery::{Kind, Operation, Resolution};
+use pedigit::git::recovery::{Kind, Operation, Resolution};
 use std::{fs, path::Path, process::Command};
 use tempfile::TempDir;
 const FILE: &str = "[x] file.txt";
@@ -148,7 +148,7 @@ fn configured_editor_arguments_and_literal_filename_are_preserved() {
         .unwrap();
     let path = "$(touch SENTINEL).txt";
     fs::write(temp.path().join(path), "original").unwrap();
-    let mut command = lazykeifu::external::Request::Edit(path.into())
+    let mut command = pedigit::external::Request::Edit(path.into())
         .command(&repo)
         .unwrap();
     assert!(command.status().unwrap().success());
@@ -206,7 +206,7 @@ fn failed_merge_continue_keeps_resolution_and_can_be_retried() {
 fn empty_editor_configuration_does_not_execute_selected_file() {
     let (_temp, repo, _) = conflict(false);
     repo.config().unwrap().set_str("core.editor", "").unwrap();
-    assert!(lazykeifu::external::Request::Edit(FILE.into())
+    assert!(pedigit::external::Request::Edit(FILE.into())
         .command(&repo)
         .is_err());
 }

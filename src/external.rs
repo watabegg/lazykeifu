@@ -36,7 +36,7 @@ impl Request {
                 command
                     .arg("-c")
                     .arg(format!("{} \"$@\"", editor.trim()))
-                    .arg("lazykeifu-editor")
+                    .arg("pedigit-editor")
                     .arg(full)
                     .current_dir(root);
                 Ok(command)

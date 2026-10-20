@@ -9,7 +9,7 @@ Tui, git, init = (w[name] for name in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-navigation-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-navigation-') as temp:
         base = Path(temp)
         root = base / 'repo'
         root.mkdir()
@@ -28,8 +28,8 @@ def run():
         git(root, 'merge', '--no-ff', 'topic', '-m', 'merge')
         (root / 'working-only').write_text('working\n')
         config = base / 'config'
-        (config / 'lazykeifu').mkdir(parents=True)
-        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'pedigit').mkdir(parents=True)
+        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             for down, up in [('j', 'k'), ('<down>', '<up>')]:

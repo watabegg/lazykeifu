@@ -32,7 +32,7 @@ def render(tui, *size):
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-i18n-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-i18n-') as temp:
         base = Path(temp)
         root = base / 'repo'
         root.mkdir()
@@ -45,8 +45,8 @@ def run():
         (root / filename).write_text('modified\n')
         git(root, 'branch', 'Files')
         config = base / 'config'
-        (config / 'lazykeifu').mkdir(parents=True)
-        config_file = config / 'lazykeifu/config.toml'
+        (config / 'pedigit').mkdir(parents=True)
+        config_file = config / 'pedigit/config.toml'
 
         def configure(language):
             config_file.write_text(f'[ui]\nlanguage="{language}"\n[refresh]\nauto_fetch=false\nauto_refresh=false\n')
@@ -59,8 +59,8 @@ def run():
                 assert tui.state()['language'] == language
                 tui.loaded()
                 screen = render(tui)
-                if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
-                    evidence = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
+                if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
+                    evidence = Path(os.environ['PEDIGIT_TEST_ARTIFACTS'])
                     evidence.mkdir(parents=True, exist_ok=True)
                     (evidence / f'{language}-workspace.txt').write_text(screen)
                 assert filename in screen, screen
@@ -85,7 +85,7 @@ def run():
                 assert tui.state()['mode'] == 'confirm', render(tui)
                 for width, height in ((120, 32), (80, 24), (54, 20)):
                     screen = render(tui, width, height)
-                    if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
+                    if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
                         (evidence / f'{language}-confirm-{width}.txt').write_text(screen)
                     assert 'Enter' in screen, screen
                     if language != 'en':

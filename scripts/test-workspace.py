@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import time
 
-BINARY = Path(__file__).resolve().parents[1] / 'target/debug/lazykeifu'
+BINARY = Path(__file__).resolve().parents[1] / 'target/debug/pedigit'
 
 
 def git(root, *args, check=True):
@@ -101,13 +101,13 @@ class Tui:
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-e2e-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-e2e-') as temp:
         root = Path(temp) / 'repo'
         root.mkdir()
         hooks = init(root)
         config = Path(temp) / 'config'
-        (config / 'lazykeifu').mkdir(parents=True)
-        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'pedigit').mkdir(parents=True)
+        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         (root / 'a.txt').write_text('base\n')
         git(root, 'add', 'a.txt')
         git(root, 'commit', '-m', 'initial')
@@ -124,8 +124,8 @@ def run():
             assert app.state()['workspace_file_count'] == 61
             app.keys('0 2')
             assert '+worktree-only' in app.screen()
-            if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
-                evidence = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
+            if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
+                evidence = Path(os.environ['PEDIGIT_TEST_ARTIFACTS'])
                 evidence.mkdir(parents=True, exist_ok=True)
                 (evidence / 'workspace-wide.txt').write_text(app.screen())
             app.keys('0 <tab> 2')
@@ -188,7 +188,7 @@ def run():
             assert 'read-only' in app.screen()
             app.keys('0')
             assert 'Diff' in app.screen(54, 20)
-            if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
+            if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
                 (evidence / 'workspace-narrow.txt').write_text(app.screen(54, 20))
             assert 'Terminal too small' in app.screen(20, 6)
             app.keys('4')

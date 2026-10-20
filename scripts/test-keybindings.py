@@ -9,7 +9,7 @@ Tui, git, init = (w[n] for n in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='lazykeifu-bindings-') as temp:
+    with tempfile.TemporaryDirectory(prefix='pedigit-bindings-') as temp:
         base = Path(temp)
         root = base / 'repo'
         root.mkdir()
@@ -25,8 +25,8 @@ def run():
         git(root, 'commit', '-am', 'sized changes')
         head = git(root, 'rev-parse', 'HEAD').stdout.strip()
         config = base / 'config'
-        (config / 'lazykeifu').mkdir(parents=True)
-        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'pedigit').mkdir(parents=True)
+        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             tui.keys('4 <home>')

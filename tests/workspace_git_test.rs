@@ -1,5 +1,5 @@
 use git2::{Repository, Signature};
-use lazykeifu::{
+use pedigit::{
     git::operations::{checkout_branch, checkout_remote_branch},
     workspace::{toggle_stage, working_files},
 };
@@ -198,14 +198,14 @@ fn detached_head_history_includes_unreferenced_commits() {
     fs::write(temp.path().join("a"), "two").unwrap();
     git(temp.path(), &["add", "."]);
     let detached = commit(&repo);
-    let wrapper = lazykeifu::git::GitRepository::open(temp.path()).unwrap();
+    let wrapper = pedigit::git::GitRepository::open(temp.path()).unwrap();
     let commits = wrapper.get_commits(500, false).unwrap();
     assert!(commits.iter().any(|c| c.oid == detached));
 }
 
 #[test]
 fn file_status_columns_match_git_porcelain_and_preserve_change_kind_colors() {
-    use lazykeifu::{app::App, git::GitRepository};
+    use pedigit::{app::App, git::GitRepository};
     use ratatui::{backend::TestBackend, style::Color, Terminal};
     let (temp, repo) = repo();
     for name in ["modified", "partial", "deleted", "renamed"] {
@@ -240,7 +240,7 @@ fn file_status_columns_match_git_porcelain_and_preserve_change_kind_colors() {
     let mut app = App::from_repository(GitRepository::open(temp.path()).unwrap()).unwrap();
     let mut terminal = Terminal::new(TestBackend::new(120, 32)).unwrap();
     terminal
-        .draw(|frame| lazykeifu::ui::draw(frame, &mut app))
+        .draw(|frame| pedigit::ui::draw(frame, &mut app))
         .unwrap();
     let x = app.layout.files.x + 3; // border + selection gutter
     let buffer = terminal.backend().buffer();
@@ -261,7 +261,7 @@ fn file_status_columns_match_git_porcelain_and_preserve_change_kind_colors() {
     }
     app.workspace.help = true;
     terminal
-        .draw(|frame| lazykeifu::ui::draw(frame, &mut app))
+        .draw(|frame| pedigit::ui::draw(frame, &mut app))
         .unwrap();
     let buffer = terminal.backend().buffer();
     assert!(buffer

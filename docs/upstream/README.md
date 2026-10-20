@@ -1,4 +1,4 @@
-> keifu 0.7.0 の上流READMEです。lazykeifuの開発状況は[ルートREADME](../../README.md)を参照してください。
+> keifu 0.7.0 の上流READMEです。pedigitの開発状況は[ルートREADME](../../README.md)を参照してください。
 
 # 🧬 keifu
 
