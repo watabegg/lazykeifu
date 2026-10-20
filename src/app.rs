@@ -19,9 +19,9 @@ use crate::{
         build_graph,
         graph::GraphLayout,
         operations::{
-            checkout_branch, checkout_commit, checkout_remote_branch, create_branch, create_commit,
-            delete_branch, fetch_origin, merge_branch, push_branch, rebase_branch, stage_all,
-            stage_path, unstage_all, unstage_path,
+            checkout_branch, checkout_commit, checkout_remote_branch, create_branch, delete_branch,
+            fetch_origin, merge_branch, push_branch, rebase_branch, stage_all, stage_path,
+            unstage_all, unstage_path,
         },
         BranchInfo, CommitDiffInfo, CommitInfo, FileDiffContent, FileDiffInfo, GitRepository,
         StageState, TagInfo, WorkingTreeStatus,
@@ -177,6 +177,7 @@ impl SearchState {
 
 /// Application state
 pub struct App {
+    pub workspace: crate::workspace::Workspace,
     pub mode: AppMode,
     pub repo: GitRepository,
     pub repo_path: String,
@@ -344,6 +345,7 @@ impl App {
         };
 
         let app = Self {
+            workspace: crate::workspace::Workspace::default(),
             mode: AppMode::Normal,
             repo,
             repo_path,
@@ -514,13 +516,23 @@ impl App {
 
     /// Whether a diff is debouncing or loading, so the UI should poll eagerly
     pub fn has_pending_diff(&self) -> bool {
-        self.has_in_flight_diff() || Instant::now() < self.diff_debounce_until
+        self.workspace.preview_loading()
+            || self.workspace.busy()
+            || self.has_in_flight_diff()
+            || Instant::now() < self.diff_debounce_until
     }
 
     /// Refresh repository data
     /// If `force` is true, always clears diff cache (for manual refresh)
     /// If `force` is false, keeps cache when the same content is selected (for auto-refresh)
     pub fn refresh(&mut self, force: bool) -> Result<()> {
+        let workspace_branch = self
+            .workspace
+            .branch_state
+            .selected()
+            .and_then(|i| self.branches.get(i))
+            .map(|b| b.name.clone());
+        self.repo.repo.index()?.read(true)?;
         tracing::debug!(force, "refresh repository data");
         let refresh_started = Instant::now();
         // Save the current selection state for restoration
@@ -658,6 +670,15 @@ impl App {
             }
         }
 
+        if self.graph_list_state.selected().is_none() && !self.graph_layout.nodes.is_empty() {
+            self.select_node(0);
+        }
+        self.workspace.branch_state.select(
+            workspace_branch
+                .and_then(|name| self.branches.iter().position(|b| b.name == name))
+                .or_else(|| (!self.branches.is_empty()).then_some(0)),
+        );
+        self.workspace.invalidate();
         self.perf.record("refresh", refresh_started.elapsed());
         self.pending_refresh = false;
         self.last_refresh_time = Instant::now();
@@ -1103,9 +1124,25 @@ impl App {
 
     /// Handle an action
     pub fn handle_action(&mut self, action: Action) -> Result<()> {
+        tracing::debug!(?action, "dispatch action");
         if self.text_selection.take().is_some() && matches!(action, Action::Quit | Action::Cancel) {
             return Ok(());
         }
+
+        if self.workspace.busy() {
+            self.set_message("Git operation in progress…");
+            return Ok(());
+        }
+        if self.workspace.help {
+            if matches!(action, Action::ToggleHelp | Action::Cancel | Action::Quit) {
+                self.workspace.help = false;
+            }
+            return Ok(());
+        }
+        if matches!(self.mode, AppMode::Normal) && self.workspace_action(&action)? {
+            return Ok(());
+        }
+
         match &self.mode {
             AppMode::Normal => self.handle_normal_action(action)?,
             AppMode::Help => self.handle_help_action(action),
@@ -1721,6 +1758,7 @@ impl App {
                     InputAction::Search => {
                         // Jump to selected result and exit search mode
                         self.jump_to_search_result();
+                        self.workspace_graph_target();
                     }
                     InputAction::CommitMessage => {
                         let message = input.trim().to_string();
@@ -1728,9 +1766,8 @@ impl App {
                             self.set_message("Commit message is empty");
                             return Ok(());
                         }
-                        let oid = create_commit(&self.repo.repo, &message)?;
-                        self.set_message(format!("Committed {}", &oid.to_string()[..7]));
-                        self.refresh(true)?;
+                        self.workspace_commit(message);
+                        return Ok(());
                     }
                 }
                 // Clear search state after confirming
@@ -1981,7 +2018,7 @@ impl App {
             })
             .unwrap_or(false);
         if !has_staged {
-            self.set_message("No staged changes (press Space, then 's' to stage files)");
+            self.set_message("No staged changes (2: working files, Space: stage)");
             return;
         }
         self.mode = AppMode::Input {
@@ -2238,9 +2275,10 @@ mod tests {
         };
 
         App {
+            workspace: crate::workspace::Workspace::with_focus(crate::workspace::Panel::Graph),
             mode: AppMode::Normal,
+            repo_path: repo.path.clone(),
             repo,
-            repo_path: String::new(),
             head_name: None,
             commits,
             branches,
@@ -2318,6 +2356,7 @@ mod tests {
         let commits = node.commit.iter().cloned().collect();
 
         App {
+            workspace: crate::workspace::Workspace::default(),
             mode: AppMode::Normal,
             repo_path: repo.path.clone(),
             repo,
@@ -2430,7 +2469,7 @@ mod tests {
             .unwrap();
         let event = MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
-            column: 5,
+            column: app.layout.graph.x + 5,
             row: 2,
             modifiers: KeyModifiers::NONE,
         };
@@ -2440,7 +2479,7 @@ mod tests {
             &mut app,
             MouseEvent {
                 kind: MouseEventKind::Drag(MouseButton::Left),
-                column: 16,
+                column: event.column + 11,
                 ..event
             },
         );
@@ -2449,7 +2488,10 @@ mod tests {
             .unwrap();
         assert_eq!(app.graph_list_state.selected(), Some(0));
         assert_eq!(app.text_selection.as_ref().unwrap().text(), "first commit");
-        assert_eq!(terminal.backend().buffer()[(5, 2)].bg, Color::LightBlue);
+        assert_eq!(
+            terminal.backend().buffer()[(event.column, 2)].bg,
+            Color::LightBlue
+        );
         crate::mouse::handle_scroll(
             &mut app,
             MouseEvent {
@@ -2469,7 +2511,7 @@ mod tests {
             &mut app,
             MouseEvent {
                 kind: MouseEventKind::Drag(MouseButton::Left),
-                column: 16,
+                column: event.column + 11,
                 ..event
             },
         );
@@ -2477,6 +2519,7 @@ mod tests {
         assert!(app.text_selection.is_none());
         assert!(!app.should_quit);
 
+        let event = MouseEvent { column: 5, ..event };
         terminal.backend_mut().resize(10, 4);
         terminal
             .draw(|frame| crate::ui::draw(frame, &mut app))
@@ -2516,6 +2559,7 @@ mod tests {
         );
         app.diff_cache = Some(CommitDiffInfo::from_commit(&app.repo.repo, first).unwrap());
         app.diff_cache_oid = Some(first);
+        let graph_x = app.layout.graph.x;
         for _ in 0..2 {
             handle_request(
                 &mut app,
@@ -2523,13 +2567,14 @@ mod tests {
                 30,
                 DebugRequest::Mouse {
                     kind: "click".into(),
-                    x: 10,
+                    x: graph_x + 10,
                     y: 2,
                 },
             );
         }
         assert_eq!(app.graph_list_state.selected(), Some(1));
-        assert!(matches!(app.mode, AppMode::FileSelect { .. }));
+        assert_eq!(app.workspace.focus, crate::workspace::Panel::Files);
+        assert_eq!(app.workspace.commit, Some(first));
         assert!(app.text_selection.is_none());
     }
 
@@ -3134,6 +3179,8 @@ mod tests {
         let oid = commit_file(&repo, "file_19.txt", &body, &message);
 
         let mut app = make_app_from_repo(GitRepository::open(tempdir.path()).unwrap());
+        app.workspace_graph_target();
+        app.workspace.focus = crate::workspace::Panel::Files;
         app.set_file_view(FileView::Replace);
         app.diff_cache = Some(CommitDiffInfo::from_commit(&repo, oid).unwrap());
         app.diff_cache_oid = Some(oid);

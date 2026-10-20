@@ -9,7 +9,6 @@ use crossterm::event::Event;
 
 use lazykeifu::{
     app::App,
-    config::FileView,
     debug_server,
     event::{self, EventReader, InputEvent},
     git::configure_git_extensions,
@@ -34,10 +33,6 @@ struct Cli {
     /// Listen for debug commands (NDJSON over TCP, e.g. 127.0.0.1:7167)
     #[arg(long, value_name = "ADDR")]
     debug_listen: Option<String>,
-
-    /// Where file diffs are drawn, overriding the config file
-    #[arg(long, value_enum)]
-    file_view: Option<FileView>,
 }
 
 fn main() -> Result<()> {
@@ -65,9 +60,6 @@ fn main() -> Result<()> {
 
     // Initialize application
     let mut app = App::new()?;
-    if let Some(file_view) = cli.file_view {
-        app.set_file_view(file_view);
-    }
 
     // Initialize terminal
     let mut terminal = tui::init()?;
@@ -115,6 +107,7 @@ fn main() -> Result<()> {
             for event in events {
                 match event {
                     InputEvent::Terminal(Event::Key(key)) => {
+                        tracing::debug!(?key, "terminal key");
                         if let Some(action) = map_key_to_action(key, &app.mode) {
                             if let Err(e) = app.handle_action(action) {
                                 // Show errors in the UI
@@ -153,12 +146,13 @@ fn main() -> Result<()> {
             }
         }
 
+        app.workspace_tick();
         let allow_repository_refresh = last_user_input.elapsed() >= MAINTENANCE_IDLE_PERIOD;
-        app.update_fetch_status(allow_repository_refresh);
-        app.update_push_status(allow_repository_refresh);
+        app.update_fetch_status(allow_repository_refresh && !app.workspace.busy());
+        app.update_push_status(allow_repository_refresh && !app.workspace.busy());
         // Repository refreshes are synchronous, so they must not compete with
         // an active input gesture for the UI thread.
-        if allow_repository_refresh {
+        if allow_repository_refresh && !app.workspace.busy() {
             app.check_auto_refresh();
         }
     }

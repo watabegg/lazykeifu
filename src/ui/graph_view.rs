@@ -114,7 +114,7 @@ impl<'a> GraphViewWidget<'a> {
             .collect();
 
         let focused = matches!(app.mode, crate::app::AppMode::Normal)
-            && app.focused_pane == crate::app::FocusedPane::Graph;
+            && app.workspace.focus == crate::workspace::Panel::Graph;
 
         let position = (
             app.graph_list_state.selected().map_or(0, |idx| idx + 1),

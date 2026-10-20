@@ -2,6 +2,10 @@
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
+    FocusPanel(crate::workspace::Panel),
+    FocusPrevious,
+    ToggleDiffSide,
+    Unavailable,
     // Navigation
     MoveUp,
     MoveDown,

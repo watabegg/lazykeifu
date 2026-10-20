@@ -85,7 +85,13 @@ fn selection_area(app: &App, position: Position) -> Rect {
             app.screen.area.height.saturating_sub(1),
         )],
         AppMode::Normal | AppMode::FileSelect { .. } | AppMode::FileDiff { .. } => {
-            vec![app.layout.graph, app.layout.commit_detail, app.layout.files]
+            vec![
+                app.layout.graph,
+                app.layout.commit_detail,
+                app.layout.files,
+                app.workspace.branches_rect,
+                app.workspace.status_rect,
+            ]
         }
         _ => Vec::new(),
     };
@@ -130,6 +136,23 @@ fn offset_index(current: usize, max: usize, delta: i32) -> usize {
 }
 
 fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
+    if matches!(app.mode, AppMode::Normal) {
+        if let Some(panel) = app.workspace_panel_at(x, y) {
+            app.workspace.focus = panel;
+            for _ in 0..delta.unsigned_abs().min(100) {
+                dispatch(
+                    app,
+                    if delta < 0 {
+                        Action::MoveUp
+                    } else {
+                        Action::MoveDown
+                    },
+                );
+            }
+        }
+        return;
+    }
+
     match &app.mode {
         // With the diff in the graph pane, the bottom panes keep their own wheel
         AppMode::FileDiff {
@@ -195,6 +218,11 @@ fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
 }
 
 fn handle_click(app: &mut App, x: u16, y: u16) {
+    if matches!(app.mode, AppMode::Normal) {
+        app.workspace_click(x, y);
+        return;
+    }
+
     let now = Instant::now();
     let is_double = matches!(
         app.last_click,

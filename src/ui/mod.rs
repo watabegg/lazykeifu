@@ -7,6 +7,7 @@ pub mod graph_view;
 pub mod help_popup;
 pub mod search_dropdown;
 pub mod status_bar;
+pub mod workspace;
 
 use ratatui::{
     buffer::Buffer,
@@ -121,7 +122,14 @@ pub fn render_placeholder_block(area: Rect, buf: &mut Buffer) {
 
 /// Render the main UI
 pub fn draw(frame: &mut Frame, app: &mut App) {
-    draw_content(frame, app);
+    if matches!(
+        app.mode,
+        AppMode::FileSelect { .. } | AppMode::FileDiff { .. } | AppMode::Help
+    ) {
+        draw_content(frame, app);
+    } else {
+        workspace::draw(frame, app);
+    }
     let screen = frame.buffer_mut();
     if app
         .text_selection
@@ -336,7 +344,10 @@ fn render_branch_info_popup(frame: &mut Frame, app: &App, graph_area: Rect) {
     let Some(selected_idx) = app.graph_list_state.selected() else {
         return;
     };
-    let branches = &app.graph_layout.nodes[selected_idx].branch_labels;
+    let Some(node) = app.graph_layout.nodes.get(selected_idx) else {
+        return;
+    };
+    let branches = &node.branch_labels;
 
     // Only show popup in Normal mode with multiple branches
     if branches.len() <= 1 || !matches!(app.mode, crate::app::AppMode::Normal) {

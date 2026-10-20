@@ -8,88 +8,56 @@ use git2::{BranchType, IndexAddOption, Oid, Repository};
 
 /// Checkout a branch
 pub fn checkout_branch(repo: &Repository, branch_name: &str) -> Result<()> {
-    let branch = repo
-        .find_branch(branch_name, BranchType::Local)
-        .context(format!("Branch '{}' not found", branch_name))?;
-
-    let reference = branch.get();
-    let commit = reference.peel_to_commit()?;
-    let tree = commit.tree()?;
-
-    repo.checkout_tree(tree.as_object(), None)?;
-    repo.set_head(reference.name().unwrap())?;
-
+    super::command::git_output(
+        repo,
+        &["switch".as_ref(), "--".as_ref(), branch_name.as_ref()],
+    )?;
     Ok(())
 }
 
-/// Checkout a commit (detached HEAD)
+/// Checkout a commit without changing any branch ref.
 pub fn checkout_commit(repo: &Repository, oid: Oid) -> Result<()> {
-    let commit = repo.find_commit(oid).context("Commit not found")?;
-    let tree = commit.tree()?;
-
-    repo.checkout_tree(tree.as_object(), None)?;
-    repo.set_head_detached(oid)?;
-
+    super::command::git_output(
+        repo,
+        &[
+            "switch".as_ref(),
+            "--detach".as_ref(),
+            "--".as_ref(),
+            oid.to_string().as_ref(),
+        ],
+    )?;
     Ok(())
 }
 
-/// Checkout a remote branch (create and track a local branch)
+/// Track a remote branch without ever resetting an existing local branch.
 pub fn checkout_remote_branch(repo: &Repository, remote_branch: &str) -> Result<()> {
-    // Extract "branch-name" from "origin/branch-name"
+    let remote_ref = repo.find_branch(remote_branch, BranchType::Remote)?;
+    let refname = remote_ref
+        .get()
+        .name()
+        .context("Invalid remote reference")?;
+    let remote = repo.branch_remote_name(refname)?;
+    let remote = remote.as_str().context("Invalid remote name")?;
     let local_name = remote_branch
-        .strip_prefix("origin/")
-        .context("Invalid remote branch format")?;
-
-    // Look up the remote branch
-    let remote_ref = repo
-        .find_branch(remote_branch, BranchType::Remote)
-        .context(format!("Remote branch '{}' not found", remote_branch))?;
-
-    let remote_commit = remote_ref.get().peel_to_commit()?;
-    let remote_oid = remote_commit.id();
-    let tree = remote_commit.tree()?;
-
-    // Check if a local branch with the same name exists
-    if let Ok(local_branch) = repo.find_branch(local_name, BranchType::Local) {
-        // Get OIDs via peel_to_commit() for a reliable comparison
-        let local_commit = local_branch.get().peel_to_commit()?;
-        let local_oid = local_commit.id();
-        if local_oid == remote_oid {
-            // Local and remote point to the same commit -> checkout local branch
-            return checkout_branch(repo, local_name);
-        } else {
-            // Pointing to different commits -> update local branch and checkout
-            // Equivalent to: git checkout -B local_name origin/xxx
-            let is_current_branch = local_branch.is_head();
-            drop(local_branch); // Release the branch reference
-
-            let refname = format!("refs/heads/{}", local_name);
-            if is_current_branch {
-                // Cannot force update current branch with repo.branch()
-                // Update the reference directly after checkout
-                repo.checkout_tree(tree.as_object(), None)?;
-                repo.reference(&refname, remote_oid, true, "Update to remote")?;
-            } else {
-                repo.branch(local_name, &remote_commit, true)?; // Overwrite with force=true
-                repo.checkout_tree(tree.as_object(), None)?;
-                repo.set_head(&refname)?;
-            }
-            return Ok(());
+        .strip_prefix(&format!("{remote}/"))
+        .context("Invalid remote branch")?;
+    if let Ok(local) = repo.find_branch(local_name, BranchType::Local) {
+        if local.get().peel_to_commit()?.id() != remote_ref.get().peel_to_commit()?.id() {
+            bail!("Local branch '{local_name}' differs from '{remote_branch}'. Select the local branch or reconcile it with Git; it was not reset.");
         }
+        return checkout_branch(repo, local_name);
     }
-
-    // No local branch -> create and track
-    let mut local_branch = repo
-        .branch(local_name, &remote_commit, false)
-        .context(format!("Failed to create local branch '{}'", local_name))?;
-
-    // Set upstream
-    local_branch.set_upstream(Some(remote_branch))?;
-
-    // Checkout
-    repo.checkout_tree(tree.as_object(), None)?;
-    repo.set_head(&format!("refs/heads/{}", local_name))?;
-
+    super::command::git_output(
+        repo,
+        &[
+            "switch".as_ref(),
+            "--track".as_ref(),
+            "-c".as_ref(),
+            local_name.as_ref(),
+            "--".as_ref(),
+            remote_branch.as_ref(),
+        ],
+    )?;
     Ok(())
 }
 
@@ -105,15 +73,15 @@ pub fn create_branch(repo: &Repository, branch_name: &str, from_oid: Oid) -> Res
 
 /// Delete a branch
 pub fn delete_branch(repo: &Repository, branch_name: &str) -> Result<()> {
-    let mut branch = repo
-        .find_branch(branch_name, BranchType::Local)
-        .context(format!("Branch '{}' not found", branch_name))?;
-
-    if branch.is_head() {
-        bail!("Cannot delete current branch");
-    }
-
-    branch.delete()?;
+    super::command::git_output(
+        repo,
+        &[
+            "branch".as_ref(),
+            "-d".as_ref(),
+            "--".as_ref(),
+            branch_name.as_ref(),
+        ],
+    )?;
     Ok(())
 }
 

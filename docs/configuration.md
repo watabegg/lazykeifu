@@ -44,18 +44,14 @@ show_tags = false
 
 Press `t` in the TUI to toggle tags for the current session.
 
-## File diff view
+## Workspace layout
 
-By default, opening a file diff takes over the whole screen. To draw it in the
-graph pane instead, keeping commit detail and the file list visible:
+The workspace shows files and branches beside the graph and diff. Below 80 columns
+or 18 rows it shows the focused pane. Use `2`, `3`, `4`, and `0` to focus files,
+branches, graph, and diff respectively.
 
-```toml
-[ui]
-# "fullscreen" (default) or "replace"
-file_view = "replace"
-```
-
-The config can be overridden for a single run with `lazykeifu --file-view replace`.
+The inherited `ui.file_view` setting no longer changes the workspace layout.
+The `--file-view` CLI option has been removed.
 
 ### Options
 
@@ -67,7 +63,6 @@ The config can be overridden for a single run with `lazykeifu --file-view replac
 | `fetch_interval` | integer | `60` | Interval in seconds for remote fetch (minimum: 10) |
 | `graph.show_remote_branches` | bool | `true` | Show remote branches and commits reachable only from remote branches |
 | `graph.show_tags` | bool | `true` | Show tag labels on commits |
-| `ui.file_view` | string | `"fullscreen"` | Draw the file diff fullscreen, or in place of the graph pane (`"replace"`) |
 
 ### Disabling auto-refresh
 

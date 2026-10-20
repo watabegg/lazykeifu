@@ -75,6 +75,10 @@ impl GitRepository {
             }
         }
 
+        // Detached HEAD commits may not be reachable from any branch.
+        if let Ok(head) = self.repo.head().and_then(|head| head.peel_to_commit()) {
+            revwalk.push(head.id())?;
+        }
         let mut commits = Vec::new();
         for oid_result in revwalk.take(max_count) {
             let oid = oid_result?;

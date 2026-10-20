@@ -39,6 +39,11 @@ jobs:
           key: ${{ matrix.os }}
       - name: Run tests
         run: cargo test --locked
+      - name: Exercise the real workspace TUI
+        if: runner.os == 'Linux'
+        run: |
+          cargo build --locked
+          python3 scripts/test-workspace.py
 
   security:
     name: Security Audit

@@ -1,7 +1,8 @@
 # lazykeifu（仮称）
 
-keifuのGitグラフを土台に、lazygitの操作感を目指すRust製TUIクライアントです。**現在はforkの初期化段階で、画面・キー操作はkeifu由来のままです。**
+keifuのGitグラフを土台に、lazygitの操作感を目指すRust製TUIクライアントです。作業ファイル・ブランチ・コミットグラフ・差分を一画面で操作する最初の版を実装しています。
 
+- [現在の操作と対応範囲](docs/workspace-m1.md)
 - [当面の開発計画](docs/development-plan.md) / [初期化の検証結果](docs/bootstrap-validation.md)
 - [設定](docs/configuration.md) / [TUIデバッグ](docs/debugging.md)
 - [上流keifuの操作説明](docs/upstream/README.md)
@@ -19,6 +20,9 @@ cargo build --locked
 cargo fmt --check
 cargo test --locked
 cargo clippy --all-targets --locked -- -D warnings
+# Linuxで実TUIを検証（scriptコマンドが必要）
+cargo build --locked
+python3 scripts/test-workspace.py
 ```
 
 [keifu](https://github.com/trasta298/keifu)の履歴とMITライセンスを引き継いでいます。lazygitは操作仕様の参照元で、現段階ではコードを取り込んでいません。名称と配布方針が固まるまでCargo publishと自動リリースを停止しています。

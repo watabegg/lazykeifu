@@ -19,3 +19,5 @@ pub use extensions::configure_git_extensions;
 pub use graph::build_graph;
 pub use repository::{GitRepository, StageState, WorkingTreeStatus};
 pub use tag::TagInfo;
+
+pub mod command;

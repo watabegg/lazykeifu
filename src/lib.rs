@@ -15,3 +15,5 @@ pub mod search;
 pub mod selection;
 pub mod tui;
 pub mod ui;
+
+pub mod workspace;

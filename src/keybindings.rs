@@ -30,75 +30,51 @@ pub fn map_key_to_action(key: KeyEvent, mode: &AppMode) -> Option<Action> {
 }
 
 fn map_normal_mode(key: KeyEvent) -> Option<Action> {
+    use crate::workspace::Panel;
+    if key
+        .modifiers
+        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER)
+    {
+        return match (key.modifiers, key.code) {
+            (KeyModifiers::CONTROL, KeyCode::Char('d')) => Some(Action::PageDown),
+            (KeyModifiers::CONTROL, KeyCode::Char('u')) => Some(Action::PageUp),
+            _ => None,
+        };
+    }
     match (key.modifiers, key.code) {
-        // Movement
-        (KeyModifiers::NONE, KeyCode::Char('j')) | (KeyModifiers::NONE, KeyCode::Down) => {
-            Some(Action::MoveDown)
-        }
-        (KeyModifiers::NONE, KeyCode::Char('k')) | (KeyModifiers::NONE, KeyCode::Up) => {
-            Some(Action::MoveUp)
-        }
-
-        // Page scroll
         (KeyModifiers::CONTROL, KeyCode::Char('d')) => Some(Action::PageDown),
         (KeyModifiers::CONTROL, KeyCode::Char('u')) => Some(Action::PageUp),
-
-        // Top/bottom
-        (KeyModifiers::NONE, KeyCode::Char('g')) | (KeyModifiers::NONE, KeyCode::Home) => {
-            Some(Action::GoToTop)
-        }
-        (KeyModifiers::SHIFT, KeyCode::Char('G')) | (KeyModifiers::NONE, KeyCode::End) => {
-            Some(Action::GoToBottom)
-        }
-
-        // Jump to HEAD (@ works with or without Shift depending on keyboard layout)
-        (_, KeyCode::Char('@')) => Some(Action::JumpToHead),
-
-        // Pane focus
-        (KeyModifiers::NONE, KeyCode::Tab) | (KeyModifiers::SHIFT, KeyCode::BackTab) => {
-            Some(Action::FocusNext)
-        }
-
-        // Branch jump
-        (_, KeyCode::Char(']')) => Some(Action::NextBranch),
-        (_, KeyCode::Char('[')) => Some(Action::PrevBranch),
-
-        // Branch selection within same commit
-        (KeyModifiers::NONE, KeyCode::Char('h')) | (KeyModifiers::NONE, KeyCode::Left) => {
-            Some(Action::BranchLeft)
-        }
-        (KeyModifiers::NONE, KeyCode::Char('l')) | (KeyModifiers::NONE, KeyCode::Right) => {
-            Some(Action::BranchRight)
-        }
-
-        // Git operations
-        (KeyModifiers::NONE, KeyCode::Enter) => Some(Action::Checkout),
-        (KeyModifiers::NONE, KeyCode::Char('b')) => Some(Action::CreateBranch),
-        (KeyModifiers::NONE, KeyCode::Char('d')) => Some(Action::DeleteBranch),
-        (KeyModifiers::NONE, KeyCode::Char('f')) => Some(Action::Fetch),
-        (KeyModifiers::NONE, KeyCode::Char('c')) => Some(Action::CommitDialog),
-        (KeyModifiers::NONE, KeyCode::Char('p')) => Some(Action::Push),
-
-        // Clipboard
-        (KeyModifiers::NONE, KeyCode::Char('y')) => Some(Action::CopyHash),
-        (KeyModifiers::SHIFT, KeyCode::Char('Y')) => Some(Action::CopyBranch),
-        // TODO: merge and rebase will be implemented in the future
-        // (KeyModifiers::NONE, KeyCode::Char('m')) => Some(Action::Merge),
-        // (KeyModifiers::NONE, KeyCode::Char('r')) => Some(Action::Rebase),
-
-        // File diff
-        (KeyModifiers::NONE, KeyCode::Char(' ')) => Some(Action::EnterFileSelect),
-
-        // UI
+        (_, KeyCode::Char('1')) => Some(Action::FocusPanel(Panel::Status)),
+        (_, KeyCode::Char('2')) => Some(Action::FocusPanel(Panel::Files)),
+        (_, KeyCode::Char('3')) => Some(Action::FocusPanel(Panel::Branches)),
+        (_, KeyCode::Char('4')) => Some(Action::FocusPanel(Panel::Graph)),
+        (_, KeyCode::Char('0')) => Some(Action::FocusPanel(Panel::Diff)),
+        (_, KeyCode::Char('j') | KeyCode::Down) => Some(Action::MoveDown),
+        (_, KeyCode::Char('k') | KeyCode::Up) => Some(Action::MoveUp),
+        (_, KeyCode::Char('h') | KeyCode::Left | KeyCode::BackTab) => Some(Action::FocusPrevious),
+        (_, KeyCode::Char('l') | KeyCode::Right | KeyCode::Tab) => Some(Action::FocusNext),
+        (_, KeyCode::Char('H')) => Some(Action::ScrollLeft),
+        (_, KeyCode::Char('L')) => Some(Action::ScrollRight),
+        (_, KeyCode::Char('g') | KeyCode::Char('<') | KeyCode::Home) => Some(Action::GoToTop),
+        (_, KeyCode::Char('G') | KeyCode::Char('>') | KeyCode::End) => Some(Action::GoToBottom),
+        (_, KeyCode::Enter) => Some(Action::Checkout),
+        (_, KeyCode::Char(' ')) => Some(Action::StageToggle),
+        (_, KeyCode::Char('v')) => Some(Action::ToggleDiffSide),
+        (_, KeyCode::Char('a')) => Some(Action::StageAll),
+        (_, KeyCode::Char('u')) => Some(Action::UnstageAll),
+        (_, KeyCode::Char('c')) => Some(Action::CommitDialog),
+        (_, KeyCode::Char('b')) => Some(Action::CreateBranch),
+        (_, KeyCode::Char('d')) => Some(Action::DeleteBranch),
+        (_, KeyCode::Char('f')) => Some(Action::Fetch),
+        (_, KeyCode::Char('P')) => Some(Action::Push),
+        (_, KeyCode::Char('p') | KeyCode::Char('s')) => Some(Action::Unavailable),
         (_, KeyCode::Char('/')) => Some(Action::Search),
-        (KeyModifiers::SHIFT, KeyCode::Char('R')) => Some(Action::Refresh),
-        (KeyModifiers::NONE, KeyCode::Char('o')) => Some(Action::ToggleRemoteBranches),
-        (KeyModifiers::NONE, KeyCode::Char('t')) => Some(Action::ToggleTags),
+        (_, KeyCode::Char('R')) => Some(Action::Refresh),
+        (_, KeyCode::Char('o')) => Some(Action::ToggleRemoteBranches),
+        (_, KeyCode::Char('t')) => Some(Action::ToggleTags),
         (_, KeyCode::Char('?')) => Some(Action::ToggleHelp),
-        (KeyModifiers::NONE, KeyCode::Char('q')) | (KeyModifiers::NONE, KeyCode::Esc) => {
-            Some(Action::Quit)
-        }
-
+        (_, KeyCode::Char('q')) => Some(Action::Quit),
+        (_, KeyCode::Esc) => Some(Action::Cancel),
         _ => None,
     }
 }
@@ -235,5 +211,41 @@ fn map_file_diff_mode(key: KeyEvent) -> Option<Action> {
             Some(Action::Cancel)
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod workspace_tests {
+    use super::*;
+    #[test]
+    fn modified_space_cannot_stage_and_push_is_uppercase_only() {
+        assert_eq!(
+            map_key_to_action(
+                KeyEvent::new(KeyCode::Char(' '), KeyModifiers::CONTROL),
+                &AppMode::Normal
+            ),
+            None
+        );
+        assert_eq!(
+            map_key_to_action(
+                KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+                &AppMode::Normal
+            ),
+            Some(Action::StageToggle)
+        );
+        assert_eq!(
+            map_key_to_action(
+                KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE),
+                &AppMode::Normal
+            ),
+            Some(Action::Unavailable)
+        );
+        assert_eq!(
+            map_key_to_action(
+                KeyEvent::new(KeyCode::Char('P'), KeyModifiers::SHIFT),
+                &AppMode::Normal
+            ),
+            Some(Action::Push)
+        );
     }
 }
