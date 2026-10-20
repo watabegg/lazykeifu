@@ -18,18 +18,29 @@ use super::{render_placeholder_block, MIN_WIDGET_HEIGHT, MIN_WIDGET_WIDTH};
 fn relative_time(ts: chrono::DateTime<chrono::Local>) -> String {
     let secs = chrono::Local::now().signed_duration_since(ts).num_seconds();
     if secs < 0 {
-        return "in the future".to_string();
+        return crate::tr!("in the future").to_string();
     }
     let (value, unit) = match secs {
-        0..=59 => return "just now".to_string(),
+        0..=59 => return crate::tr!("just now").to_string(),
         60..=3599 => (secs / 60, "minute"),
         3600..=86_399 => (secs / 3600, "hour"),
         86_400..=2_591_999 => (secs / 86_400, "day"),
         2_592_000..=31_535_999 => (secs / 2_592_000, "month"),
         _ => (secs / 31_536_000, "year"),
     };
-    let plural = if value == 1 { "" } else { "s" };
-    format!("{} {}{} ago", value, unit, plural)
+    match (unit, value == 1) {
+        ("minute", true) => crate::trf!("{value} minute ago", value = value),
+        ("minute", false) => crate::trf!("{value} minutes ago", value = value),
+        ("hour", true) => crate::trf!("{value} hour ago", value = value),
+        ("hour", false) => crate::trf!("{value} hours ago", value = value),
+        ("day", true) => crate::trf!("{value} day ago", value = value),
+        ("day", false) => crate::trf!("{value} days ago", value = value),
+        ("month", true) => crate::trf!("{value} month ago", value = value),
+        ("month", false) => crate::trf!("{value} months ago", value = value),
+        ("year", true) => crate::trf!("{value} year ago", value = value),
+        ("year", false) => crate::trf!("{value} years ago", value = value),
+        _ => unreachable!("relative-time unit is selected from the closed set above"),
+    }
 }
 
 /// Commit info pane (left/top half of the detail area)
@@ -68,8 +79,9 @@ impl CommitDetailWidget {
     }
 
     fn metadata_label(text: &str) -> Span<'static> {
+        let padding = 8usize.saturating_sub(text.width());
         Span::styled(
-            format!(" {:<8}", text),
+            format!(" {text}{}", " ".repeat(padding)),
             Style::default().fg(Color::DarkGray),
         )
     }
@@ -77,7 +89,7 @@ impl CommitDetailWidget {
     fn build_commit_lines(app: &App) -> Vec<Line<'static>> {
         let Some(selected) = app.graph_list_state.selected() else {
             return vec![Line::from(Span::styled(
-                "Select a commit",
+                crate::tr!("Select a commit"),
                 Style::default().fg(Color::DarkGray),
             ))];
         };
@@ -89,14 +101,14 @@ impl CommitDetailWidget {
         // Handle uncommitted changes node
         if node.is_uncommitted {
             let mut lines = vec![Line::styled(
-                " Uncommitted Changes",
+                crate::tr!(" Uncommitted Changes"),
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             )];
             lines.push(Self::change_summary(app));
             lines.push(Line::styled(
-                " Working tree + index · untracked included",
+                crate::tr!(" Working tree + index · untracked included"),
                 Style::default().fg(Color::DarkGray),
             ));
             Self::changed_files(app, &mut lines);
@@ -106,7 +118,7 @@ impl CommitDetailWidget {
         // Handle connector rows (no commit)
         let Some(commit) = &node.commit else {
             return vec![Line::from(Span::styled(
-                "(connector line)",
+                crate::tr!("(connector line)"),
                 Style::default().fg(Color::DarkGray),
             ))];
         };
@@ -126,14 +138,14 @@ impl CommitDetailWidget {
                 Span::styled(rest.to_string(), Style::default().fg(Color::DarkGray)),
             ]),
             Line::from(vec![
-                Self::metadata_label("Author"),
+                Self::metadata_label(crate::tr!("Author")),
                 Span::styled(
                     format!("{} <{}>", commit.author_name, commit.author_email),
                     Style::default().fg(Color::Blue),
                 ),
             ]),
             Line::from(vec![
-                Self::metadata_label("Date"),
+                Self::metadata_label(crate::tr!("Date")),
                 Span::raw(commit.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()),
                 Span::styled(
                     format!(" ({})", relative_time(commit.timestamp)),
@@ -152,14 +164,14 @@ impl CommitDetailWidget {
                 .map(|oid| oid.to_string()[..7].to_string())
                 .collect();
             lines.push(Line::from(vec![
-                Self::metadata_label("Parent"),
+                Self::metadata_label(crate::tr!("Parent")),
                 Span::styled(parents.join(", "), Style::default().fg(Color::DarkGray)),
             ]));
         }
 
         // Branches pointing at this commit
         if !node.branch_names.is_empty() {
-            let mut spans = vec![Self::metadata_label("Branch")];
+            let mut spans = vec![Self::metadata_label(crate::tr!("Branch"))];
             for (i, name) in node.branch_names.iter().enumerate() {
                 if i > 0 {
                     spans.push(Span::raw(" "));
@@ -192,13 +204,16 @@ impl CommitDetailWidget {
             line.spans.insert(0, Span::raw(" "));
             line
         } else {
-            Line::styled(" Changes · loading…", Style::default().fg(Color::DarkGray))
+            Line::styled(
+                crate::tr!(" Changes · loading…"),
+                Style::default().fg(Color::DarkGray),
+            )
         }
     }
     fn changed_files(app: &App, lines: &mut Vec<Line<'static>>) {
         if let Some(diff) = app.cached_diff() {
             lines.push(Line::styled(
-                " Changed files",
+                crate::tr!(" Changed files"),
                 Style::default()
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
@@ -215,11 +230,16 @@ impl CommitDetailWidget {
                 .map(|f| f.deletions.to_string().len() + 1)
                 .max()
                 .unwrap_or(2);
-            let stat_width = (add_width + 2 + del_width).max(6);
+            let binary = crate::tr!("binary");
+            let stat_width = (add_width + 2 + del_width).max(binary.width());
             for file in &diff.files {
                 let mut spans = if file.is_binary {
                     vec![Span::styled(
-                        format!("{:>stat_width$}", "binary"),
+                        format!(
+                            "{}{}",
+                            " ".repeat(stat_width.saturating_sub(binary.width())),
+                            binary
+                        ),
                         Style::default().fg(Color::Yellow),
                     )]
                 } else {
@@ -241,9 +261,9 @@ impl CommitDetailWidget {
             }
             if diff.truncated {
                 lines.push(Line::styled(
-                    format!(
-                        " … {} more files; open Files to inspect",
-                        diff.total_files.saturating_sub(diff.files.len())
+                    crate::trf!(
+                        " … {count} more files; open Files to inspect",
+                        count = diff.total_files.saturating_sub(diff.files.len())
                     ),
                     Style::default().fg(Color::DarkGray),
                 ));
@@ -259,7 +279,7 @@ impl Widget for CommitDetailWidget {
             return;
         }
 
-        let block = super::pane_block("Commit Detail", self.focused);
+        let block = super::pane_block(crate::tr!("Commit Detail"), self.focused);
 
         let max_scroll = self
             .estimated_height(area.width.saturating_sub(2))
@@ -425,7 +445,7 @@ impl FileListWidget {
     fn build_lines(&self, inner_width: usize) -> Vec<Line<'static>> {
         match &self.content {
             FileListContent::Loading => vec![Line::from(Span::styled(
-                " Loading...",
+                crate::tr!(" Loading..."),
                 Style::default().fg(Color::DarkGray),
             ))],
             FileListContent::Empty => Vec::new(),
@@ -439,7 +459,7 @@ impl FileListWidget {
                 // Header row
                 let mut spans = vec![
                     Span::styled(
-                        format!(" {} files changed", header.total_files),
+                        crate::trf!(" {count} files changed", count = header.total_files),
                         Style::default().add_modifier(Modifier::BOLD),
                     ),
                     Span::raw("  "),
@@ -457,7 +477,7 @@ impl FileListWidget {
                     if staged > 0 {
                         spans.push(Span::raw("  "));
                         spans.push(Span::styled(
-                            format!("● {} staged", staged),
+                            crate::trf!("● {count} staged", count = staged),
                             Style::default().fg(Color::Cyan),
                         ));
                     }
@@ -474,7 +494,7 @@ impl FileListWidget {
                 if *hidden_files > 0 {
                     lines.push(Line::from(""));
                     lines.push(Line::from(Span::styled(
-                        format!("  ...and {} more files", hidden_files),
+                        crate::trf!("  ...and {count} more files", count = hidden_files),
                         Style::default().fg(Color::DarkGray),
                     )));
                 }
@@ -494,7 +514,7 @@ impl FileListWidget {
         let stats_text = if !show_stats {
             String::new()
         } else if row.is_binary {
-            "(binary)".to_string()
+            crate::trf!("({binary})", binary = crate::tr!("binary"))
         } else {
             format!("+{:<4} -{:<4}", row.insertions, row.deletions)
         };
@@ -590,8 +610,14 @@ impl Widget for FileListWidget {
         }
 
         let title = match self.file_count() {
-            Some(count) => format!("Changed Files ({})", count),
-            None => "Changed Files".to_string(),
+            Some(count) => {
+                crate::trf!(
+                    "{label} ({count})",
+                    label = crate::tr!("Changed Files"),
+                    count = count
+                )
+            }
+            None => crate::tr!("Changed Files").to_string(),
         };
         let block = super::pane_block(&title, self.focused);
 

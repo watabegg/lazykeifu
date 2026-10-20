@@ -123,9 +123,9 @@ impl App {
                 if let Some(name) = field.strip_prefix(b"branch refs/heads/") {
                     row.label = String::from_utf8_lossy(name).into_owned();
                 } else if field == b"detached" {
-                    row.label.push_str(" (detached)");
+                    row.label.push_str(crate::tr!(" (detached)"));
                 } else if field.starts_with(b"locked") {
-                    row.label.push_str(" (locked)");
+                    row.label.push_str(crate::tr!(" (locked)"));
                 } else if let Some(oid) = field.strip_prefix(b"HEAD ") {
                     row.oid = Oid::from_str(&String::from_utf8_lossy(oid)).ok();
                 }
@@ -137,14 +137,18 @@ impl App {
         for module in repo.submodules()? {
             let path = repo
                 .workdir()
-                .context("No working tree")?
+                .context(crate::tr!("No working tree"))?
                 .join(module.path());
             let available = module.open().is_ok();
             rows[1].push(Row {
                 label: format!(
                     "{}{}",
                     module.path().display(),
-                    if available { "" } else { " (not initialized)" }
+                    if available {
+                        ""
+                    } else {
+                        crate::tr!(" (not initialized)")
+                    }
                 ),
                 detail: path.display().to_string(),
                 path: available.then_some(path),
@@ -320,7 +324,9 @@ impl App {
         }
         match action {
             Action::FocusPanel(Panel::Diff) if slot <= 1 => {
-                self.set_message("Enter opens the selected repository; choose Files for a diff");
+                self.set_message(crate::tr!(
+                    "Enter opens the selected repository; choose Files for a diff"
+                ));
                 Ok(true)
             }
             Action::Checkout | Action::StageToggle => {
@@ -333,13 +339,18 @@ impl App {
                 };
                 if slot <= 1 {
                     if self.is_fetching() {
-                        bail!("Wait for fetch to finish before opening another repository");
+                        bail!(
+                            "{}",
+                            crate::tr!(
+                                "Wait for fetch to finish before opening another repository"
+                            )
+                        );
                     }
-                    let path = row
-                        .path
-                        .context("Submodule is not initialized; initialize it with Git first")?;
+                    let path = row.path.context(crate::tr!(
+                        "Submodule is not initialized; initialize it with Git first"
+                    ))?;
                     let mut next = App::from_repository(GitRepository::open(&path)?)?;
-                    next.set_message(format!("Opened {}", path.display()));
+                    next.set_message(crate::trf!("Opened {path}", path = path.display()));
                     *self = next;
                 } else if let Some(branch) = row.branch {
                     crate::git::operations::checkout_remote_branch(&self.repo.repo, &branch.name)?;
@@ -364,7 +375,9 @@ impl App {
             | Action::CommitDialog
             | Action::EditFile
             | Action::ToggleDiffSide => {
-                self.set_message("Select the Files or Local tab for this operation");
+                self.set_message(crate::tr!(
+                    "Select the Files or Local tab for this operation"
+                ));
                 Ok(true)
             }
             _ => Ok(false),

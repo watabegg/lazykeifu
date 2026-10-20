@@ -2,6 +2,25 @@
 
 lazykeifu can be configured via `~/.config/lazykeifu/config.toml`. All settings are optional.
 
+## Language
+
+The UI supports the same nine languages as Lazygit: `en`, `ja`, `ko`, `nl`, `pl`,
+`pt`, `ru`, `zh-CN`, and `zh-TW`.
+
+```toml
+[ui]
+language = "auto" # or, for example, "ja"
+```
+
+`--language ja` overrides this setting for one launch. `auto` uses the first
+nonempty `LC_ALL`, `LC_MESSAGES`, or `LANG` value; unsupported system locales and
+missing translations fall back to English. Explicit unsupported language choices
+produce a startup error. Locale forms such as `ja_JP.UTF-8`, `pt_BR`, and
+`zh_Hant_TW` are accepted. Restart to apply configuration changes.
+
+Repository content and raw Git output keep their original text. Keybindings are
+identical in every language.
+
 ## Auto-refresh
 
 By default, lazykeifu automatically refreshes the commit graph every 10 seconds and fetches using Git remote configuration every 60 seconds.

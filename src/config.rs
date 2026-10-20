@@ -43,10 +43,21 @@ pub enum FileView {
 }
 
 /// UI layout configuration
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct UiConfig {
+    /// UI language: auto or an ISO language code; Git content keeps its original language.
+    pub language: String,
     pub file_view: FileView,
+}
+
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self {
+            language: "auto".into(),
+            file_view: FileView::default(),
+        }
+    }
 }
 
 /// Auto-refresh configuration
@@ -108,5 +119,18 @@ impl Config {
             .ok()
             .and_then(|content| toml::from_str(&content).ok())
             .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod language_tests {
+    use super::*;
+
+    #[test]
+    fn language_defaults_to_auto_and_accepts_explicit_choice() {
+        assert_eq!(Config::default().ui.language, "auto");
+        let config: Config = toml::from_str("[ui]\nlanguage = 'zh-TW'\n").unwrap();
+        assert_eq!(config.ui.language, "zh-TW");
+        assert!(matches!(config.ui.file_view, FileView::Fullscreen));
     }
 }

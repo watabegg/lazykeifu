@@ -7,17 +7,21 @@ pub fn line(app: &App) -> Line<'static> {
     let focus = app.workspace.focus;
     let keys: &[(&str, &str)] = if let Some(slot) = app.workspace.tabs.slot(focus) {
         match slot {
-            0 | 1 => &[("Enter", "open repo"), ("[ / ]", "tabs"), ("R", "refresh")],
+            0 | 1 => &[
+                ("Enter", crate::tr!("open repo")),
+                ("[ / ]", crate::tr!("tabs")),
+                ("R", crate::tr!("refresh")),
+            ],
             2 => &[
-                ("Space", "checkout"),
-                ("Enter", "history"),
-                ("M/r", "merge/rebase"),
-                ("T", "tag"),
+                ("Space", crate::tr!("checkout")),
+                ("Enter", crate::tr!("history")),
+                ("M/r", crate::tr!("merge/rebase")),
+                ("T", crate::tr!("tag")),
             ],
             _ => &[
-                ("Enter", "inspect tag"),
-                ("[ / ]", "tabs"),
-                ("R", "refresh"),
+                ("Enter", crate::tr!("inspect tag")),
+                ("[ / ]", crate::tr!("tabs")),
+                ("R", crate::tr!("refresh")),
             ],
         }
     } else {
@@ -31,63 +35,68 @@ pub fn line(app: &App) -> Line<'static> {
             {
                 if app.workspace.commit.is_some() {
                     &[
-                        ("Enter", "fold"),
-                        ("- / =", "fold/unfold all"),
-                        ("2", "working files"),
+                        ("Enter", crate::tr!("fold")),
+                        ("- / =", crate::tr!("fold/unfold all")),
+                        ("2", crate::tr!("working files")),
                     ]
                 } else {
                     &[
-                        ("Enter", "fold"),
-                        ("Space", "stage directory"),
-                        ("a", "stage/unstage all"),
-                        ("c", "commit"),
-                        ("A", "amend"),
+                        ("Enter", crate::tr!("fold")),
+                        ("Space", crate::tr!("stage directory")),
+                        ("a", crate::tr!("stage/unstage all")),
+                        ("c", crate::tr!("commit")),
+                        ("A", crate::tr!("amend")),
                     ]
                 }
             }
-            Panel::Files if app.workspace.commit.is_some() => {
-                &[("Enter", "diff"), ("2", "working files")]
-            }
+            Panel::Files if app.workspace.commit.is_some() => &[
+                ("Enter", crate::tr!("diff")),
+                ("2", crate::tr!("working files")),
+            ],
             Panel::Files => &[
                 (
                     "Space",
                     if app.workspace.staged {
-                        "unstage"
+                        crate::tr!("unstage")
                     } else {
-                        "stage"
+                        crate::tr!("stage")
                     },
                 ),
-                ("Enter", "diff"),
-                ("c", "commit"),
-                ("A", "amend"),
-                ("d", "discard"),
-                ("r", "refresh"),
+                ("Enter", crate::tr!("diff")),
+                ("c", crate::tr!("commit")),
+                ("A", crate::tr!("amend")),
+                ("d", crate::tr!("discard")),
+                ("r", crate::tr!("refresh")),
             ],
             Panel::Branches => &[
-                ("Space", "checkout"),
-                ("Enter", "history"),
-                ("n", "new"),
-                ("R", "rename"),
-                ("T", "tag"),
-                ("d", "delete"),
-                ("M/r", "merge/rebase"),
+                ("Space", crate::tr!("checkout")),
+                ("Enter", crate::tr!("history")),
+                ("n", crate::tr!("new")),
+                ("R", crate::tr!("rename")),
+                ("T", crate::tr!("tag")),
+                ("d", crate::tr!("delete")),
+                ("M/r", crate::tr!("merge/rebase")),
             ],
             Panel::Graph => &[
-                ("Enter", "diff"),
-                ("r", "reword HEAD"),
-                ("g", "reset"),
-                ("T", "tag"),
-                ("C/V", "copy/paste"),
-                ("t", "revert"),
-                ("Ctrl-l", "log"),
+                ("Enter", crate::tr!("diff")),
+                ("r", crate::tr!("reword HEAD")),
+                ("g", crate::tr!("reset")),
+                ("T", crate::tr!("tag")),
+                ("C/V", crate::tr!("copy/paste")),
+                ("t", crate::tr!("revert")),
+                ("Ctrl-l", crate::tr!("log")),
             ],
             Panel::Stashes => &[
-                ("Space", "apply"),
-                ("g", "pop"),
-                ("d", "drop"),
-                ("Enter", "diff"),
+                ("Space", crate::tr!("apply")),
+                ("g", crate::tr!("pop")),
+                ("d", crate::tr!("drop")),
+                ("Enter", crate::tr!("diff")),
             ],
-            Panel::CommitDetail => &[("j/k", "scroll"), ("Enter", "diff"), ("4", "graph")],
+            Panel::CommitDetail => &[
+                ("j/k", crate::tr!("scroll")),
+                ("Enter", crate::tr!("diff")),
+                ("4", crate::tr!("graph")),
+            ],
             Panel::Diff
                 if app.workspace.commit.is_none() && app.workspace.stash_preview.is_none() =>
             {
@@ -95,28 +104,28 @@ pub fn line(app: &App) -> Line<'static> {
                     (
                         "Space",
                         if app.workspace.staged {
-                            "unstage hunk"
+                            crate::tr!("unstage hunk")
                         } else {
-                            "stage hunk"
+                            crate::tr!("stage hunk")
                         },
                     ),
-                    ("h/l", "hunk"),
-                    ("Tab", "side"),
-                    ("n/N", "file"),
-                    ("Esc", "close"),
+                    ("h/l", crate::tr!("hunk")),
+                    ("Tab", crate::tr!("side")),
+                    ("n/N", crate::tr!("file")),
+                    ("Esc", crate::tr!("close")),
                 ]
             }
             Panel::Diff => &[
-                ("j/k", "scroll"),
-                ("h/l", "hunk"),
-                ("n/N", "file"),
-                ("Esc", "close"),
+                ("j/k", crate::tr!("scroll")),
+                ("h/l", crate::tr!("hunk")),
+                ("n/N", crate::tr!("file")),
+                ("Esc", crate::tr!("close")),
             ],
             Panel::Status => &[
-                ("f", "fetch"),
-                ("p", "pull"),
-                ("P", "push"),
-                ("R", "refresh"),
+                ("f", crate::tr!("fetch")),
+                ("p", crate::tr!("pull")),
+                ("P", crate::tr!("push")),
+                ("R", crate::tr!("refresh")),
             ],
         }
     };

@@ -32,8 +32,9 @@ impl GitRepository {
 
     /// Discover a repository from the current directory
     pub fn discover() -> Result<Self> {
-        let repo = Repository::discover(".")
-            .context("Git repository not found. Please run inside a Git repository.")?;
+        let repo = Repository::discover(".").context(crate::tr!(
+            "Git repository not found. Please run inside a Git repository."
+        ))?;
         let path = repo
             .workdir()
             .unwrap_or_else(|| repo.path())
@@ -45,7 +46,7 @@ impl GitRepository {
     /// Open a repository from a specified path
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let repo = Repository::open(path.as_ref())
-            .context("Git repository not found at specified path.")?;
+            .context(crate::tr!("Git repository not found at specified path."))?;
         let path_str = repo
             .workdir()
             .unwrap_or_else(|| repo.path())

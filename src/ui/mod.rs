@@ -159,9 +159,10 @@ fn draw_content(frame: &mut Frame, app: &mut App) {
 
     // Check minimum terminal size to prevent buffer overflow panics
     if area.width < MIN_WIDTH || area.height < MIN_HEIGHT {
-        let msg = format!(
-            "Terminal too small ({}x{}). Need at least {}x{}.",
-            area.width, area.height, MIN_WIDTH, MIN_HEIGHT
+        let msg = crate::trf!(
+            "Terminal too small ({actual}). Need at least {minimum}.",
+            actual = format!("{}x{}", area.width, area.height),
+            minimum = format!("{}x{}", MIN_WIDTH, MIN_HEIGHT)
         );
         let paragraph = Paragraph::new(msg).style(Style::default().fg(Color::Red));
         frame.render_widget(paragraph, area);
@@ -264,7 +265,7 @@ fn draw_content(frame: &mut Frame, app: &mut App) {
         AppMode::Help => {
             let popup_area = centered_rect(60, 70, area);
             let viewport_height = popup_area.height.saturating_sub(2) as usize;
-            let line_count = HelpPopup::line_count();
+            let line_count = HelpPopup::line_count(popup_area.width);
             let max_scroll = line_count.saturating_sub(viewport_height) as u16;
             app.help_scroll = app.help_scroll.min(max_scroll);
             frame.render_widget(HelpPopup::new(app.help_scroll), popup_area);

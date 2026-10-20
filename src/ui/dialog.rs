@@ -47,7 +47,10 @@ impl<'a> Widget for InputDialog<'a> {
                 Span::styled("_", Style::default().fg(Color::Cyan)),
             ]),
             Line::from(""),
-            Line::from(Span::styled("  Enter: confirm  Esc: cancel", hint_style)),
+            Line::from(Span::styled(
+                crate::tr!("  Enter: confirm  Esc: cancel"),
+                hint_style,
+            )),
         ];
 
         let paragraph = Paragraph::new(lines).block(block);
@@ -71,7 +74,7 @@ impl<'a> Widget for ConfirmDialog<'a> {
         Clear.render(area, buf);
 
         let block = Block::default()
-            .title(" Confirm ")
+            .title(crate::tr!(" Confirm "))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Yellow))
             .border_type(BorderType::Rounded)
@@ -91,12 +94,12 @@ impl<'a> Widget for ConfirmDialog<'a> {
                         .fg(Color::Green)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::raw(": Yes  "),
+                Span::raw(crate::tr!(": Yes  ")),
                 Span::styled(
                     "n",
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ),
-                Span::raw(": No"),
+                Span::raw(crate::tr!(": No")),
             ]),
         ];
 
@@ -127,7 +130,7 @@ impl<'a> Widget for BranchInfoPopup<'a> {
         Clear.render(area, buf);
 
         let block = Block::default()
-            .title(" Branches ")
+            .title(crate::tr!(" Branches "))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Blue))
             .border_type(BorderType::Rounded)

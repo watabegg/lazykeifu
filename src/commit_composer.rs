@@ -166,7 +166,7 @@ impl App {
     }
     fn composer_mode(&mut self) {
         self.mode = AppMode::Input {
-            title: "Commit".into(),
+            title: crate::tr!("Commit").into(),
             input: self.workspace.composer.message(),
             action: InputAction::CommitMessage,
         };
@@ -175,7 +175,7 @@ impl App {
         let mut index = self.repo.repo.index()?;
         index.read(true)?;
         if index.has_conflicts() {
-            bail!("Resolve conflicts before committing");
+            bail!("{}", crate::tr!("Resolve conflicts before committing"));
         }
         Ok((
             index.write_tree()?,
@@ -225,10 +225,10 @@ impl App {
         self.composer_refresh()?;
         if self.workspace.composer.staged.is_empty() && self.workspace.composer.amend.is_none() {
             if self.workspace.files.is_empty() {
-                self.set_message("No changes to commit");
+                self.set_message(crate::tr!("No changes to commit"));
             } else {
                 self.mode = AppMode::Confirm {
-                    message: "Nothing staged. Stage all changes (including untracked files) and open commit?".into(),
+                    message: crate::tr!("Nothing staged. Stage all changes (including untracked files) and open commit?").into(),
                     action: crate::app::ConfirmAction::StageAllCommit,
                 };
             }
@@ -245,7 +245,7 @@ impl App {
     fn submit_composer(&mut self) -> Result<()> {
         self.workspace.composer.error_scroll = 0;
         if self.workspace.composer.subject.text.trim().is_empty() {
-            self.workspace.commit_error = Some("Write a commit subject first".into());
+            self.workspace.commit_error = Some(crate::tr!("Write a commit subject first").into());
             self.workspace.composer.field = Field::Subject;
             return Ok(());
         }
@@ -256,18 +256,26 @@ impl App {
             self.composer_refresh()?;
             self.workspace.composer.field = Field::Review;
             self.workspace.commit_error = Some(
-                "Staged changes or HEAD changed. Review the updated selection, then commit again."
-                    .into(),
+                crate::tr!(
+                    "Staged changes or HEAD changed. Review the updated selection, then commit again."
+                )
+                .into(),
             );
             return Ok(());
         }
         if self.workspace.composer.staged.is_empty() && self.workspace.composer.amend.is_none() {
-            bail!("No staged changes; return to Files to stage a change");
+            bail!(
+                "{}",
+                crate::tr!("No staged changes; return to Files to stage a change")
+            );
         }
         if let Some((snapshot, _)) = &mut self.workspace.composer.amend {
             let current = crate::git::history::Snapshot::capture(&self.repo.repo)?;
             if current.head != snapshot.head || current.reference != snapshot.reference {
-                bail!("HEAD or branch changed; close this draft and reopen amend from Git actions");
+                bail!(
+                "{}",
+                crate::tr!("HEAD or branch changed; close this draft and reopen amend from Git actions")
+            );
             }
             snapshot.tree = current.tree;
         }
@@ -330,7 +338,9 @@ impl App {
                 self.mode = AppMode::Normal;
                 self.workspace.invalidate();
                 self.workspace.focus = Panel::Files;
-                self.set_message("Commit draft kept · c resumes · Space changes staging");
+                self.set_message(crate::tr!(
+                    "Commit draft kept · c resumes · Space changes staging"
+                ));
             }
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => return self.submit_composer(),
             (KeyModifiers::CONTROL, KeyCode::Char('d' | 'u')) => {

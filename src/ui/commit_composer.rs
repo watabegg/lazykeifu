@@ -27,21 +27,19 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     frame.render_widget(Clear, rect);
     let busy = app.workspace.busy();
     let title = if busy {
-        "Committing…".to_string()
+        crate::tr!("Committing…").to_string()
     } else {
-        format!(
-            "{} · {}",
-            if let Some((_, only)) = app.workspace.composer.amend.as_ref() {
-                if *only {
-                    "Reword HEAD"
-                } else {
-                    "Amend HEAD"
-                }
+        let action = if let Some((_, only)) = app.workspace.composer.amend.as_ref() {
+            if *only {
+                crate::tr!("Reword HEAD")
             } else {
-                "Commit"
-            },
-            app.repo.head_name().unwrap_or_else(|| "HEAD".into())
-        )
+                crate::tr!("Amend HEAD")
+            }
+        } else {
+            crate::tr!("Commit")
+        };
+        let branch = app.repo.head_name().unwrap_or_else(|| "HEAD".into());
+        crate::trf!("{action} · {branch}", action = action, branch = branch)
     };
     frame.render_widget(pane_block(&title, true), rect);
     let content = rect.inner(Margin::new(1, 1));
@@ -78,7 +76,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     super::patch::draw(
         frame,
         parts[1],
-        "STAGED diff",
+        crate::tr!("STAGED diff"),
         path,
         &app.workspace.patch,
         super::patch::Viewport {
@@ -137,7 +135,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                 ),
                 Span::raw(file.path.to_string_lossy().into_owned()),
                 Span::styled(
-                    if file.unstaged { " · partial" } else { "" },
+                    if file.unstaged {
+                        crate::tr!(" · partial")
+                    } else {
+                        ""
+                    },
                     Style::default().fg(Color::Yellow),
                 ),
             ])
@@ -151,15 +153,16 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let count = c.staged.len();
     frame.render_widget(
         Paragraph::new(staged).block(pane_block(
-            &format!("Staged · {count} files"),
+            &crate::trf!("Staged · {count} files", count = count),
             field == Field::Review,
         )),
         rows[0],
     );
     let len = c.subject.text.chars().count();
-    let subject_title = format!(
-        "Subject · {len}/72{}",
-        if len > 72 { " · long" } else { "" }
+    let subject_title = crate::trf!(
+        "Subject · {len}/72{long}",
+        len = len,
+        long = if len > 72 { crate::tr!(" · long") } else { "" }
     );
     editor(
         frame,
@@ -167,44 +170,71 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         rows[1],
         &subject_title,
         field == Field::Subject && !busy,
-        "Describe this change",
+        crate::tr!("Describe this change"),
     );
     editor(
         frame,
         &mut c.body,
         rows[2],
-        "Body (optional)",
+        crate::tr!("Body (optional)"),
         field == Field::Body && !busy,
-        "Why is this change needed?",
+        crate::tr!("Why is this change needed?"),
     );
     if let Some(error) = &app.workspace.commit_error {
         frame.render_widget(
             Paragraph::new(error.as_str())
                 .scroll((app.workspace.composer.error_scroll, 0))
                 .wrap(ratatui::widgets::Wrap { trim: false })
-                .block(pane_block("Git output · Alt-j/k scroll", true))
+                .block(pane_block(
+                    &crate::trf!(
+                        "{output} · Alt-j/k {scroll}",
+                        output = crate::tr!("Git output"),
+                        scroll = crate::tr!("scroll")
+                    ),
+                    true,
+                ))
                 .style(Style::default().fg(Color::LightRed)),
             rows[3],
         );
     }
 
     let hint = match field {
-        Field::Subject => "Enter commit · Tab body · Shift-Tab review",
-        Field::Body => "Enter newline · Tab review · Ctrl-s commit",
-        Field::Review => "j/k review · Space unstage · Enter write message",
+        Field::Subject => crate::trf!(
+            "Enter {commit} · Tab {body} · Shift-Tab {review}",
+            commit = crate::tr!("commit"),
+            body = crate::tr!("body"),
+            review = crate::tr!("review")
+        ),
+        Field::Body => crate::trf!(
+            "Enter {newline} · Tab {review} · Ctrl-s {commit}",
+            newline = crate::tr!("newline"),
+            review = crate::tr!("review"),
+            commit = crate::tr!("commit")
+        ),
+        Field::Review => crate::trf!(
+            "j/k {review} · Space {unstage} · Enter {write_message}",
+            review = crate::tr!("review"),
+            unstage = crate::tr!("unstage"),
+            write_message = crate::tr!("write message")
+        ),
     };
     frame.render_widget(Clear, footer);
     frame.render_widget(
         Paragraph::new(vec![
             Line::styled(
                 if busy {
-                    "Running Git hooks / signing…"
+                    crate::tr!("Running Git hooks / signing…").to_string()
                 } else {
                     hint
                 },
                 Style::default().fg(Color::Cyan),
             ),
-            Line::from("Ctrl-d/u scroll diff · Esc keep draft · c resume"),
+            Line::from(crate::trf!(
+                "Ctrl-d/u {scroll_diff} · Esc {keep_draft} · c {resume}",
+                scroll_diff = crate::tr!("scroll diff"),
+                keep_draft = crate::tr!("keep draft"),
+                resume = crate::tr!("resume")
+            )),
         ]),
         footer,
     );

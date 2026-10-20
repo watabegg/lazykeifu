@@ -126,7 +126,7 @@ impl PatchView {
 pub fn totals(files: Option<usize>, add: usize, del: usize) -> Line<'static> {
     let mut spans = vec![];
     if let Some(files) = files {
-        spans.push(Span::raw(format!("{files} files  ")));
+        spans.push(Span::raw(crate::trf!("{count} files  ", count = files)));
     }
     spans.push(Span::styled(
         format!("+{add}"),

@@ -15,39 +15,52 @@ pub struct CommitOperation {
 impl CommitOperation {
     pub fn capture(repo: &Repository, oid: Oid, kind: Kind) -> Result<Self> {
         if !matches!(kind, Kind::CherryPick | Kind::Revert) {
-            bail!("Expected cherry-pick or revert");
+            bail!(crate::tr!("Expected cherry-pick or revert"));
         }
         if repo.state() != RepositoryState::Clean {
-            bail!("Finish or abort the current Git operation first");
+            bail!(crate::tr!(
+                "Finish or abort the current Git operation first"
+            ));
         }
-        let head = repo.head().context("Create an initial commit first")?;
+        let head = repo
+            .head()
+            .context(crate::tr!("Create an initial commit first"))?;
         if !head.is_branch() {
-            bail!("Check out a local branch first; HEAD is detached");
+            bail!(crate::tr!(
+                "Check out a local branch first; HEAD is detached"
+            ));
         }
         let commit = repo.find_commit(oid)?;
         if commit.parent_count() > 1 {
-            bail!("Merge commits require a mainline parent; use Git directly for this commit");
+            bail!(crate::tr!(
+                "Merge commits require a mainline parent; use Git directly for this commit"
+            ));
         }
         Ok(Self {
             kind,
             oid,
             subject: commit.summary().unwrap_or("").to_owned(),
-            branch: head.name().context("Branch name is not UTF-8")?.to_owned(),
+            branch: head
+                .name()
+                .context(crate::tr!("Branch name is not UTF-8"))?
+                .to_owned(),
             head: head.peel_to_commit()?.id(),
         })
     }
     pub fn message(&self) -> String {
-        format!(
-            "{} {:.7} ({}) on current branch '{}'? {}",
-            self.kind.command(),
-            self.oid,
-            self.subject,
-            self.branch.trim_start_matches("refs/heads/"),
-            if self.kind == Kind::Revert {
-                "Create a new commit undoing this change."
-            } else {
-                "Apply this change as a new commit."
-            }
+        let oid = self.oid.to_string();
+        let detail = if self.kind == Kind::Revert {
+            crate::tr!("Create a new commit undoing this change.")
+        } else {
+            crate::tr!("Apply this change as a new commit.")
+        };
+        crate::trf!(
+            "{operation} {oid} ({subject}) on current branch '{branch}'? {detail}",
+            operation = self.kind.command(),
+            oid = &oid[..7],
+            subject = self.subject,
+            branch = self.branch.trim_start_matches("refs/heads/"),
+            detail = detail
         )
     }
     pub fn command(&self, repo: &Repository) -> Result<Command> {
@@ -56,13 +69,15 @@ impl CommitOperation {
             || head.name() != Some(self.branch.as_str())
             || head.target() != Some(self.head)
         {
-            bail!("Branch or operation changed; review and confirm again");
+            bail!(crate::tr!(
+                "Branch or operation changed; review and confirm again"
+            ));
         }
         let mut command = Command::new("git");
         command
             .arg(self.kind.command())
             .arg(self.oid.to_string())
-            .current_dir(repo.workdir().context("No working tree")?);
+            .current_dir(repo.workdir().context(crate::tr!("No working tree"))?);
         Ok(command)
     }
 }

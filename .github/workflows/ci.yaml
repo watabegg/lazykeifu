@@ -43,6 +43,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           cargo build --locked
+          python3 scripts/i18n-catalog.py
+          python3 scripts/test-i18n.py
           python3 scripts/test-workspace.py
           python3 scripts/test-network.py
           python3 scripts/test-stash.py

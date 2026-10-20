@@ -110,7 +110,7 @@ pub fn working_files(repo: &Repository) -> Result<Vec<FileRow>> {
         let path = delta
             .as_ref()
             .and_then(|d| d.new_file().path().or(d.old_file().path()))
-            .context("Git status returned a pathless entry")?
+            .context(crate::tr!("Git status returned a pathless entry"))?
             .to_path_buf();
         let old_path = entry
             .head_to_index()
@@ -186,29 +186,37 @@ fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
         return crate::git::stash::preview(repo, oid);
     }
     if key.stash_view {
-        return Ok("No stashes (s: save working changes)".into());
+        return Ok(crate::tr!("No stashes (s: save working changes)").into());
     }
     let Some(path) = &key.path else {
-        return Ok("No changed files".into());
+        return Ok(crate::tr!("No changed files").into());
     };
     if key.commit.is_none() && !key.staged && repo.status_file(path)?.is_wt_new() {
-        let full = repo.workdir().context("No working tree")?.join(path);
+        let full = repo
+            .workdir()
+            .context(crate::tr!("No working tree"))?
+            .join(path);
         if full.is_symlink() {
-            return Ok(format!("Symlink → {}", std::fs::read_link(full)?.display()));
+            return Ok(crate::trf!(
+                "Symlink → {target}",
+                target = std::fs::read_link(full)?.display()
+            ));
         }
         if std::fs::metadata(&full)?.len() > 1024 * 1024 {
-            return Ok("Untracked file exceeds 1 MiB; preview omitted".into());
+            return Ok(crate::tr!("Untracked file exceeds 1 MiB; preview omitted").into());
         }
         let bytes = std::fs::read(full)?;
         if bytes.contains(&0) {
-            return Ok("Binary untracked file".into());
+            return Ok(crate::tr!("Binary untracked file").into());
         }
         let text = String::from_utf8_lossy(&bytes);
         let count = text.lines().count();
-        return Ok(format!(
-            "diff --git a/{0} b/{0}\nnew file (untracked)\n@@ -0,0 +1,{count} @@\n{1}",
-            path.display(),
-            text.lines()
+        return Ok(crate::trf!(
+            "diff --git a/{path} b/{path}\nnew file (untracked)\n@@ -0,0 +1,{count} @@\n{body}",
+            path = path.display(),
+            count = count,
+            body = text
+                .lines()
                 .map(|line| format!("+{line}\n"))
                 .collect::<String>()
         ));
@@ -216,7 +224,7 @@ fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
     if key.commit.is_none() {
         let text = crate::git::changes::diff(repo, path, key.staged)?;
         return Ok(if text.is_empty() {
-            "No changes on this side (Tab in Diff: staged / unstaged)".into()
+            crate::tr!("No changes on this side (Tab in Diff: staged / unstaged)").into()
         } else {
             text
         });
@@ -253,7 +261,7 @@ fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
     args.push(path.as_os_str());
     let text = git_output(repo, &args)?;
     Ok(if text.is_empty() {
-        "No changes on this side (Tab in Diff: staged / unstaged)".into()
+        crate::tr!("No changes on this side (Tab in Diff: staged / unstaged)").into()
     } else {
         text
     })
@@ -262,7 +270,10 @@ fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
 pub fn toggle_stage(repo: &Repository, row: &FileRow, staged_side: bool) -> Result<()> {
     use std::ffi::OsStr;
     if row.conflict {
-        bail!("Resolve this conflict with Git before staging");
+        bail!(
+            "{}",
+            crate::tr!("Resolve this conflict with Git before staging")
+        );
     }
     let unstage = row.staged && (staged_side || !row.unstaged);
     let mut args: Vec<&OsStr> = if unstage {
@@ -384,7 +395,10 @@ impl App {
                         Err(error) => {
                             if let Some(input) = message {
                                 self.mode = AppMode::Input {
-                                    title: "Commit failed — edit or retry (Esc cancels)".into(),
+                                    title: crate::tr!(
+                                        "Commit failed — edit or retry (Esc cancels)"
+                                    )
+                                    .into(),
                                     input,
                                     action: InputAction::CommitMessage,
                                 };
@@ -398,7 +412,9 @@ impl App {
                                 let _ = self.refresh(true);
                                 self.workspace.commit = None;
                                 self.workspace.invalidate();
-                                self.set_message("Git operation failed; working files refreshed");
+                                self.set_message(crate::tr!(
+                                    "Git operation failed; working files refreshed"
+                                ));
                                 self.show_error(error);
                             }
                         }
@@ -406,7 +422,7 @@ impl App {
                 }
                 Err(mpsc::TryRecvError::Disconnected) => {
                     self.workspace.job = None;
-                    self.show_error("Git worker stopped unexpectedly".into());
+                    self.show_error(crate::tr!("Git worker stopped unexpectedly").into());
                 }
                 Err(mpsc::TryRecvError::Empty) => {}
             }
@@ -452,11 +468,12 @@ impl App {
                 .as_ref()
                 .is_some_and(|(_, only)| *only)
             {
-                "Message-only amend. Staged changes are kept for your next commit.".into()
+                crate::tr!("Message-only amend. Staged changes are kept for your next commit.")
+                    .into()
             } else if self.workspace.composer.amend.is_some() {
-                "No new staged changes. Amend keeps the current HEAD contents.".into()
+                crate::tr!("No new staged changes. Amend keeps the current HEAD contents.").into()
             } else {
-                "No staged changes. Esc returns to Files; the draft is kept.".into()
+                crate::tr!("No staged changes. Esc returns to Files; the draft is kept.").into()
             };
             self.workspace.patch =
                 crate::ui::patch::PatchView::build(&self.workspace.preview, None);
@@ -468,7 +485,7 @@ impl App {
             // Once the visible text is cleared, the former key no longer describes it.
             // Returning to that file while another result is in flight must reload it.
             self.workspace.preview_key = None;
-            self.workspace.preview = "Loading diff…".into();
+            self.workspace.preview = crate::tr!("Loading diff…").into();
             self.workspace.patch =
                 crate::ui::patch::PatchView::build(&self.workspace.preview, None);
             self.workspace.hunk_index = 0;
@@ -491,7 +508,7 @@ impl App {
                 }
                 Err(mpsc::TryRecvError::Disconnected) => {
                     self.workspace.preview_rx = None;
-                    self.workspace.preview = "Diff worker stopped".into();
+                    self.workspace.preview = crate::tr!("Diff worker stopped").into();
                     self.workspace.patch =
                         crate::ui::patch::PatchView::build(&self.workspace.preview, None);
                     self.workspace.preview_key = Some(key.clone());
@@ -528,7 +545,7 @@ impl App {
         let (tx, rx) = mpsc::channel();
         self.workspace.job = Some(rx);
         let path = self.repo_path.clone();
-        self.set_message("Pulling using Git configuration…");
+        self.set_message(crate::tr!("Pulling using Git configuration…"));
         thread::spawn(move || {
             let result = Repository::open(path)
                 .map_err(anyhow::Error::from)
@@ -544,7 +561,7 @@ impl App {
         self.workspace.commit_message = Some(message.clone());
         let path = self.repo_path.clone();
         let amend = self.workspace.composer.amend.clone();
-        self.set_message("Committing… (hooks and signing enabled)");
+        self.set_message(crate::tr!("Committing… (hooks and signing enabled)"));
         thread::spawn(move || {
             let result = Repository::open(path)
                 .map_err(anyhow::Error::from)
@@ -657,7 +674,7 @@ impl App {
         }
         if matches!(action, Action::CherryPick | Action::Revert) {
             if focus != Panel::Graph {
-                self.set_message("Select a commit in Graph (4) first");
+                self.set_message(crate::tr!("Select a commit in Graph (4) first"));
                 return Ok(true);
             }
             let commit = self
@@ -665,9 +682,9 @@ impl App {
                 .selected()
                 .and_then(|i| self.graph_layout.nodes.get(i))
                 .and_then(|n| n.commit.as_ref())
-                .context(
-                    "Select a committed change; working files cannot be applied or reverted",
-                )?;
+                .context(crate::tr!(
+                    "Select a committed change; working files cannot be applied or reverted"
+                ))?;
             let kind = if *action == Action::CherryPick {
                 crate::git::recovery::Kind::CherryPick
             } else {
@@ -689,7 +706,7 @@ impl App {
                 self.load_more_history()?;
                 self.workspace_graph_target();
             } else {
-                self.set_message("Use Ctrl-l in Graph (4) to load more history");
+                self.set_message(crate::tr!("Use Ctrl-l in Graph (4) to load more history"));
             }
             return Ok(true);
         }
@@ -715,7 +732,9 @@ impl App {
                     action: crate::app::ConfirmAction::Integrate(target),
                 };
             } else {
-                self.set_message("Select a branch in Branches (3) or Graph (4) first");
+                self.set_message(crate::tr!(
+                    "Select a branch in Branches (3) or Graph (4) first"
+                ));
             }
             return Ok(true);
         }
@@ -866,7 +885,9 @@ impl App {
             Action::EnterFileSelect | Action::StageToggle | Action::Checkout => match focus {
                 Panel::Files if *action != Action::Checkout => {
                     if self.workspace.commit.is_some() {
-                        self.set_message("Historical diff is read-only (2: working files)");
+                        self.set_message(crate::tr!(
+                            "Historical diff is read-only (2: working files)"
+                        ));
                     } else if let Some(row) = self
                         .workspace
                         .file_state
@@ -905,11 +926,16 @@ impl App {
             },
             Action::StageAll | Action::UnstageAll => {
                 if focus != Panel::Files || self.workspace.commit.is_some() {
-                    self.set_message("Select working files with 2 first");
+                    self.set_message(crate::tr!("Select working files with 2 first"));
                 } else {
                     if *action == Action::StageAll {
                         if self.repo.repo.index()?.has_conflicts() {
-                            bail!("Resolve conflicts individually with Space before staging all");
+                            bail!(
+                                "{}",
+                                crate::tr!(
+                                    "Resolve conflicts individually with Space before staging all"
+                                )
+                            );
                         }
                         git_output(&self.repo.repo, &["add".as_ref(), "--all".as_ref()])?;
                     } else {
@@ -955,7 +981,9 @@ impl App {
                 return Ok(false);
             }
             Action::Push => return Ok(false),
-            Action::Unavailable => self.set_message("Not implemented yet; see development plan"),
+            Action::Unavailable => {
+                self.set_message(crate::tr!("Not implemented yet; see development plan"))
+            }
             Action::CreateBranch | Action::DeleteBranch => {
                 if focus == Panel::Branches {
                     if *action == Action::DeleteBranch {
@@ -964,7 +992,10 @@ impl App {
                             .filter(|b| !b.is_head && !b.is_remote)
                         {
                             self.mode = AppMode::Confirm {
-                                message: format!("Delete branch '{}' ?", branch.name),
+                                message: crate::trf!(
+                                    "Delete branch '{branch}' ?",
+                                    branch = branch.name
+                                ),
                                 action: crate::app::ConfirmAction::DeleteBranch(
                                     branch.name.clone(),
                                 ),
@@ -975,7 +1006,7 @@ impl App {
                     self.workspace_select_branch();
                     return Ok(false);
                 }
-                self.set_message("Select branches with 3 first");
+                self.set_message(crate::tr!("Select branches with 3 first"));
             }
             _ => return Ok(false),
         }
@@ -1161,7 +1192,7 @@ impl App {
         if *action == Action::StashSave {
             self.workspace.commit_error = None;
             self.mode = AppMode::Input {
-                title: "Save stash (includes untracked files) — message".into(),
+                title: crate::tr!("Save stash (includes untracked files) — message").into(),
                 input: String::new(),
                 action: InputAction::StashMessage,
             };
@@ -1193,17 +1224,17 @@ impl App {
             .cloned()
         {
             self.mode = AppMode::Confirm {
-                message: format!(
-                    "{} {} ({})? {}",
-                    operation.label(),
-                    entry.selector,
-                    &entry.oid.to_string()[..7],
-                    entry.message
+                message: crate::trf!(
+                    "{operation} {selector} ({oid})? {message}",
+                    operation = operation.label(),
+                    selector = entry.selector,
+                    oid = &entry.oid.to_string()[..7],
+                    message = entry.message
                 ),
                 action: ConfirmAction::Stash(entry, operation),
             };
         } else {
-            self.set_message("No stashes");
+            self.set_message(crate::tr!("No stashes"));
         }
         Ok(true)
     }
@@ -1225,7 +1256,7 @@ impl App {
         self.workspace.job = Some(rx);
         self.workspace.commit_message = None;
         let path = self.repo_path.clone();
-        self.set_message("Running Git operation…");
+        self.set_message(crate::tr!("Running Git operation…"));
         thread::spawn(move || {
             let result = Repository::open(path)
                 .map_err(anyhow::Error::from)
@@ -1264,11 +1295,13 @@ impl App {
             return Ok(false);
         }
         if self.workspace.commit.is_some() || self.workspace.stash_preview.is_some() {
-            self.set_message("Historical and stash diffs are read-only (2: working files)");
+            self.set_message(crate::tr!(
+                "Historical and stash diffs are read-only (2: working files)"
+            ));
             return Ok(true);
         }
         if self.workspace.preview_loading() {
-            self.set_message("Wait for the current diff to load");
+            self.set_message(crate::tr!("Wait for the current diff to load"));
             return Ok(true);
         }
         let Some(row) = self
@@ -1289,22 +1322,30 @@ impl App {
             });
         } else {
             if self.workspace.staged {
-                self.set_message("Switch to the unstaged diff with v before discarding");
+                self.set_message(crate::tr!(
+                    "Switch to the unstaged diff with Tab in Diff before discarding"
+                ));
                 return Ok(true);
             }
             if let Some(key) = &self.workspace.preview_key {
                 if preview(&self.repo.repo, key)? != self.workspace.preview {
-                    bail!("Diff changed; refresh and review it before discarding");
+                    bail!(
+                        "{}",
+                        crate::tr!("Diff changed; refresh and review it before discarding")
+                    );
                 }
             }
             let target = changes::prepare_discard(&self.repo.repo, &row.path)?;
             self.mode = AppMode::Confirm {
                 message: if target.untracked {
-                    format!("Delete untracked file {} permanently?", row.path.display())
+                    crate::trf!(
+                        "Delete untracked file {path} permanently?",
+                        path = row.path.display()
+                    )
                 } else {
-                    format!(
-                        "Discard ALL unstaged changes in {}? Staged content is kept.",
-                        row.path.display()
+                    crate::trf!(
+                        "Discard ALL unstaged changes in {path}? Staged content is kept.",
+                        path = row.path.display()
                     )
                 },
                 action: crate::app::ConfirmAction::Discard(target),
@@ -1328,14 +1369,18 @@ impl App {
             let operation = Operation::capture(&self.repo.repo)?;
             let abort = *action == Action::AbortOperation;
             self.mode = AppMode::Confirm {
-                message: format!(
-                    "{} {}? {}",
-                    if abort { "Abort" } else { "Continue" },
-                    operation.kind.command(),
-                    if abort {
-                        "Git may discard conflict-resolution edits."
+                message: crate::trf!(
+                    "{action} {operation}? {detail}",
+                    action = if abort {
+                        crate::tr!("Abort")
                     } else {
-                        "Git will use the terminal for its editor and hooks."
+                        crate::tr!("Continue")
+                    },
+                    operation = operation.kind.command(),
+                    detail = if abort {
+                        crate::tr!("Git may discard conflict-resolution edits.")
+                    } else {
+                        crate::tr!("Git will use the terminal for its editor and hooks.")
                     }
                 ),
                 action: ConfirmAction::Recovery(operation, abort),
@@ -1352,7 +1397,7 @@ impl App {
             || !matches!(self.workspace.focus, Panel::Files | Panel::Diff)
         {
             if *action == Action::EditFile {
-                self.set_message("Select a working file with 2 first");
+                self.set_message(crate::tr!("Select a working file with 2 first"));
                 return Ok(true);
             }
             return Ok(false);
@@ -1372,17 +1417,23 @@ impl App {
         }
         if row.conflict {
             if self.workspace.preview_loading() {
-                self.set_message("Wait for the current diff to load");
+                self.set_message(crate::tr!("Wait for the current diff to load"));
                 return Ok(true);
             }
             if let Some(key) = &self.workspace.preview_key {
                 if preview(&self.repo.repo, key)? != self.workspace.preview {
-                    bail!("Diff changed; refresh and review the resolution first");
+                    bail!(
+                        "{}",
+                        crate::tr!("Diff changed; refresh and review the resolution first")
+                    );
                 }
             }
             let target = Resolution::capture(&self.repo.repo, &row.path)?;
             self.mode = AppMode::Confirm {
-                message: format!("Mark {} resolved and stage current contents? Review any conflict markers before confirming.", row.path.display()),
+                message: crate::trf!(
+                    "Mark {path} resolved and stage current contents? Review any conflict markers before confirming.",
+                    path = row.path.display()
+                ),
                 action: ConfirmAction::Resolve(target),
             };
             return Ok(true);

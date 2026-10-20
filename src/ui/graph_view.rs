@@ -444,11 +444,14 @@ fn render_graph_line<'a>(
     // Handle uncommitted changes row
     if node.is_uncommitted {
         let text = match node.uncommitted_count {
-            Some(count) => format!("uncommitted changes ({})", count),
-            None => "uncommitted changes".to_string(),
+            Some(count) => crate::trf!("uncommitted changes ({count})", count = count),
+            None => crate::tr!("uncommitted changes").to_string(),
         };
         let style = with_row_selection(Style::default().fg(Color::Rgb(192, 202, 245)), is_selected);
-        spans.push(Span::styled(text, style));
+        spans.push(Span::styled(
+            truncate_with_ellipsis(&text, total_width.saturating_sub(left_width)),
+            style,
+        ));
         return Line::from(spans);
     }
 
@@ -626,7 +629,13 @@ impl<'a> StatefulWidget for GraphViewWidget<'a> {
             return;
         }
 
-        let title = format!("4 Graph · Commits {}/{}", self.position.0, self.position.1);
+        let title = crate::trf!(
+            "4 {graph} · {commits} {selected}/{total}",
+            graph = crate::tr!("Graph"),
+            commits = crate::tr!("Commits"),
+            selected = self.position.0,
+            total = self.position.1
+        );
         let block = super::pane_block(&title, self.focused);
 
         let list = List::new(self.items).block(block);

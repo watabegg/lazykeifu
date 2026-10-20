@@ -7,6 +7,7 @@ pub mod debug_server;
 pub mod event;
 pub mod git;
 pub mod graph;
+pub mod i18n;
 pub mod keybindings;
 pub mod logging;
 pub mod mouse;

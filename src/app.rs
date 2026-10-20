@@ -308,7 +308,10 @@ impl App {
             Err(e) => (
                 None,
                 HashMap::new(),
-                Some(format!("Working tree status failed: {e}")),
+                Some(crate::trf!(
+                    "Working tree status failed: {error}",
+                    error = e
+                )),
             ),
         }
     }
@@ -555,7 +558,7 @@ impl App {
     /// rows when another process updates refs between requests.
     pub fn load_more_history(&mut self) -> Result<()> {
         if !self.history_has_more {
-            self.set_message("All reachable history is loaded");
+            self.set_message(crate::tr!("All reachable history is loaded"));
             return Ok(());
         }
         let previous_limit = self.history_limit;
@@ -564,14 +567,15 @@ impl App {
             self.history_limit = previous_limit;
             return Err(error);
         }
-        self.set_message(format!(
-            "Loaded {} commits{}",
-            self.commits.len(),
-            if self.history_has_more {
-                "; + loads 500 more"
-            } else {
-                "; all reachable history loaded"
-            }
+        let suffix = if self.history_has_more {
+            crate::tr!("; Ctrl-l opens log options")
+        } else {
+            crate::tr!("; all reachable history loaded")
+        };
+        self.set_message(crate::trf!(
+            "Loaded {count} commits{suffix}",
+            count = self.commits.len(),
+            suffix = suffix
         ));
         Ok(())
     }
@@ -834,7 +838,7 @@ impl App {
             Ok(result) => result,
             Err(mpsc::TryRecvError::Empty) => return,
             Err(mpsc::TryRecvError::Disconnected) => {
-                Err("Fetch worker stopped unexpectedly".into())
+                Err(crate::tr!("Fetch worker stopped unexpectedly").into())
             }
         };
 
@@ -847,11 +851,13 @@ impl App {
                 self.reset_timers();
                 if !allow_refresh || self.repository_refresh_is_paused() {
                     self.pending_refresh = true;
-                    self.set_message("Fetch completed");
+                    self.set_message(crate::tr!("Fetch completed"));
                 } else {
                     match self.refresh(true) {
-                        Ok(()) => self.set_message("Fetch completed"),
-                        Err(e) => self.show_error(format!("Refresh failed: {e}")),
+                        Ok(()) => self.set_message(crate::tr!("Fetch completed")),
+                        Err(e) => {
+                            self.show_error(crate::trf!("Refresh failed: {error}", error = e))
+                        }
                     }
                 }
             }
@@ -878,18 +884,20 @@ impl App {
         let result = match rx.try_recv() {
             Ok(result) => result,
             Err(mpsc::TryRecvError::Empty) => return,
-            Err(mpsc::TryRecvError::Disconnected) => Err("Push worker stopped unexpectedly".into()),
+            Err(mpsc::TryRecvError::Disconnected) => {
+                Err(crate::tr!("Push worker stopped unexpectedly").into())
+            }
         };
         self.push_receiver = None;
 
         match result {
             Ok(()) => {
-                self.set_message("Push completed");
+                self.set_message(crate::tr!("Push completed"));
                 self.reset_timers();
                 if !allow_refresh || self.repository_refresh_is_paused() {
                     self.pending_refresh = true;
                 } else if let Err(e) = self.refresh(true) {
-                    self.show_error(format!("Refresh failed: {e}"));
+                    self.show_error(crate::trf!("Refresh failed: {error}", error = e));
                 }
             }
             Err(e) => self.show_error(e),
@@ -900,7 +908,10 @@ impl App {
     fn start_push(&mut self, branch: String) {
         let (tx, rx) = mpsc::channel();
         let repo_path = self.repo_path.clone();
-        let message = format!("Pushing '{}' using Git configuration...", branch);
+        let message = crate::trf!(
+            "Pushing '{branch}' using Git configuration...",
+            branch = branch
+        );
 
         thread::spawn(move || {
             let result = push_branch(&repo_path, &branch).map_err(|e| e.to_string());
@@ -942,7 +953,7 @@ impl App {
         {
             if let Err(e) = self.refresh(false) {
                 self.last_refresh_time = now;
-                self.set_message(format!("Auto-refresh failed: {e}"));
+                self.set_message(crate::trf!("Auto-refresh failed: {error}", error = e));
             }
         }
     }
@@ -955,7 +966,7 @@ impl App {
     }
 
     /// Start fetch in background
-    /// If `show_message` is true, displays "Fetching using Git configuration..."
+    /// If `show_message` is true, displays a translated fetch status.
     /// If `silent` is true, errors will not show a dialog (for auto-fetch)
     fn start_fetch(&mut self, show_message: bool, silent: bool) {
         self.last_fetch_time = Instant::now();
@@ -970,7 +981,7 @@ impl App {
         self.fetch_receiver = Some(rx);
         self.fetch_silent = silent;
         if show_message {
-            self.set_message("Fetching using Git configuration...");
+            self.set_message(crate::tr!("Fetching using Git configuration..."));
         }
     }
 
@@ -1030,7 +1041,10 @@ impl App {
                         Err(e) => {
                             self.diff_cache = None;
                             self.diff_cache_oid = Some(result.oid);
-                            self.set_message(format!("Failed to load diff: {e}"));
+                            self.set_message(crate::trf!(
+                                "Failed to load diff: {error}",
+                                error = e
+                            ));
                         }
                     }
                     self.diff_loading_oid = None;
@@ -1040,7 +1054,7 @@ impl App {
                     // Thread panicked or dropped sender — clear loading state
                     self.diff_loading_oid = None;
                     self.diff_receiver = None;
-                    self.set_message("Diff computation failed unexpectedly");
+                    self.set_message(crate::tr!("Diff computation failed unexpectedly"));
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
             }
@@ -1061,7 +1075,10 @@ impl App {
                             tracing::warn!(error = %e, "uncommitted diff load failed");
                             self.uncommitted_diff_cache = None;
                             self.uncommitted_diff_failed = true;
-                            self.set_message(format!("Failed to load diff: {e}"));
+                            self.set_message(crate::trf!(
+                                "Failed to load diff: {error}",
+                                error = e
+                            ));
                         }
                     }
                     // Set the cache key only when the thread's status snapshot
@@ -1093,7 +1110,7 @@ impl App {
                     self.uncommitted_diff_receiver = None;
                     self.uncommitted_diff_failed = true;
                     self.uncommitted_cache_key = self.working_tree_status.clone();
-                    self.set_message("Diff computation failed unexpectedly");
+                    self.set_message(crate::tr!("Diff computation failed unexpectedly"));
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
             }
@@ -1200,7 +1217,7 @@ impl App {
         }
 
         if self.workspace.busy() || self.is_pushing() {
-            self.set_message("Git operation in progress…");
+            self.set_message(crate::tr!("Git operation in progress…"));
             return Ok(());
         }
         if matches!(self.mode, AppMode::GitMenu(_)) {
@@ -1312,19 +1329,21 @@ impl App {
                 self.show_remote_branches = !self.show_remote_branches;
                 self.refresh(true)?;
                 self.reset_timers();
-                let state = if self.show_remote_branches {
-                    "shown"
+                self.set_message(if self.show_remote_branches {
+                    crate::tr!("Remote branches shown")
                 } else {
-                    "hidden"
-                };
-                self.set_message(format!("Remote branches {state}"));
+                    crate::tr!("Remote branches hidden")
+                });
             }
             Action::ToggleTags => {
                 self.show_tags = !self.show_tags;
                 self.refresh(false)?;
                 self.reset_timers();
-                let state = if self.show_tags { "shown" } else { "hidden" };
-                self.set_message(format!("Tags {state}"));
+                self.set_message(if self.show_tags {
+                    crate::tr!("Tags shown")
+                } else {
+                    crate::tr!("Tags hidden")
+                });
             }
             Action::Fetch if !self.is_fetching() => {
                 self.start_fetch(true, false); // silent=false for manual fetch
@@ -1334,7 +1353,7 @@ impl App {
             }
             Action::CreateBranch => {
                 self.mode = AppMode::Input {
-                    title: "New Branch Name".to_string(),
+                    title: crate::tr!("New Branch Name").to_string(),
                     input: String::new(),
                     action: InputAction::CreateBranch,
                 };
@@ -1343,7 +1362,7 @@ impl App {
                 // Save position for cancel restoration
                 self.save_search_position();
                 self.mode = AppMode::Input {
-                    title: "Search branches".to_string(),
+                    title: crate::tr!("Search branches").to_string(),
                     input: String::new(),
                     action: InputAction::Search,
                 };
@@ -1352,7 +1371,7 @@ impl App {
                 if let Some(branch) = self.selected_branch() {
                     if !branch.is_head && !branch.is_remote {
                         self.mode = AppMode::Confirm {
-                            message: format!("Delete branch '{}'?", branch.name),
+                            message: crate::trf!("Delete branch '{branch}'?", branch = branch.name),
                             action: ConfirmAction::DeleteBranch(branch.name.clone()),
                         };
                     }
@@ -1361,7 +1380,7 @@ impl App {
             Action::EnterFileSelect => {
                 if let Some(diff) = self.cached_diff() {
                     if diff.files.is_empty() {
-                        self.set_message("No changed files in this diff");
+                        self.set_message(crate::tr!("No changed files in this diff"));
                     } else {
                         let file_list = diff.files.clone();
                         self.mode = AppMode::FileSelect {
@@ -1370,9 +1389,9 @@ impl App {
                         };
                     }
                 } else if self.is_diff_loading() {
-                    self.set_message("Loading diff...");
+                    self.set_message(crate::tr!("Loading diff..."));
                 } else {
-                    self.set_message("Diff not available");
+                    self.set_message(crate::tr!("Diff not available"));
                 }
             }
             Action::CopyHash => {
@@ -1382,20 +1401,20 @@ impl App {
                     .map(|commit| commit.oid.to_string());
                 match hash {
                     Some(hash) => match crate::tui::copy_to_clipboard(&hash) {
-                        Ok(()) => self.set_message(format!("Copied {}", &hash[..7])),
-                        Err(e) => self.set_message(format!("Copy failed: {e}")),
+                        Ok(()) => self.set_message(crate::trf!("Copied {hash}", hash = &hash[..7])),
+                        Err(e) => self.set_message(crate::trf!("Copy failed: {error}", error = e)),
                     },
-                    None => self.set_message("No commit selected"),
+                    None => self.set_message(crate::tr!("No commit selected")),
                 }
             }
             Action::CopyBranch => {
                 let name = self.selected_branch_name().map(|s| s.to_string());
                 match name {
                     Some(name) => match crate::tui::copy_to_clipboard(&name) {
-                        Ok(()) => self.set_message(format!("Copied '{}'", name)),
-                        Err(e) => self.set_message(format!("Copy failed: {e}")),
+                        Ok(()) => self.set_message(crate::trf!("Copied '{branch}'", branch = name)),
+                        Err(e) => self.set_message(crate::trf!("Copy failed: {error}", error = e)),
                     },
-                    None => self.set_message("No branch selected"),
+                    None => self.set_message(crate::tr!("No branch selected")),
                 }
             }
             Action::CommitDialog => {
@@ -1403,9 +1422,9 @@ impl App {
             }
             Action::Push | Action::Pull => {
                 if self.is_fetching() {
-                    self.set_message("Wait for fetch to finish");
+                    self.set_message(crate::tr!("Wait for fetch to finish"));
                 } else if self.repo.repo.head_detached().unwrap_or(false) {
-                    self.set_message("Switch to a branch before pull / push");
+                    self.set_message(crate::tr!("Switch to a branch before pull / push"));
                 } else if let Some(branch) = self
                     .repo
                     .repo
@@ -1415,11 +1434,11 @@ impl App {
                 {
                     let push = action == Action::Push;
                     self.mode = AppMode::Confirm {
-                        message: format!(
-                            "{} '{}' using Git configuration?",
-                            if push { "Push" } else { "Pull" },
-                            branch
-                        ),
+                        message: if push {
+                            crate::trf!("Push '{branch}' using Git configuration?", branch = branch)
+                        } else {
+                            crate::trf!("Pull '{branch}' using Git configuration?", branch = branch)
+                        },
                         action: if push {
                             ConfirmAction::Push(branch)
                         } else {
@@ -1427,7 +1446,7 @@ impl App {
                         },
                     };
                 } else {
-                    self.set_message("Cannot sync: no current branch");
+                    self.set_message(crate::tr!("Cannot sync: no current branch"));
                 }
             }
             _ => {}
@@ -1502,7 +1521,7 @@ impl App {
                     let path = file_list_snapshot[selected_index].path.clone();
                     if let Err(e) = self.enter_file_diff(selected_index, file_list_snapshot, &path)
                     {
-                        self.set_message(format!("Cannot open diff: {e}"));
+                        self.set_message(crate::trf!("Cannot open diff: {error}", error = e));
                     }
                 }
             }
@@ -1647,7 +1666,7 @@ impl App {
                     let new_index = (file_index + 1) % file_list_snapshot.len();
                     let path = file_list_snapshot[new_index].path.clone();
                     if let Err(e) = self.enter_file_diff(new_index, file_list_snapshot, &path) {
-                        self.set_message(format!("Cannot open diff: {e}"));
+                        self.set_message(crate::trf!("Cannot open diff: {error}", error = e));
                     }
                 }
             }
@@ -1665,7 +1684,7 @@ impl App {
                     };
                     let path = file_list_snapshot[new_index].path.clone();
                     if let Err(e) = self.enter_file_diff(new_index, file_list_snapshot, &path) {
-                        self.set_message(format!("Cannot open diff: {e}"));
+                        self.set_message(crate::trf!("Cannot open diff: {error}", error = e));
                     }
                 }
             }
@@ -1761,7 +1780,7 @@ impl App {
                 AppMode::FileSelect { .. } | AppMode::FileDiff { .. }
             ) {
                 self.mode = AppMode::Normal;
-                self.set_message("No changed files in this diff");
+                self.set_message(crate::tr!("No changed files in this diff"));
             }
             return;
         }
@@ -1806,7 +1825,7 @@ impl App {
         if let Err(e) = self.refresh(true) {
             self.pending_refresh = false;
             self.last_refresh_time = Instant::now();
-            self.set_message(format!("Refresh failed: {e}"));
+            self.set_message(crate::trf!("Refresh failed: {error}", error = e));
         }
     }
 
@@ -1865,7 +1884,7 @@ impl App {
                     InputAction::CommitMessage => {
                         let message = input.trim().to_string();
                         if message.is_empty() {
-                            self.set_message("Commit message is empty");
+                            self.set_message(crate::tr!("Commit message is empty"));
                             return Ok(());
                         }
                         self.workspace_commit(message);
@@ -1981,7 +2000,7 @@ impl App {
             )
             && self.is_fetching()
         {
-            self.set_message("Wait for fetch to finish");
+            self.set_message(crate::tr!("Wait for fetch to finish"));
             return Ok(());
         }
 
@@ -1999,9 +2018,9 @@ impl App {
                                     oid.to_string().as_ref(),
                                 ],
                             )?;
-                            Ok(format!(
-                                "Checked out {} (detached HEAD)",
-                                &oid.to_string()[..7]
+                            Ok(crate::trf!(
+                                "Checked out {oid} (detached HEAD)",
+                                oid = &oid.to_string()[..7]
                             ))
                         });
                         self.mode = AppMode::Normal;
@@ -2019,7 +2038,7 @@ impl App {
                     }
                     ConfirmAction::StageAllCommit => {
                         if self.repo.repo.index()?.has_conflicts() {
-                            anyhow::bail!("Resolve conflicts before staging all");
+                            anyhow::bail!("{}", crate::tr!("Resolve conflicts before staging all"));
                         }
                         crate::git::command::git_output(
                             &self.repo.repo,
@@ -2184,7 +2203,9 @@ impl App {
     /// Toggle stage state of the selected file in file select mode
     fn stage_toggle_selected(&mut self) -> Result<()> {
         if !self.is_uncommitted_selected() {
-            self.set_message("Staging is only available for uncommitted changes");
+            self.set_message(crate::tr!(
+                "Staging is only available for uncommitted changes"
+            ));
             return Ok(());
         }
         let AppMode::FileSelect {
@@ -2215,7 +2236,9 @@ impl App {
     /// Stage or unstage all working tree changes
     fn stage_all_files(&mut self, stage: bool) -> Result<()> {
         if !self.is_uncommitted_selected() {
-            self.set_message("Staging is only available for uncommitted changes");
+            self.set_message(crate::tr!(
+                "Staging is only available for uncommitted changes"
+            ));
             return Ok(());
         }
         if stage {

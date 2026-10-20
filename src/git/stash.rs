@@ -19,9 +19,9 @@ pub enum StashOperation {
 impl StashOperation {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Apply => "Apply",
-            Self::Pop => "Pop",
-            Self::Drop => "Drop",
+            Self::Apply => crate::tr!("Apply"),
+            Self::Pop => crate::tr!("Pop"),
+            Self::Drop => crate::tr!("Drop"),
         }
     }
 }
@@ -58,7 +58,9 @@ pub fn save(repo: &Repository, message: &str) -> Result<String> {
 
 fn verify(repo: &Repository, entry: &StashEntry) -> Result<()> {
     if repo.revparse_single(&entry.selector).ok().map(|o| o.id()) != Some(entry.oid) {
-        bail!("Stash list changed; refresh and select the stash again");
+        bail!(crate::tr!(
+            "Stash list changed; refresh and select the stash again"
+        ));
     }
     Ok(())
 }
@@ -84,10 +86,10 @@ pub fn execute(repo: &Repository, entry: &StashEntry, operation: StashOperation)
             &["stash".as_ref(), "drop".as_ref(), entry.selector.as_ref()],
         )?;
     }
-    Ok(format!(
-        "{} completed: {}",
-        operation.label(),
-        entry.selector
+    Ok(crate::trf!(
+        "{operation} completed: {stash}",
+        operation = operation.label(),
+        stash = entry.selector
     ))
 }
 

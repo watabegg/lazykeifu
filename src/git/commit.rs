@@ -21,7 +21,7 @@ impl CommitInfo {
         let short_id = oid.to_string()[..7].to_string();
 
         let author = commit.author();
-        let author_name = author.name().unwrap_or("Unknown").to_string();
+        let author_name = author.name().unwrap_or(crate::tr!("Unknown")).to_string();
         let author_email = author.email().unwrap_or("").to_string();
 
         let time = commit.time();

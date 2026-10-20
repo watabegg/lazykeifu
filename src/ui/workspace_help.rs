@@ -3,147 +3,205 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
 };
+use unicode_width::UnicodeWidthChar;
 use unicode_width::UnicodeWidthStr;
 
 pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
+    let stash_key = format!("s ({})", crate::tr!("Files"));
     let sections: &[(&str, &[(&str, &str)])] = &[
         (
-            "Navigation",
+            crate::tr!("Navigation"),
             &[
                 (
                     "1 / 2 / 3 / 4 / 5",
-                    "Status / Files / Branches / Graph / Stashes",
+                    crate::tr!("Status / Files / Branches / Graph / Stashes"),
                 ),
-                ("6", "Commit detail; j / k: scroll, Enter: inspect diff"),
-                ("Tab / Shift-Tab", "Next / previous pane (also h / l)"),
-                ("j / k · ↑ / ↓", "Move selection; Ctrl-d / Ctrl-u: page"),
-                ("Home / End · < / >", "First / last loaded row"),
-                ("[ / ]", "Files or Branches: switch tabs"),
-                ("Enter / 0", "Open diff; Esc: close diff"),
-                ("/", "Search branches; Enter: select, Esc: cancel"),
-                ("q", "Return to graph; q again: quit"),
+                (
+                    "6",
+                    crate::tr!("Commit detail; j / k: scroll, Enter: inspect diff"),
+                ),
+                (
+                    "Tab / Shift-Tab",
+                    crate::tr!("Next / previous pane (also h / l)"),
+                ),
+                (
+                    "j / k · ↑ / ↓",
+                    crate::tr!("Move selection; Ctrl-d / Ctrl-u: page"),
+                ),
+                ("Home / End · < / >", crate::tr!("First / last loaded row")),
+                ("[ / ]", crate::tr!("Files or Branches: switch tabs")),
+                ("Enter / 0", crate::tr!("Open diff; Esc: close diff")),
+                (
+                    "/",
+                    crate::tr!("Search branches; Enter: select, Esc: cancel"),
+                ),
+                ("q", crate::tr!("Return to graph; q again: quit")),
             ],
         ),
         (
-            "History & refs",
+            crate::tr!("History & refs"),
             &[
                 (
                     "@",
-                    "Extras: undo last commit, reflog, and additional operations",
+                    crate::tr!("Extras: undo last commit, reflog, and additional operations"),
                 ),
-                ("A / r", "Files: amend HEAD; Graph: reword HEAD"),
-                ("R / T", "Local: rename branch; Local / Graph: create tag"),
-                ("g", "Graph / refs: reset to selected commit/ref"),
+                ("A / r", crate::tr!("Files: amend HEAD; Graph: reword HEAD")),
                 (
-                    "Amend / Reword",
-                    "Include staged changes / change message only",
+                    "R / T",
+                    crate::tr!("Local: rename branch; Local / Graph: create tag"),
                 ),
-                ("Undo", "Move HEAD to first parent; keep changes staged"),
                 (
-                    "Reset",
-                    "Soft: keep index; mixed: unstage; hard: clean worktree only",
+                    "g",
+                    crate::tr!("Graph / refs: reset to selected commit/ref"),
                 ),
-                ("Reflog", "Last 200 HEAD entries; Enter chooses reset mode"),
+                (
+                    crate::tr!("Amend / Reword"),
+                    crate::tr!("Include staged changes / change message only"),
+                ),
+                (
+                    crate::tr!("Undo"),
+                    crate::tr!("Move HEAD to first parent; keep changes staged"),
+                ),
+                (
+                    crate::tr!("Reset"),
+                    crate::tr!("Soft: keep index; mixed: unstage; hard: clean worktree only"),
+                ),
+                (
+                    crate::tr!("Reflog"),
+                    crate::tr!("Last 200 HEAD entries; Enter chooses reset mode"),
+                ),
             ],
         ),
         (
-            "Files & staging",
+            crate::tr!("Files & staging"),
             &[
-                ("Space", "Stage / unstage selected file"),
-                ("Enter", "Folder: expand / collapse; Space: stage directory"),
-                ("- / =", "Files: collapse / expand all directories"),
-                ("a", "Toggle stage all / unstage all working files"),
-                ("Tab in Diff", "Switch staged / unstaged diff"),
+                ("Space", crate::tr!("Stage / unstage selected file")),
+                (
+                    "Enter",
+                    crate::tr!("Folder: expand / collapse; Space: stage directory"),
+                ),
+                (
+                    "- / =",
+                    crate::tr!("Files: collapse / expand all directories"),
+                ),
+                (
+                    "a",
+                    crate::tr!("Toggle stage all / unstage all working files"),
+                ),
+                (
+                    crate::tr!("Tab in Diff"),
+                    crate::tr!("Switch staged / unstaged diff"),
+                ),
                 (
                     "c",
-                    "Commit dialog; if nothing staged, confirm stage all first",
+                    crate::tr!("Commit dialog; if nothing staged, confirm stage all first"),
                 ),
                 (
                     "d",
-                    "Discard unstaged changes after confirmation; index kept",
+                    crate::tr!("Discard unstaged changes after confirmation; index kept"),
                 ),
-                ("e", "Edit working file with the configured Git editor"),
+                (
+                    "e",
+                    crate::tr!("Edit working file with the configured Git editor"),
+                ),
                 (
                     "XY",
-                    "Left: index; right: worktree. MM means partially staged",
+                    crate::tr!("Left: index; right: worktree. MM means partially staged"),
                 ),
                 (
                     "M A D R ? U",
-                    "Modified / added / deleted / renamed / untracked / conflict",
+                    crate::tr!("Modified / added / deleted / renamed / untracked / conflict"),
                 ),
             ],
         ),
         (
-            "Diff & history",
+            crate::tr!("Diff & history"),
             &[
                 (
                     "h / l · Space",
-                    "Diff: select hunk; stage / unstage selected hunk",
+                    crate::tr!("Diff: select hunk; stage / unstage selected hunk"),
                 ),
-                ("H / L", "Scroll diff horizontally"),
+                ("H / L", crate::tr!("Scroll diff horizontally")),
                 (
                     "Enter",
-                    "Graph: inspect commit files (read-only); 2: working files",
+                    crate::tr!("Graph: inspect commit files (read-only); 2: working files"),
                 ),
                 (
-                    "C then V / t",
-                    "Graph: copy then cherry-pick / revert selected commit",
-                ),
-                ("Space", "Graph: checkout selected commit (detached HEAD)"),
-                ("Ctrl-r", "Graph: clear copied cherry-pick commit"),
-                (
-                    "Ctrl-l",
-                    "Graph: log options, load 500 more commits, reflog",
-                ),
-                ("n / N in Diff", "Next / previous file"),
-                (
-                    "Hunks",
-                    "Modified UTF-8 regular files; other changes use file stage",
-                ),
-            ],
-        ),
-        (
-            "Branches & repositories",
-            &[
-                (
-                    "Space / Enter",
-                    "Local / Remote: checkout / inspect history",
-                ),
-                ("n / d", "Local: create / delete branch"),
-                (
-                    "M / r",
-                    "Branches: merge into current / rebase onto selected",
-                ),
-                (
-                    "Enter",
-                    "Tags: inspect commit; Worktrees / Submodules: open repository",
-                ),
-                ("f / p / P", "Fetch / pull / push using Git configuration"),
-                ("R", "Refresh repository"),
-            ],
-        ),
-        (
-            "Stashes",
-            &[
-                (
-                    "s in Files",
-                    "Save working changes including untracked files",
-                ),
-                ("Space / g / d", "Stashes: apply / pop / drop"),
-                ("Enter", "Stashes: inspect diff"),
-            ],
-        ),
-        (
-            "Recovery & selection",
-            &[
-                ("Drag", "Select text; release to copy"),
-                (
-                    "m",
-                    "Continue / abort current operation; Graph: merge / rebase menu",
+                    "C → V / t",
+                    crate::tr!("Graph: copy then cherry-pick / revert selected commit"),
                 ),
                 (
                     "Space",
-                    "Conflicted file: mark current contents resolved after confirmation",
+                    crate::tr!("Graph: checkout selected commit (detached HEAD)"),
+                ),
+                (
+                    "Ctrl-r",
+                    crate::tr!("Graph: clear copied cherry-pick commit"),
+                ),
+                (
+                    "Ctrl-l",
+                    crate::tr!("Graph: log options, load 500 more commits, reflog"),
+                ),
+                (
+                    crate::tr!("n / N in Diff"),
+                    crate::tr!("Next / previous file"),
+                ),
+                (
+                    crate::tr!("Hunks"),
+                    crate::tr!("Modified UTF-8 regular files; other changes use file stage"),
+                ),
+            ],
+        ),
+        (
+            crate::tr!("Branches & repositories"),
+            &[
+                (
+                    "Space / Enter",
+                    crate::tr!("Local / Remote: checkout / inspect history"),
+                ),
+                ("n / d", crate::tr!("Local: create / delete branch")),
+                (
+                    "M / r",
+                    crate::tr!("Branches: merge into current / rebase onto selected"),
+                ),
+                (
+                    "Enter",
+                    crate::tr!("Tags: inspect commit; Worktrees / Submodules: open repository"),
+                ),
+                (
+                    "f / p / P",
+                    crate::tr!("Fetch / pull / push using Git configuration"),
+                ),
+                ("R", crate::tr!("Refresh repository")),
+            ],
+        ),
+        (
+            crate::tr!("Stashes"),
+            &[
+                (
+                    stash_key.as_str(),
+                    crate::tr!("Save working changes including untracked files"),
+                ),
+                ("Space / g / d", crate::tr!("Stashes: apply / pop / drop")),
+                ("Enter", crate::tr!("Stashes: inspect diff")),
+            ],
+        ),
+        (
+            crate::tr!("Recovery & selection"),
+            &[
+                (
+                    crate::tr!("Drag"),
+                    crate::tr!("Select text; release to copy"),
+                ),
+                (
+                    "m",
+                    crate::tr!("Continue / abort current operation; Graph: merge / rebase menu"),
+                ),
+                (
+                    "Space",
+                    crate::tr!(
+                        "Conflicted file: mark current contents resolved after confirmation"
+                    ),
                 ),
             ],
         ),
@@ -157,7 +215,7 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
     let desc = Style::default().fg(Color::White);
     let mut lines = Vec::new();
     // Stack key and explanation on narrow terminals; never truncate a shortcut.
-    let key_width = if width >= 55 { 21 } else { 0 };
+    let key_width: usize = if width >= 55 { 21 } else { 0 };
     for (title, entries) in sections {
         if !lines.is_empty() {
             lines.push(Line::from(""));
@@ -170,19 +228,24 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
                 for line in wrap(key, width.saturating_sub(1)) {
                     lines.push(Line::styled(format!(" {line}"), keys));
                 }
-            }
-            let indent = if key_width == 0 { 3 } else { key_width };
-            let wrapped = wrap(text, width.saturating_sub(indent));
-            for (i, text) in wrapped.into_iter().enumerate() {
-                let prefix = if i == 0 && key_width > 0 {
-                    format!(" {key:<20}")
-                } else {
-                    " ".repeat(indent)
-                };
-                lines.push(Line::from(vec![
-                    Span::styled(prefix, keys),
-                    Span::styled(text, desc),
-                ]));
+                for text in wrap(text, width.saturating_sub(3)) {
+                    lines.push(Line::from(vec![Span::raw("   "), Span::styled(text, desc)]));
+                }
+            } else {
+                let key_lines = wrap(key, key_width.saturating_sub(1));
+                let desc_lines = wrap(text, width.saturating_sub(key_width));
+                for i in 0..key_lines.len().max(desc_lines.len()) {
+                    let prefix = if let Some(key_line) = key_lines.get(i) {
+                        format!(" {}", pad_to_width(key_line, key_width - 1))
+                    } else {
+                        " ".repeat(key_width)
+                    };
+                    let text = desc_lines.get(i).map_or_else(String::new, Clone::clone);
+                    lines.push(Line::from(vec![
+                        Span::styled(prefix, keys),
+                        Span::styled(text, desc),
+                    ]));
+                }
             }
         }
     }
@@ -192,17 +255,41 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
 fn wrap(text: &str, width: usize) -> Vec<String> {
     let mut lines = Vec::new();
     let mut current = String::new();
+    let width = width.max(1);
     for word in text.split_whitespace() {
-        if !current.is_empty() && current.width() + 1 + word.width() > width {
-            lines.push(std::mem::take(&mut current));
+        if !current.is_empty() && current.width() + 1 + word.width() <= width {
+            current.push(' ');
+            current.push_str(word);
+            continue;
         }
         if !current.is_empty() {
-            current.push(' ');
+            lines.push(std::mem::take(&mut current));
         }
-        current.push_str(word);
+
+        if word.width() <= width {
+            current.push_str(word);
+            continue;
+        }
+
+        for ch in word.chars() {
+            let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
+            if !current.is_empty() && current.width() + ch_width > width {
+                lines.push(std::mem::take(&mut current));
+            }
+            current.push(ch);
+        }
+        if current.width() >= width {
+            lines.push(std::mem::take(&mut current));
+        }
     }
-    lines.push(current);
+    if !current.is_empty() || lines.is_empty() {
+        lines.push(current);
+    }
     lines
+}
+
+fn pad_to_width(text: &str, width: usize) -> String {
+    format!("{text}{}", " ".repeat(width.saturating_sub(text.width())))
 }
 
 #[cfg(test)]

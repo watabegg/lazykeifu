@@ -16,27 +16,38 @@ pub struct Integration {
 impl Integration {
     pub fn capture(repo: &Repository, branch: &BranchInfo, kind: Kind) -> Result<Self> {
         if !matches!(kind, Kind::Merge | Kind::Rebase) {
-            bail!("Expected merge or rebase");
+            bail!(crate::tr!("Expected merge or rebase"));
         }
         if repo.state() != RepositoryState::Clean {
-            bail!("Finish or abort the current Git operation first");
+            bail!(crate::tr!(
+                "Finish or abort the current Git operation first"
+            ));
         }
-        let head = repo.head().context("Create an initial commit first")?;
+        let head = repo
+            .head()
+            .context(crate::tr!("Create an initial commit first"))?;
         if !head.is_branch() {
-            bail!("Check out a local branch first; HEAD is detached");
+            bail!(crate::tr!(
+                "Check out a local branch first; HEAD is detached"
+            ));
         }
-        let current_ref = head.name().context("Branch name is not UTF-8")?.to_owned();
+        let current_ref = head
+            .name()
+            .context(crate::tr!("Branch name is not UTF-8"))?
+            .to_owned();
         let target_ref = format!(
             "refs/{}/{}",
             if branch.is_remote { "remotes" } else { "heads" },
             branch.name
         );
         if current_ref == target_ref {
-            bail!("Select a different branch");
+            bail!(crate::tr!("Select a different branch"));
         }
         let target_oid = repo.find_reference(&target_ref)?.peel_to_commit()?.id();
         if target_oid != branch.tip_oid {
-            bail!("Selected branch changed; refresh and select it again");
+            bail!(crate::tr!(
+                "Selected branch changed; refresh and select it again"
+            ));
         }
         Ok(Self {
             kind,
@@ -52,11 +63,21 @@ impl Integration {
             .current_ref
             .strip_prefix("refs/heads/")
             .unwrap_or(&self.current_ref);
-        let source = format!("'{}' ({:.7})", self.target_name, self.target_oid);
+        let target_oid = self.target_oid.to_string();
         match self.kind {
-            Kind::Merge => format!("Merge {source} into current branch '{current}'?"),
+            Kind::Merge => crate::trf!(
+                "Merge '{target_name}' ({target_oid}) into current branch '{current}'?",
+                target_name = self.target_name,
+                target_oid = &target_oid[..7],
+                current = current
+            ),
             Kind::CherryPick | Kind::Revert => unreachable!("validated at capture"),
-            Kind::Rebase => format!("Rebase current branch '{current}' onto {source}? Current branch commits may be rewritten."),
+            Kind::Rebase => crate::trf!(
+                "Rebase current branch '{current}' onto '{target_name}' ({target_oid})? Current branch commits may be rewritten.",
+                current = current,
+                target_name = self.target_name,
+                target_oid = &target_oid[..7]
+            ),
         }
     }
     pub fn command(&self, repo: &Repository) -> Result<Command> {
@@ -70,12 +91,14 @@ impl Integration {
             || head.target() != Some(self.current_oid)
             || target.map(|c| c.id()) != Some(self.target_oid)
         {
-            bail!("Branch or operation changed; review and confirm again");
+            bail!(crate::tr!(
+                "Branch or operation changed; review and confirm again"
+            ));
         }
         let mut command = Command::new("git");
         command
             .args([self.kind.command(), "--no-autostash", &self.target_ref])
-            .current_dir(repo.workdir().context("No working tree")?);
+            .current_dir(repo.workdir().context(crate::tr!("No working tree"))?);
         Ok(command)
     }
 }

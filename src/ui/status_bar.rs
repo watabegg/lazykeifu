@@ -35,7 +35,10 @@ impl Hint {
     }
 
     fn width(&self) -> u16 {
-        (self.key_text().width() + self.desc_text().width()) as u16
+        self.key_text()
+            .width()
+            .saturating_add(self.desc_text().width())
+            .min(u16::MAX as usize) as u16
     }
 }
 
@@ -72,7 +75,7 @@ impl StatusBar {
         }
         if !app.show_remote_branches() {
             prefix.push(Span::styled(
-                " remotes hidden ",
+                crate::tr!(" remotes hidden "),
                 Style::default()
                     .fg(Color::White)
                     .bg(Color::DarkGray)
@@ -102,33 +105,53 @@ impl StatusBar {
                     ));
                     prefix.push(Span::raw("  "));
                 } else if app.focused_pane == FocusedPane::Detail {
-                    hints.push(Hint::new("j/k", "scroll", None));
-                    hints.push(Hint::new("Tab", "graph", Some(Action::FocusNext)));
-                    hints.push(Hint::new("Esc", "back", Some(Action::Quit)));
-                    hints.push(Hint::new("?", "help", Some(Action::ToggleHelp)));
+                    hints.push(Hint::new("j/k", crate::tr!("scroll"), None));
+                    hints.push(Hint::new(
+                        "Tab",
+                        crate::tr!("graph"),
+                        Some(Action::FocusNext),
+                    ));
+                    hints.push(Hint::new("Esc", crate::tr!("back"), Some(Action::Quit)));
+                    hints.push(Hint::new("?", crate::tr!("help"), Some(Action::ToggleHelp)));
                 } else {
-                    hints.push(Hint::new("j/k", "move", None));
-                    hints.push(Hint::new("Enter", "checkout", Some(Action::Checkout)));
-                    hints.push(Hint::new("Space", "files", Some(Action::EnterFileSelect)));
-                    hints.push(Hint::new("c", "commit", Some(Action::CommitDialog)));
-                    hints.push(Hint::new("p", "push", Some(Action::Push)));
-                    hints.push(Hint::new("?", "help", Some(Action::ToggleHelp)));
-                    hints.push(Hint::new("q", "quit", Some(Action::Quit)));
+                    hints.push(Hint::new("j/k", crate::tr!("move"), None));
+                    hints.push(Hint::new(
+                        "Enter",
+                        crate::tr!("checkout"),
+                        Some(Action::Checkout),
+                    ));
+                    hints.push(Hint::new(
+                        "Space",
+                        crate::tr!("files"),
+                        Some(Action::EnterFileSelect),
+                    ));
+                    hints.push(Hint::new(
+                        "c",
+                        crate::tr!("commit"),
+                        Some(Action::CommitDialog),
+                    ));
+                    hints.push(Hint::new("p", crate::tr!("push"), Some(Action::Push)));
+                    hints.push(Hint::new("?", crate::tr!("help"), Some(Action::ToggleHelp)));
+                    hints.push(Hint::new("q", crate::tr!("quit"), Some(Action::Quit)));
                 }
             }
             AppMode::Help => {
-                mode_label = Some(" HELP ");
-                hints.push(Hint::new("j/k", "scroll", None));
-                hints.push(Hint::new("Esc/q", "close help", Some(Action::ToggleHelp)));
+                mode_label = Some(crate::tr!(" HELP "));
+                hints.push(Hint::new("j/k", crate::tr!("scroll"), None));
+                hints.push(Hint::new(
+                    "Esc/q",
+                    crate::tr!("close help"),
+                    Some(Action::ToggleHelp),
+                ));
             }
             AppMode::Input { action, .. } => {
-                mode_label = Some(" INPUT ");
+                mode_label = Some(crate::tr!(" INPUT "));
                 if *action == InputAction::Search {
                     let count = app.search_match_count();
                     let info = if count > 0 {
-                        format!(" {} matches ", count)
+                        crate::trf!(" {count} matches ", count = count)
                     } else {
-                        " No matches ".to_string()
+                        crate::tr!(" No matches ").to_string()
                     };
                     prefix.push(Span::styled(
                         info,
@@ -139,16 +162,20 @@ impl StatusBar {
                     ));
                     prefix.push(Span::raw("  "));
                 }
-                hints.push(Hint::new("Enter", "confirm", Some(Action::Confirm)));
-                hints.push(Hint::new("Esc", "cancel", Some(Action::Cancel)));
+                hints.push(Hint::new(
+                    "Enter",
+                    crate::tr!("confirm"),
+                    Some(Action::Confirm),
+                ));
+                hints.push(Hint::new("Esc", crate::tr!("cancel"), Some(Action::Cancel)));
             }
             AppMode::Confirm { .. } => {
-                mode_label = Some(" CONFIRM ");
-                hints.push(Hint::new("y", "yes", Some(Action::Confirm)));
-                hints.push(Hint::new("n", "no", Some(Action::Cancel)));
+                mode_label = Some(crate::tr!(" CONFIRM "));
+                hints.push(Hint::new("y", crate::tr!("yes"), Some(Action::Confirm)));
+                hints.push(Hint::new("n", crate::tr!("no"), Some(Action::Cancel)));
             }
             AppMode::Error { message } => {
-                mode_label = Some(" ERROR ");
+                mode_label = Some(crate::tr!(" ERROR "));
                 prefix.push(Span::styled(
                     format!(" {} ", message),
                     Style::default()
@@ -157,27 +184,43 @@ impl StatusBar {
                         .add_modifier(Modifier::BOLD),
                 ));
                 prefix.push(Span::raw("  "));
-                hints.push(Hint::new("Esc/Enter", "close", Some(Action::Cancel)));
+                hints.push(Hint::new(
+                    "Esc/Enter",
+                    crate::tr!("close"),
+                    Some(Action::Cancel),
+                ));
             }
             AppMode::FileSelect { .. } => {
-                mode_label = Some(" FILES ");
-                hints.push(Hint::new("j/k", "select", None));
-                hints.push(Hint::new("Enter", "diff", Some(Action::OpenFileDiff)));
+                mode_label = Some(crate::tr!(" FILES "));
+                hints.push(Hint::new("j/k", crate::tr!("select"), None));
+                hints.push(Hint::new(
+                    "Enter",
+                    crate::tr!("diff"),
+                    Some(Action::OpenFileDiff),
+                ));
                 if app.is_uncommitted_selected() {
-                    hints.push(Hint::new("s", "stage", Some(Action::StageToggle)));
-                    hints.push(Hint::new("a", "all", Some(Action::StageAll)));
-                    hints.push(Hint::new("u", "none", Some(Action::UnstageAll)));
-                    hints.push(Hint::new("c", "commit", Some(Action::CommitDialog)));
+                    hints.push(Hint::new(
+                        "s",
+                        crate::tr!("stage"),
+                        Some(Action::StageToggle),
+                    ));
+                    hints.push(Hint::new("a", crate::tr!("all"), Some(Action::StageAll)));
+                    hints.push(Hint::new("u", crate::tr!("none"), Some(Action::UnstageAll)));
+                    hints.push(Hint::new(
+                        "c",
+                        crate::tr!("commit"),
+                        Some(Action::CommitDialog),
+                    ));
                 }
-                hints.push(Hint::new("Esc", "back", Some(Action::Cancel)));
+                hints.push(Hint::new("Esc", crate::tr!("back"), Some(Action::Cancel)));
             }
             AppMode::FileDiff { .. } => {
-                mode_label = Some(" DIFF ");
-                hints.push(Hint::new("n/N", "file", Some(Action::NextFile)));
-                hints.push(Hint::new("]/[", "hunk", Some(Action::NextHunk)));
-                hints.push(Hint::new("j/k", "scroll", None));
-                hints.push(Hint::new("h/l", "pan", None));
-                hints.push(Hint::new("Esc", "back", Some(Action::Cancel)));
+                mode_label = Some(crate::tr!(" DIFF "));
+                hints.push(Hint::new("n/N", crate::tr!("file"), Some(Action::NextFile)));
+                hints.push(Hint::new("]/[", crate::tr!("hunk"), Some(Action::NextHunk)));
+                hints.push(Hint::new("j/k", crate::tr!("scroll"), None));
+                hints.push(Hint::new("h/l", crate::tr!("pan"), None));
+                hints.push(Hint::new("Esc", crate::tr!("back"), Some(Action::Cancel)));
             }
         }
 
@@ -191,23 +234,23 @@ impl StatusBar {
     fn prefix_width(&self) -> u16 {
         self.prefix
             .iter()
-            .map(|span| span.content.width() as u16)
-            .sum()
+            .map(|span| span.content.width().min(u16::MAX as usize) as u16)
+            .fold(0, u16::saturating_add)
     }
 
     /// Clickable regions for the hints, mirroring the render layout
     pub fn hint_regions(&self, area: Rect) -> Vec<(Rect, Action)> {
         let mut regions = Vec::new();
-        let mut x = area.x + self.prefix_width();
+        let mut x = area.x.saturating_add(self.prefix_width());
         for hint in &self.hints {
             let width = hint.width();
-            if x + width > area.x + area.width {
+            if x.saturating_add(width) > area.right() {
                 break;
             }
             if let Some(action) = &hint.action {
                 regions.push((Rect::new(x, area.y, width, 1), action.clone()));
             }
-            x += width;
+            x = x.saturating_add(width);
         }
         regions
     }
@@ -236,7 +279,7 @@ impl Widget for StatusBar {
 
         // Show the mode on the right (only for non-Normal modes)
         if let Some(text) = self.mode_label {
-            let mode_len = text.len() as u16;
+            let mode_len = text.width().min(u16::MAX as usize) as u16;
             if area.width > mode_len {
                 let x = area.x + area.width - mode_len;
                 buf.set_string(x, area.y, text, mode_style);

@@ -22,6 +22,8 @@ cargo build --locked
 
 設定はOSの設定ディレクトリ内の `lazykeifu/config.toml`（Linuxでは通常 `~/.config/lazykeifu/config.toml`）、ログレベルは `LAZYKEIFU_LOG` を使用します。既存のkeifuの設定は読みません。現在の既定動作では60秒ごとにGit設定に従ってfetchします。変更方法は設定ドキュメントを参照してください。
 
+UIはlazygitと同じ9言語に対応します。`[ui]`の`language = "ja"`、または`lazykeifu --language ja`で日本語にできます。既定の`auto`は端末の言語設定を使います。
+
 ```sh
 cargo fmt --check
 cargo test --locked
@@ -31,7 +33,7 @@ cargo build --locked
 python3 scripts/test-workspace.py
 ```
 
-[keifu](https://github.com/trasta298/keifu)の履歴とMITライセンスを引き継いでいます。lazygitは操作仕様の参照元で、現段階ではコードを取り込んでいません。名称と配布方針が固まるまでCargo publishと自動リリースを停止しています。
+[keifu](https://github.com/trasta298/keifu)の履歴とMITライセンスを引き継いでいます。lazygitは操作仕様・翻訳用語の参照元です。共通の翻訳には[上流のMITライセンス](locales/LICENSE.lazygit)を保持しています。名称と配布方針が固まるまでCargo publishと自動リリースを停止しています。
 
 Filesはディレクトリごとに畳めるツリー表示です。フォルダの`Enter`で開閉、`Space`でディレクトリ内をstage／unstage、`-`／`=`で全て折り畳み／展開します。`a`は全ファイルのstage／unstage切替です。ペイン移動は`h`／`l`、`←`／`→`または`Tab`です。画面下には選択中のペインでよく使うキーを表示し、通知が出ていても操作を確認できます。
 

@@ -15,6 +15,7 @@ use ratatui::{
     widgets::{Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
+use unicode_width::UnicodeWidthStr;
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
     app.workspace_tick();
@@ -34,7 +35,10 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     app.workspace.help_rect = Rect::default();
     app.status_hints.clear();
     if area.width < 20 || area.height < 10 {
-        frame.render_widget(Paragraph::new("Terminal too small (20 × 10 minimum)"), area);
+        frame.render_widget(
+            Paragraph::new(crate::tr!("Terminal too small (20 × 10 minimum)")),
+            area,
+        );
         return;
     }
     let header = Rect::new(area.x, area.y, area.width, 1);
@@ -110,30 +114,33 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         .head_name
         .as_deref()
         .unwrap_or(if app.repo.repo.head().is_ok() {
-            "detached HEAD"
+            crate::tr!("detached HEAD")
         } else {
-            "unborn HEAD"
+            crate::tr!("unborn HEAD")
         });
     let count = app.working_file_count();
     let status = match count {
-        Some(0) => "clean".to_owned(),
-        Some(count) => format!("{count} changed"),
-        None => "changes present".to_owned(),
+        Some(0) => crate::tr!("clean").to_owned(),
+        Some(count) => crate::trf!("{count} changed", count = count),
+        None => crate::tr!("changes present").to_owned(),
     };
     let operation = crate::git::recovery::kind(&app.repo.repo)
         .map(|k| {
             format!(
                 " · {}",
                 match k {
-                    crate::git::recovery::Kind::Merge => "MERGING".to_owned(),
-                    crate::git::recovery::Kind::Rebase => "REBASING".to_owned(),
-                    _ => k.command().to_uppercase(),
+                    crate::git::recovery::Kind::Merge => crate::tr!("MERGING").to_owned(),
+                    crate::git::recovery::Kind::Rebase => crate::tr!("REBASING").to_owned(),
+                    crate::git::recovery::Kind::CherryPick => {
+                        crate::tr!("CHERRY-PICK").to_owned()
+                    }
+                    crate::git::recovery::Kind::Revert => crate::tr!("REVERT").to_owned(),
                 }
             )
         })
         .unwrap_or_default();
     let busy = if app.workspace.busy() || app.is_pushing() {
-        " · running Git…"
+        crate::tr!(" · running Git…")
     } else {
         ""
     };
@@ -145,7 +152,12 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             ),
             Span::styled(format!(" / {branch}"), Style::default().fg(Color::Cyan)),
             Span::styled(
-                format!(" · {status}{operation}{busy}"),
+                crate::trf!(
+                    " · {status}{operation}{busy}",
+                    status = status,
+                    operation = operation,
+                    busy = busy
+                ),
                 Style::default().fg(if operation.is_empty() {
                     Color::Gray
                 } else {
@@ -223,9 +235,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     );
     if app.workspace.files.is_empty() {
         let text = if app.workspace.commit.is_some() {
-            "No file changes"
+            crate::tr!("No file changes")
         } else {
-            "Clean working tree"
+            crate::tr!("Clean working tree")
         };
         frame.render_widget(
             Paragraph::new(text).style(Style::default().fg(Color::Gray)),
@@ -293,10 +305,10 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             );
             if entries.is_empty() {
                 let empty = [
-                    "No worktrees",
-                    "No submodules",
-                    "No remote branches",
-                    "No tags",
+                    crate::tr!("No worktrees"),
+                    crate::tr!("No submodules"),
+                    crate::tr!("No remote branches"),
+                    crate::tr!("No tags"),
                 ][slot];
                 frame.render_widget(
                     Paragraph::new(empty).style(Style::default().fg(Color::Gray)),
@@ -309,7 +321,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         if let Some(oid) = app.workspace.commit {
             frame.render_widget(
                 pane_block("", focus == Panel::Files).title_bottom(Line::styled(
-                    format!(" {:.7} · read-only ", oid),
+                    crate::trf!(
+                        " {id} · {read_only} ",
+                        id = format!("{:.7}", oid),
+                        read_only = crate::tr!("read-only")
+                    ),
                     Style::default().fg(Color::Gray),
                 )),
                 app.layout.files,
@@ -319,7 +335,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     render_tabs(
         frame,
         "2",
-        &["Files", "Worktrees", "Submodules"],
+        &[
+            crate::tr!("Files"),
+            crate::tr!("Worktrees"),
+            crate::tr!("Submodules"),
+        ],
         app.workspace.tabs.files as usize,
         focus == Panel::Files,
         app.layout.files,
@@ -328,7 +348,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     render_tabs(
         frame,
         "3",
-        &["Local", "Remotes", "Tags"],
+        &[
+            crate::tr!("Local"),
+            crate::tr!("Remotes"),
+            crate::tr!("Tags"),
+        ],
         app.workspace.tabs.refs as usize,
         focus == Panel::Branches,
         app.workspace.branches_rect,
@@ -342,7 +366,10 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         .collect();
     frame.render_stateful_widget(
         List::new(stashes)
-            .block(pane_block("5 Stashes", focus == Panel::Stashes))
+            .block(pane_block(
+                &crate::trf!("5 {stashes}", stashes = crate::tr!("Stashes")),
+                focus == Panel::Stashes,
+            ))
             .highlight_style(selection_style(focus == Panel::Stashes))
             .highlight_symbol(if focus == Panel::Stashes {
                 "› "
@@ -354,7 +381,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     );
     if app.workspace.stashes.is_empty() {
         frame.render_widget(
-            Paragraph::new("No stashes").style(Style::default().fg(Color::Gray)),
+            Paragraph::new(crate::tr!("No stashes")).style(Style::default().fg(Color::Gray)),
             app.workspace
                 .stash_rect
                 .inner(ratatui::layout::Margin::new(1, 1)),
@@ -371,27 +398,44 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         super::render_branch_info_popup(frame, app, app.layout.graph);
     }
     let mut title = if let Some(oid) = app.workspace.stash_preview {
-        format!("0 Diff · stash {} · read-only", &oid.to_string()[..7])
+        crate::trf!(
+            "0 {diff} · {stash} {oid} · {read_only}",
+            diff = crate::tr!("Diff"),
+            stash = crate::tr!("stash"),
+            oid = &oid.to_string()[..7],
+            read_only = crate::tr!("read-only")
+        )
     } else if focus == Panel::Stashes {
-        "0 Diff · no stash selected".into()
+        crate::trf!(
+            "0 {diff} · {no_stash_selected}",
+            diff = crate::tr!("Diff"),
+            no_stash_selected = crate::tr!("no stash selected")
+        )
     } else if let Some(oid) = app.workspace.commit {
-        format!("0 Diff · commit {}", &oid.to_string()[..7])
+        crate::trf!(
+            "0 {diff} · {commit} {oid}",
+            diff = crate::tr!("Diff"),
+            commit = crate::tr!("commit"),
+            oid = &oid.to_string()[..7]
+        )
     } else {
-        format!(
-            "0 Diff · {}",
-            if app.workspace.staged {
-                "STAGED"
+        crate::trf!(
+            "0 {diff} · {stage_state}",
+            diff = crate::tr!("Diff"),
+            stage_state = if app.workspace.staged {
+                crate::tr!("STAGED")
             } else {
-                "UNSTAGED"
+                crate::tr!("UNSTAGED")
             }
         )
     };
     let hunks = crate::git::changes::hunks(&app.workspace.preview);
     if focus == Panel::Diff && !hunks.is_empty() {
-        title.push_str(&format!(
-            " · hunk {}/{}",
-            app.workspace.hunk_index + 1,
-            hunks.len()
+        title.push_str(&crate::trf!(
+            " · {hunk} {current}/{total}",
+            hunk = crate::tr!("hunk"),
+            current = app.workspace.hunk_index + 1,
+            total = hunks.len()
         ));
     }
     if app.workspace.detail_rect.height > 0 {
@@ -429,23 +473,37 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     }
     let context = super::context_keys::line(app);
     let recovery_hint = match crate::git::recovery::kind(&app.repo.repo) {
-        Some(crate::git::recovery::Kind::Merge) => Some("MERGE"),
-        Some(crate::git::recovery::Kind::Rebase) => Some("REBASE"),
-        Some(crate::git::recovery::Kind::CherryPick) => Some("CHERRY-PICK"),
-        Some(crate::git::recovery::Kind::Revert) => Some("REVERT"),
+        Some(crate::git::recovery::Kind::Merge) => Some(crate::tr!("MERGE")),
+        Some(crate::git::recovery::Kind::Rebase) => Some(crate::tr!("REBASE")),
+        Some(crate::git::recovery::Kind::CherryPick) => Some(crate::tr!("CHERRY-PICK")),
+        Some(crate::git::recovery::Kind::Revert) => Some(crate::tr!("REVERT")),
         None => None,
     };
     let message = if let Some(kind) = recovery_hint {
-        format!(
-            "{kind}: m continue / abort · e edit conflict · {}",
-            app.get_message().unwrap_or("? help")
+        crate::trf!(
+            "{kind}: m {continue_label} / {abort} · e {edit_conflict} · {message}",
+            kind = kind,
+            continue_label = crate::tr!("continue"),
+            abort = crate::tr!("abort"),
+            edit_conflict = crate::tr!("edit conflict"),
+            message = app.get_message().unwrap_or(crate::tr!("? help"))
         )
     } else {
-        app.get_message()
-            .unwrap_or(
-                "Tab / h / l focus · 2 files · 3 refs · 4 graph · 5 stash · 6 detail · @ extras · ? help",
+        if let Some(message) = app.get_message() {
+            message.to_string()
+        } else {
+            crate::trf!(
+                "Tab / h / l {focus} · 2 {files} · 3 {refs} · 4 {graph} · 5 {stash} · 6 {detail} · @ {extras} · ? {help}",
+                focus = crate::tr!("focus"),
+                files = crate::tr!("files"),
+                refs = crate::tr!("refs"),
+                graph = crate::tr!("graph"),
+                stash = crate::tr!("stash"),
+                detail = crate::tr!("detail"),
+                extras = crate::tr!("extras"),
+                help = crate::tr!("help")
             )
-            .to_string()
+        }
     };
     frame.render_widget(
         Paragraph::new(vec![
@@ -503,9 +561,13 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             let rect = super::centered_rect(85, 60, area);
             frame.render_widget(Clear, rect);
             frame.render_widget(
-                Paragraph::new(format!("{message}\n\nEnter / Esc: close"))
-                    .wrap(Wrap { trim: false })
-                    .block(pane_block("Error", true)),
+                Paragraph::new(crate::trf!(
+                    "{message}\n\nEnter / Esc: {close}",
+                    message = message,
+                    close = crate::tr!("close")
+                ))
+                .wrap(Wrap { trim: false })
+                .block(pane_block(crate::tr!("Error"), true)),
                 rect,
             );
         }
@@ -527,13 +589,14 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             .len()
             .saturating_sub(rect.height.saturating_sub(2) as usize)
             .min(u16::MAX as usize) as u16;
-        let help =
-            Paragraph::new(lines).block(pane_block("Help", true).title_bottom(Line::from(vec![
+        let help = Paragraph::new(lines).block(pane_block(crate::tr!("Help"), true).title_bottom(
+            Line::from(vec![
                 Span::styled(" j/k ↑↓ ", Style::default().fg(Color::Cyan)),
-                Span::raw("scroll · "),
+                Span::raw(crate::tr!("scroll · ")),
                 Span::styled("Esc / ?", Style::default().fg(Color::Cyan)),
-                Span::raw(" close "),
-            ])));
+                Span::raw(crate::tr!(" close ")),
+            ]),
+        ));
         app.help_scroll = app.help_scroll.min(max_scroll);
         frame.render_widget(help.scroll((app.help_scroll, 0)), rect);
     }
@@ -581,11 +644,12 @@ fn render_tabs(
     let end = rect.right() - 1;
     let prefix = format!(" {number} ");
     let mut x = rect.x + 1;
+    let prefix_width = (prefix.width().min(u16::MAX as usize) as u16).min(end - x);
     frame.render_widget(
         Paragraph::new(prefix.clone()).style(Style::default().fg(Color::Gray)),
-        Rect::new(x, rect.y, (prefix.len() as u16).min(end - x), 1),
+        Rect::new(x, rect.y, prefix_width.min(end - x), 1),
     );
-    x += prefix.len() as u16;
+    x += prefix_width;
     for (index, label) in labels.iter().enumerate() {
         if x >= end {
             break;
@@ -595,7 +659,7 @@ fn render_tabs(
         } else {
             format!(" {label} ")
         };
-        let width = (text.len() as u16).min(end - x);
+        let width = (text.width().min(u16::MAX as usize) as u16).min(end - x);
         let target = Rect::new(x, rect.y, width, 1);
         let style = if index == active {
             Style::default().fg(Color::Cyan).add_modifier(if focused {

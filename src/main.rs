@@ -25,6 +25,10 @@ const MAINTENANCE_IDLE_PERIOD: Duration = Duration::from_millis(250);
     about = "A TUI tool to visualize Git commit graphs with branch genealogy"
 )]
 struct Cli {
+    /// UI language (overrides ui.language): auto, en, ja, ko, nl, pl, pt, ru, zh-CN, zh-TW
+    #[arg(long, value_name = "LANGUAGE")]
+    language: Option<String>,
+
     /// Append debug logs and a perf summary on exit to this file
     /// (level via LAZYKEIFU_LOG, default "debug")
     #[arg(long, value_name = "PATH")]
@@ -37,6 +41,8 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let config = lazykeifu::config::Config::load();
+    lazykeifu::i18n::init(cli.language.as_deref().unwrap_or(&config.ui.language))?;
 
     if let Some(path) = &cli.log_file {
         logging::init(path)?;

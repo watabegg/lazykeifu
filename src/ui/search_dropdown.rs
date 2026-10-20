@@ -8,6 +8,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, Widget},
 };
+use unicode_width::UnicodeWidthStr;
 
 const MAX_VISIBLE_RESULTS: usize = 7;
 
@@ -107,7 +108,7 @@ impl<'a> Widget for SearchDropdown<'a> {
 
         // Build block with cyan border (matching InputDialog style)
         let block = Block::default()
-            .title(" Search branches ")
+            .title(crate::tr!(" Search branches "))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Cyan))
             .border_type(BorderType::Rounded)
@@ -236,22 +237,32 @@ impl<'a> Widget for SearchDropdown<'a> {
 /// Select appropriate hint text based on width and state
 fn select_hint_text(width: usize, has_results: bool, input_empty: bool) -> &'static str {
     if has_results {
-        match width {
-            40.. => "  ↑↓: select  Enter: jump  Esc: cancel",
-            28..=39 => "  ↑↓/Tab  Enter  Esc",
-            16..=27 => "  ↑↓ Enter Esc",
-            _ => "",
+        let full = crate::tr!("  ↑↓: select  Enter: jump  Esc: cancel");
+        if full.width() <= width {
+            full
+        } else if width >= "  ↑↓/Tab  Enter  Esc".width() {
+            "  ↑↓/Tab  Enter  Esc"
+        } else if width >= "  ↑↓ Enter Esc".width() {
+            "  ↑↓ Enter Esc"
+        } else {
+            ""
         }
     } else if input_empty {
-        match width {
-            28.. => "  Enter: confirm  Esc: cancel",
-            16..=27 => "  Enter  Esc",
-            _ => "",
+        let full = crate::tr!("  Enter: confirm  Esc: cancel");
+        if full.width() <= width {
+            full
+        } else if width >= "  Enter  Esc".width() {
+            "  Enter  Esc"
+        } else {
+            ""
         }
-    } else if width >= 12 {
-        "  No matches"
     } else {
-        ""
+        let no_matches = crate::tr!("  No matches");
+        if no_matches.width() <= width {
+            no_matches
+        } else {
+            ""
+        }
     }
 }
 

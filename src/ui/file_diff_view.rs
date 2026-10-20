@@ -408,7 +408,7 @@ pub fn build_highlighted_lines(content: &FileDiffContent) -> (Vec<Line<'static>>
     if content.is_binary {
         return (
             vec![Line::from(Span::styled(
-                "(Binary file - no diff available)",
+                crate::tr!("(Binary file - no diff available)"),
                 Style::default().fg(Color::DarkGray),
             ))],
             Vec::new(),
@@ -418,7 +418,7 @@ pub fn build_highlighted_lines(content: &FileDiffContent) -> (Vec<Line<'static>>
     if content.hunks.is_empty() {
         return (
             vec![Line::from(Span::styled(
-                "(No textual changes)",
+                crate::tr!("(No textual changes)"),
                 Style::default().fg(Color::DarkGray),
             ))],
             Vec::new(),
@@ -548,7 +548,7 @@ impl<'a> Widget for FileDiffViewWidget<'a> {
 
         let path_str = self.content.path.to_string_lossy();
         let stats = if self.content.is_binary {
-            "(binary)".to_string()
+            crate::tr!("(binary)").to_string()
         } else {
             format!(
                 "+{} -{}",

@@ -110,7 +110,7 @@ impl EventReader {
                     }
                 }
             })
-            .context("Failed to start terminal input reader")?;
+            .context(crate::tr!("Failed to start terminal input reader"))?;
 
         Ok(Self {
             receiver,
@@ -130,7 +130,9 @@ impl EventReader {
                 });
             }
             Err(RecvTimeoutError::Disconnected) => {
-                return Err(anyhow!("Terminal input reader stopped unexpectedly"));
+                return Err(anyhow!(crate::tr!(
+                    "Terminal input reader stopped unexpectedly"
+                )));
             }
         };
 
@@ -147,7 +149,9 @@ impl EventReader {
                 }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
-                    return Err(anyhow!("Terminal input reader stopped unexpectedly"));
+                    return Err(anyhow!(crate::tr!(
+                        "Terminal input reader stopped unexpectedly"
+                    )));
                 }
             }
         }
@@ -162,7 +166,10 @@ impl EventReader {
     fn event_from_message(message: InputMessage) -> Result<Event> {
         match message {
             InputMessage::Event(event) => Ok(event),
-            InputMessage::Error(error) => Err(anyhow!("Terminal input failed: {error}")),
+            InputMessage::Error(error) => Err(anyhow!(crate::trf!(
+                "Terminal input failed: {error}",
+                error = error
+            ))),
         }
     }
 }

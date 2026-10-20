@@ -60,36 +60,39 @@ impl App {
         };
         let mut rows = vec![
             (
-                "Amend HEAD · staged changes + message".into(),
+                crate::tr!("Amend HEAD · staged changes + message").into(),
                 Choice::Amend(false),
             ),
             (
-                "Reword HEAD · message only; keep staged changes".into(),
+                crate::tr!("Reword HEAD · message only; keep staged changes").into(),
                 Choice::Amend(true),
             ),
             (
-                "Undo last commit · keep changes staged".into(),
+                crate::tr!("Undo last commit · keep changes staged").into(),
                 Choice::Undo,
             ),
             (
-                "Reflog · find and restore previous HEAD".into(),
+                crate::tr!("Reflog · find and restore previous HEAD").into(),
                 Choice::Reflog,
             ),
         ];
         if let Some(oid) = target {
             rows.push((
-                format!("Reset current branch to {}…", &oid.to_string()[..7]),
+                crate::trf!(
+                    "Reset current branch to {oid}…",
+                    oid = &oid.to_string()[..7]
+                ),
                 Choice::ResetMenu(oid),
             ));
             rows.push((
-                format!("Create tag at {}…", &oid.to_string()[..7]),
+                crate::trf!("Create tag at {oid}…", oid = &oid.to_string()[..7]),
                 Choice::Tag(oid),
             ));
         }
         if self.workspace.focus == Panel::Branches {
             if let Some(branch) = self.workspace_selected_branch().filter(|b| !b.is_remote) {
                 rows.push((
-                    format!("Rename branch {}…", branch.name),
+                    crate::trf!("Rename branch {branch}…", branch = branch.name),
                     Choice::Rename(Rename {
                         old: branch.name.clone(),
                         oid: branch.tip_oid,
@@ -98,9 +101,12 @@ impl App {
             }
         }
         if self.workspace.composer.amend.is_some() {
-            rows.push(("New commit · leave amend draft".into(), Choice::NewCommit));
+            rows.push((
+                crate::tr!("New commit · leave amend draft").into(),
+                Choice::NewCommit,
+            ));
         }
-        self.git_menu("Extras · j/k select · Enter open".into(), rows);
+        self.git_menu(crate::tr!("Extras · j/k select · Enter open").into(), rows);
         Ok(())
     }
     pub(crate) fn git_menu_action(&mut self, action: Action) -> Result<()> {
@@ -144,13 +150,13 @@ impl App {
             Choice::Amend(message_only) => {
                 let snapshot = Snapshot::capture(&self.repo.repo)?;
                 self.mode = AppMode::Confirm {
-                    message: format!(
-                        "Rewrite HEAD {}? {}. Published history will change.",
-                        &snapshot.head.to_string()[..7],
-                        if message_only {
-                            "Edit message only; staged changes stay staged"
+                    message: crate::trf!(
+                        "Rewrite HEAD {head}? {detail}. Published history will change.",
+                        head = &snapshot.head.to_string()[..7],
+                        detail = if message_only {
+                            crate::tr!("Edit message only; staged changes stay staged")
                         } else {
-                            "Include staged changes and edit message"
+                            crate::tr!("Include staged changes and edit message")
                         }
                     ),
                     action: ConfirmAction::Amend(snapshot, message_only),
@@ -160,18 +166,39 @@ impl App {
                 let snapshot = Snapshot::capture(&self.repo.repo)?;
                 let commit = self.repo.repo.find_commit(snapshot.head)?;
                 if commit.parent_count() == 0 {
-                    bail!("The initial commit has no parent; use amend instead");
+                    bail!(
+                        "{}",
+                        crate::tr!("The initial commit has no parent; use amend instead")
+                    );
                 }
                 let target = commit.parent_id(0)?;
-                self.mode=AppMode::Confirm {message:format!("Undo HEAD {} to first parent {}? Keep index and working files; commit changes become staged. Published history will change.",&snapshot.head.to_string()[..7],&target.to_string()[..7]),action:ConfirmAction::Reset(Reset {snapshot,target,mode:ResetMode::Soft})};
+                self.mode = AppMode::Confirm {
+                    message: crate::trf!(
+                        "Undo HEAD {head} to first parent {parent}? Keep index and working files; commit changes become staged. Published history will change.",
+                        head = &snapshot.head.to_string()[..7],
+                        parent = &target.to_string()[..7]
+                    ),
+                    action: ConfirmAction::Reset(Reset {
+                        snapshot,
+                        target,
+                        mode: ResetMode::Soft,
+                    }),
+                };
             }
             Choice::ResetMenu(oid) => self.git_menu(
-                format!("Reset to {} · choose what to keep", &oid.to_string()[..7]),
+                crate::trf!(
+                    "Reset to {oid} · choose what to keep",
+                    oid = &oid.to_string()[..7]
+                ),
                 [ResetMode::Soft, ResetMode::Mixed, ResetMode::Hard]
                     .iter()
                     .map(|mode| {
                         (
-                            format!("{} · {}", mode.flag(), mode.description()),
+                            crate::trf!(
+                                "{flag} · {description}",
+                                flag = mode.flag(),
+                                description = mode.description()
+                            ),
                             Choice::Reset(oid, *mode),
                         )
                     })
@@ -180,13 +207,13 @@ impl App {
             Choice::Reset(target, mode) => {
                 let snapshot = Snapshot::capture(&self.repo.repo)?;
                 self.mode = AppMode::Confirm {
-                    message: format!(
-                        "Reset {} from {} to {} {}? {}. Published history will change.",
-                        snapshot.reference,
-                        &snapshot.head.to_string()[..7],
-                        &target.to_string()[..7],
-                        mode.flag(),
-                        mode.description()
+                    message: crate::trf!(
+                        "Reset {reference} from {head} to {target} {flag}? {description}. Published history will change.",
+                        reference = snapshot.reference,
+                        head = &snapshot.head.to_string()[..7],
+                        target = &target.to_string()[..7],
+                        flag = mode.flag(),
+                        description = mode.description()
                     ),
                     action: ConfirmAction::Reset(Reset {
                         snapshot,
@@ -204,31 +231,38 @@ impl App {
                     .take(200)
                     .map(|(i, e)| {
                         (
-                            format!(
-                                "HEAD@{{{i}}} {} {}",
-                                &e.id_new().to_string()[..7],
-                                e.message().unwrap_or("")
+                            crate::trf!(
+                                "HEAD@{selector} {oid} {message}",
+                                selector = format!("{{{i}}}"),
+                                oid = &e.id_new().to_string()[..7],
+                                message = e.message().unwrap_or("")
                             ),
                             Choice::ResetMenu(e.id_new()),
                         )
                     })
                     .collect::<Vec<_>>();
                 if rows.is_empty() {
-                    bail!("No HEAD reflog entries");
+                    bail!("{}", crate::tr!("No HEAD reflog entries"));
                 }
                 drop(log);
-                self.git_menu("HEAD reflog · Enter choose reset · Esc close".into(), rows);
+                self.git_menu(
+                    crate::tr!("HEAD reflog · Enter choose reset · Esc close").into(),
+                    rows,
+                );
             }
             Choice::Tag(oid) => {
                 self.mode = AppMode::Input {
-                    title: format!("Create lightweight tag at {}", &oid.to_string()[..7]),
+                    title: crate::trf!(
+                        "Create lightweight tag at {oid}",
+                        oid = &oid.to_string()[..7]
+                    ),
                     input: String::new(),
                     action: InputAction::CreateTag(oid),
                 }
             }
             Choice::Rename(target) => {
                 self.mode = AppMode::Input {
-                    title: format!("Rename branch {}", target.old),
+                    title: crate::trf!("Rename branch {branch}", branch = target.old),
                     input: target.old.clone(),
                     action: InputAction::RenameBranch(target),
                 }
@@ -243,7 +277,7 @@ impl App {
             .repo
             .find_commit(snapshot.head)?
             .message()
-            .context("Commit message is not UTF-8")?
+            .context(crate::tr!("Commit message is not UTF-8"))?
             .trim_end()
             .to_string();
         let (subject, body) = message.split_once('\n').unwrap_or((&message, ""));
@@ -296,8 +330,10 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     );
     menu.offset = state.offset();
     frame.render_widget(
-        Paragraph::new(Line::from("↑/↓ select · Enter open · Esc close"))
-            .style(Style::default().fg(Color::DarkGray)),
+        Paragraph::new(Line::from(crate::tr!(
+            "↑/↓ select · Enter open · Esc close"
+        )))
+        .style(Style::default().fg(Color::DarkGray)),
         Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1),
     );
 }
@@ -310,14 +346,18 @@ impl App {
                 .and_then(|i| self.graph_layout.nodes.get(i))
                 .and_then(|n| n.commit.as_ref())
                 .map(|c| c.oid)
-                .context("Select a commit in Graph first")
+                .context(crate::tr!("Select a commit in Graph first"))
         } else if self.workspace.focus == Panel::Branches {
             self.workspace_selected_branch()
                 .map(|b| b.tip_oid)
                 .or(self.workspace.commit)
-                .context("Select a branch or tag first")
+                .context(crate::tr!("Select a branch or tag first"))
         } else {
-            self.repo.repo.head()?.target().context("No HEAD commit")
+            self.repo
+                .repo
+                .head()?
+                .target()
+                .context(crate::tr!("No HEAD commit"))
         }
     }
     pub(crate) fn context_git_action(&mut self, action: &Action) -> Result<bool> {
@@ -342,7 +382,10 @@ impl App {
                     .cloned()
                     .collect::<Vec<_>>();
                 if rows.iter().any(|f| f.conflict) {
-                    bail!("Resolve conflicts individually before staging this directory");
+                    bail!(
+                        "{}",
+                        crate::tr!("Resolve conflicts individually before staging this directory")
+                    );
                 }
                 let unstage = !rows.iter().any(|f| f.unstaged);
                 for row in rows
@@ -353,16 +396,16 @@ impl App {
                 }
                 self.workspace.invalidate();
                 self.set_message(if unstage {
-                    "Directory unstaged"
+                    crate::tr!("Directory unstaged")
                 } else {
-                    "Directory staged"
+                    crate::tr!("Directory staged")
                 });
             }
             Action::AmendHead | Action::RewordHead => {
                 if self.workspace.focus == Panel::Graph
                     && self.selected_git_target()? != Snapshot::capture(&self.repo.repo)?.head
                 {
-                    bail!("Only HEAD amend/reword is supported. Select HEAD; older commits require interactive rebase");
+                    bail!("{}", crate::tr!("Only HEAD amend/reword is supported. Select HEAD; older commits require interactive rebase"));
                 }
                 self.choose_git_action(Choice::Amend(*action == Action::RewordHead))?;
             }
@@ -370,7 +413,7 @@ impl App {
                 let branch = self
                     .workspace_selected_branch()
                     .filter(|b| !b.is_remote)
-                    .context("Select a local branch first")?;
+                    .context(crate::tr!("Select a local branch first"))?;
                 self.choose_git_action(Choice::Rename(Rename {
                     old: branch.name.clone(),
                     oid: branch.tip_oid,
@@ -381,7 +424,7 @@ impl App {
             }
             Action::CreateBranch if self.workspace.focus == Panel::Branches => {
                 self.mode = AppMode::Input {
-                    title: "New branch from selected branch".into(),
+                    title: crate::tr!("New branch from selected branch").into(),
                     input: String::new(),
                     action: InputAction::CreateBranchAt(self.selected_git_target()?),
                 };
@@ -396,7 +439,10 @@ impl App {
                     .nodes
                     .iter()
                     .position(|n| n.commit.as_ref().is_some_and(|c| c.oid == target))
-                    .ok_or_else(|| anyhow::anyhow!("Branch tip is outside the loaded graph; load more history or show remote branches first"))?;
+                    .ok_or_else(|| anyhow::anyhow!(
+                        "{}",
+                        crate::tr!("Branch tip is outside the loaded graph; load more history or show remote branches first")
+                    ))?;
                 self.select_node(i);
                 self.workspace_focus(Panel::Graph);
                 self.workspace_commit_target(target);
@@ -405,9 +451,9 @@ impl App {
                 let oid = self.selected_git_target()?;
                 let snapshot = Snapshot::capture(&self.repo.repo)?;
                 self.mode = AppMode::Confirm {
-                    message: format!(
-                        "Check out {} in detached HEAD? Working changes must be compatible.",
-                        &oid.to_string()[..7]
+                    message: crate::trf!(
+                        "Check out {oid} in detached HEAD? Working changes must be compatible.",
+                        oid = &oid.to_string()[..7]
                     ),
                     action: ConfirmAction::CheckoutRevision(snapshot, oid),
                 };
@@ -415,20 +461,20 @@ impl App {
             Action::CopyCommit => {
                 let oid = self.selected_git_target()?;
                 self.workspace.copied_commit = Some(oid);
-                self.set_message(format!(
-                    "Copied {} for cherry-pick · V paste · Ctrl-r clear",
-                    &oid.to_string()[..7]
+                self.set_message(crate::trf!(
+                    "Copied {oid} for cherry-pick · V paste · Ctrl-r clear",
+                    oid = &oid.to_string()[..7]
                 ));
             }
             Action::ClearCopiedCommit => {
                 self.workspace.copied_commit = None;
-                self.set_message("Cherry-pick selection cleared");
+                self.set_message(crate::tr!("Cherry-pick selection cleared"));
             }
             Action::PasteCommit => {
                 let oid = self
                     .workspace
                     .copied_commit
-                    .context("Copy a commit with C first")?;
+                    .context(crate::tr!("Copy a commit with C first"))?;
                 let target = crate::git::commit_operation::CommitOperation::capture(
                     &self.repo.repo,
                     oid,
@@ -443,46 +489,55 @@ impl App {
                 let mut rows = Vec::new();
                 if crate::git::recovery::kind(&self.repo.repo).is_some() {
                     rows.push((
-                        "Continue current Git operation".into(),
+                        crate::tr!("Continue current Git operation").into(),
                         Choice::Action(Action::ContinueOperation),
                     ));
                     rows.push((
-                        "Abort current Git operation".into(),
+                        crate::tr!("Abort current Git operation").into(),
                         Choice::Action(Action::AbortOperation),
                     ));
                 } else if self.workspace.focus == Panel::Graph {
                     rows.push((
-                        "Merge selected branch into current".into(),
+                        crate::tr!("Merge selected branch into current").into(),
                         Choice::Action(Action::Merge),
                     ));
                     rows.push((
-                        "Rebase current onto selected branch".into(),
+                        crate::tr!("Rebase current onto selected branch").into(),
                         Choice::Action(Action::Rebase),
                     ));
                 } else {
-                    bail!("No merge/rebase/cherry-pick/revert in progress");
+                    bail!(
+                        "{}",
+                        crate::tr!("No merge/rebase/cherry-pick/revert in progress")
+                    );
                 }
-                self.git_menu("Merge / rebase options".into(), rows);
+                self.git_menu(crate::tr!("Merge / rebase options").into(), rows);
             }
             Action::LogMenu => self.git_menu(
-                "Log options".into(),
+                crate::tr!("Log options").into(),
                 vec![
                     (
-                        "Load 500 more commits".into(),
+                        crate::tr!("Load 500 more commits").into(),
                         Choice::Action(Action::LoadMoreHistory),
                     ),
-                    ("HEAD reflog".into(), Choice::Reflog),
+                    (crate::tr!("HEAD reflog").into(), Choice::Reflog),
                     (
-                        "Toggle remote branches".into(),
+                        crate::tr!("Toggle remote branches").into(),
                         Choice::Action(Action::ToggleRemoteBranches),
                     ),
-                    ("Toggle tags".into(), Choice::Action(Action::ToggleTags)),
+                    (
+                        crate::tr!("Toggle tags").into(),
+                        Choice::Action(Action::ToggleTags),
+                    ),
                 ],
             ),
             Action::ToggleStageAll => {
                 self.workspace.load_files(&self.repo.repo)?;
                 if self.workspace.files.iter().any(|f| f.conflict) {
-                    bail!("Resolve conflicts individually with Space before staging all");
+                    bail!(
+                        "{}",
+                        crate::tr!("Resolve conflicts individually with Space before staging all")
+                    );
                 }
                 let action = if self.workspace.files.iter().any(|f| f.unstaged) {
                     Action::StageAll

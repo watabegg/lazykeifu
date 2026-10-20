@@ -44,7 +44,9 @@ pub struct Operation {
 }
 impl Operation {
     pub fn capture(repo: &Repository) -> Result<Self> {
-        let kind = kind(repo).context("No merge, rebase, cherry-pick or revert in progress")?;
+        let kind = kind(repo).context(crate::tr!(
+            "No merge, rebase, cherry-pick or revert in progress"
+        ))?;
         let mut markers = Vec::new();
         for name in [
             "CHERRY_PICK_HEAD",
@@ -78,26 +80,33 @@ impl Operation {
     }
     pub fn verify(&self, repo: &Repository) -> Result<()> {
         if Self::capture(repo).ok().as_ref() != Some(self) {
-            bail!("Git operation changed; review the current state and try again");
+            bail!(crate::tr!(
+                "Git operation changed; review the current state and try again"
+            ));
         }
         Ok(())
     }
     pub fn abort(&self, repo: &Repository) -> Result<String> {
         self.verify(repo)?;
         git_output(repo, &[self.kind.command().as_ref(), "--abort".as_ref()])?;
-        Ok(format!("{} aborted", self.kind.command()))
+        Ok(crate::trf!(
+            "{operation} aborted",
+            operation = self.kind.command()
+        ))
     }
     pub fn continue_command(&self, repo: &Repository) -> Result<Command> {
         self.verify(repo)?;
         let mut index = repo.index()?;
         index.read(true)?;
         if index.has_conflicts() {
-            bail!("Unresolved conflicts remain; edit and stage the resolved files first");
+            bail!(crate::tr!(
+                "Unresolved conflicts remain; edit and stage the resolved files first"
+            ));
         }
         let mut command = Command::new("git");
         command
             .args([self.kind.command(), "--continue"])
-            .current_dir(repo.workdir().context("No working tree")?);
+            .current_dir(repo.workdir().context(crate::tr!("No working tree"))?);
         Ok(command)
     }
 }
@@ -120,16 +129,21 @@ impl Resolution {
             })
             .collect();
         if stages.is_empty() {
-            bail!("Conflict state changed; refresh the file list");
+            bail!(crate::tr!("Conflict state changed; refresh the file list"));
         }
-        let full = repo.workdir().context("No working tree")?.join(path);
+        let full = repo
+            .workdir()
+            .context(crate::tr!("No working tree"))?
+            .join(path);
         let content = match fs::symlink_metadata(&full) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(e.into()),
             Ok(meta) if meta.is_file() => {
                 Some(Oid::hash_object(git2::ObjectType::Blob, &fs::read(full)?)?)
             }
-            _ => bail!("Resolve symlink and submodule conflicts with Git directly"),
+            _ => bail!(crate::tr!(
+                "Resolve symlink and submodule conflicts with Git directly"
+            )),
         };
         Ok(Self {
             path: path.into(),
@@ -139,7 +153,9 @@ impl Resolution {
     }
     pub fn stage(&self, repo: &Repository) -> Result<String> {
         if Self::capture(repo, &self.path).ok().as_ref() != Some(self) {
-            bail!("File or conflict state changed; review and confirm resolution again");
+            bail!(crate::tr!(
+                "File or conflict state changed; review and confirm resolution again"
+            ));
         }
         git_output(
             repo,
@@ -150,6 +166,9 @@ impl Resolution {
                 self.path.as_os_str(),
             ],
         )?;
-        Ok(format!("Resolution staged: {}", self.path.display()))
+        Ok(crate::trf!(
+            "Resolution staged: {path}",
+            path = self.path.display()
+        ))
     }
 }

@@ -12,23 +12,27 @@ pub struct Snapshot {
 impl Snapshot {
     pub fn capture(repo: &Repository) -> Result<Self> {
         if repo.state() != RepositoryState::Clean {
-            bail!("Finish or abort the current Git operation first");
+            bail!(crate::tr!(
+                "Finish or abort the current Git operation first"
+            ));
         }
-        let head = repo.head().context("No commit yet")?;
+        let head = repo.head().context(crate::tr!("No commit yet"))?;
         let mut index = repo.index()?;
         index.read(true)?;
         if index.has_conflicts() {
-            bail!("Resolve conflicts first");
+            bail!(crate::tr!("Resolve conflicts first"));
         }
         Ok(Self {
             head: head.peel_to_commit()?.id(),
-            reference: head.name().context("Invalid HEAD")?.into(),
+            reference: head.name().context(crate::tr!("Invalid HEAD"))?.into(),
             tree: index.write_tree()?,
         })
     }
     pub fn verify(&self, repo: &Repository) -> Result<()> {
         if Self::capture(repo)? != *self {
-            bail!("HEAD, branch or index changed. Review and try again");
+            bail!(crate::tr!(
+                "HEAD, branch or index changed. Review and try again"
+            ));
         }
         Ok(())
     }
@@ -49,9 +53,9 @@ impl ResetMode {
     }
     pub fn description(self) -> &'static str {
         match self {
-            Self::Soft => "keep index and working files",
-            Self::Mixed => "unstage changes; keep working files",
-            Self::Hard => "replace index and working files (requires clean worktree)",
+            Self::Soft => crate::tr!("keep index and working files"),
+            Self::Mixed => crate::tr!("unstage changes; keep working files"),
+            Self::Hard => crate::tr!("replace index and working files (requires clean worktree)"),
         }
     }
 }
@@ -74,7 +78,7 @@ impl Reset {
                 ))?
                 .is_empty()
         {
-            bail!("Hard reset requires a clean worktree, including untracked files. Commit or stash changes first");
+            bail!(crate::tr!("Hard reset requires a clean worktree, including untracked files. Commit or stash changes first"));
         }
         git_output(
             repo,
@@ -85,10 +89,11 @@ impl Reset {
                 "--".as_ref(),
             ],
         )?;
-        Ok(format!(
-            "Reset {} to {}",
-            self.mode.flag(),
-            &self.target.to_string()[..7]
+        let target = self.target.to_string();
+        Ok(crate::trf!(
+            "Reset {mode} to {target}",
+            mode = self.mode.flag(),
+            target = &target[..7]
         ))
     }
 }
@@ -101,10 +106,10 @@ impl Rename {
     pub fn execute(&self, repo: &Repository, name: &str) -> Result<String> {
         let branch = repo.find_branch(&self.old, git2::BranchType::Local)?;
         if branch.get().target() != Some(self.oid) {
-            bail!("Branch changed; select it again");
+            bail!(crate::tr!("Branch changed; select it again"));
         }
         if !git2::Reference::is_valid_name(&format!("refs/heads/{name}")) || name.starts_with('-') {
-            bail!("Invalid branch name");
+            bail!(crate::tr!("Invalid branch name"));
         }
         git_output(
             repo,
@@ -115,12 +120,16 @@ impl Rename {
                 name.as_ref(),
             ],
         )?;
-        Ok(format!("Renamed {} to {name}", self.old))
+        Ok(crate::trf!(
+            "Renamed {old} to {name}",
+            old = self.old,
+            name = name
+        ))
     }
 }
 pub fn create_tag(repo: &Repository, name: &str, target: Oid) -> Result<String> {
     if !git2::Reference::is_valid_name(&format!("refs/tags/{name}")) || name.starts_with('-') {
-        bail!("Invalid tag name");
+        bail!(crate::tr!("Invalid tag name"));
     }
     repo.find_commit(target)?;
     git_output(
@@ -134,9 +143,11 @@ pub fn create_tag(repo: &Repository, name: &str, target: Oid) -> Result<String> 
             target.to_string().as_ref(),
         ],
     )?;
-    Ok(format!(
-        "Created lightweight tag {name} at {}",
-        &target.to_string()[..7]
+    let target = target.to_string();
+    Ok(crate::trf!(
+        "Created lightweight tag {name} at {target}",
+        name = name,
+        target = &target[..7]
     ))
 }
 pub fn amend(

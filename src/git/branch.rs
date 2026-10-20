@@ -124,7 +124,7 @@ pub(crate) fn group_branch_labels(branches: &[&BranchInfo]) -> Vec<BranchLabel> 
                 remote_suffix: if matching.is_empty() {
                     String::new()
                 } else {
-                    format!(" ↔ {}", matching.join(", "))
+                    crate::trf!(" ↔ {remotes}", remotes = matching.join(", "))
                 },
             }
         })

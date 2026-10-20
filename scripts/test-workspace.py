@@ -27,11 +27,11 @@ def init(root):
 
 
 class Tui:
-    def __init__(self, root, config, slow_diff=False, env_overrides=None, stdin_pipe=False):
+    def __init__(self, root, config, slow_diff=False, env_overrides=None, stdin_pipe=False, cli_args=()):
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             self.port = sock.getsockname()[1]
-        env = dict(os.environ, XDG_CONFIG_HOME=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null')
+        env = dict(os.environ, XDG_CONFIG_HOME=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null', LC_ALL='C.UTF-8')
         for key, value in (env_overrides or {}).items():
             if value is None:
                 env.pop(key, None)
@@ -49,7 +49,8 @@ class Tui:
             env['PATH'] = str(wrapper) + os.pathsep + env['PATH']
         # Keep normal redraws at the same size as mouse-test dumps. A 0x0 PTY
         # otherwise clears hit-test rectangles between debug requests.
-        command = f'stty rows 32 cols 120; exec {shlex.quote(str(BINARY))} --debug-listen 127.0.0.1:{self.port} --log-file {shlex.quote(str(config.parent / "tui-test.log"))}'
+        extra_args = ' '.join(shlex.quote(str(arg)) for arg in cli_args)
+        command = f'stty rows 32 cols 120; exec {shlex.quote(str(BINARY))} {extra_args} --debug-listen 127.0.0.1:{self.port} --log-file {shlex.quote(str(config.parent / "tui-test.log"))}'
         self.proc = subprocess.Popen(['script', '-qec', command, '/dev/null'], cwd=root, env=env,
                                      stdin=subprocess.PIPE if stdin_pipe else subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:

@@ -15,7 +15,9 @@ pub fn git_bytes(
     args: &[&std::ffi::OsStr],
     input: Option<&[u8]>,
 ) -> Result<Vec<u8>> {
-    let root = repo.workdir().context("A working tree is required")?;
+    let root = repo
+        .workdir()
+        .context(crate::tr!("A working tree is required"))?;
     let mut child = Command::new("git")
         .arg("--no-pager")
         .args(args)
@@ -42,7 +44,7 @@ pub fn git_bytes(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .context("Could not run git")?;
+        .context(crate::tr!("Could not run git"))?;
     let writer = input.map(|bytes| {
         let bytes = bytes.to_vec();
         let mut stdin = child.stdin.take().expect("piped stdin");
@@ -53,7 +55,7 @@ pub fn git_bytes(
         .map(|handle| {
             handle
                 .join()
-                .map_err(|_| anyhow::anyhow!("Git input worker stopped"))
+                .map_err(|_| anyhow::anyhow!(crate::tr!("Git input worker stopped")))
         })
         .transpose()?;
     // CLI mutations bypass libgit2's cached index. Refresh before any later read.
@@ -61,12 +63,12 @@ pub fn git_bytes(
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        bail!(
-            "Git exited with {}:\n{}\n{}",
-            output.status,
-            stdout.trim(),
-            stderr.trim()
-        );
+        bail!(crate::trf!(
+            "Git exited with {status}:\n{stdout}\n{stderr}",
+            status = output.status,
+            stdout = stdout.trim(),
+            stderr = stderr.trim()
+        ));
     }
     if let Some(result) = write_result {
         result?;

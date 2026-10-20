@@ -278,6 +278,7 @@ fn state_json(app: &App) -> Value {
     } else {
         json!(null)
     };
+    state["language"] = json!(crate::i18n::language());
     state
 }
 

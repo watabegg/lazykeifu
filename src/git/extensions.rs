@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 /// This must run before opening repositories.
 pub fn configure_git_extensions() -> Result<()> {
     git2::opts::strict_hash_verification(false);
-    unsafe { git2::opts::set_extensions(&["relativeworktrees"]) }
-        .context("failed to configure libgit2 supported extensions (relativeworktrees)")
+    unsafe { git2::opts::set_extensions(&["relativeworktrees"]) }.context(crate::tr!(
+        "failed to configure libgit2 supported extensions (relativeworktrees)"
+    ))
 }

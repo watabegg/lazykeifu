@@ -29,7 +29,7 @@ pub fn diff(repo: &Repository, path: &Path, staged: bool) -> Result<String> {
     }
     args.extend([OsStr::new("--"), path.as_os_str()]);
     String::from_utf8(git_bytes(repo, &args, None)?)
-        .context("Non-UTF-8 diff; use whole-file staging")
+        .context(crate::tr!("Non-UTF-8 diff; use whole-file staging"))
 }
 
 pub fn hunks(text: &str) -> Vec<Range<usize>> {
@@ -65,22 +65,24 @@ pub fn apply_hunk(
             | git2::Status::INDEX_RENAMED
             | git2::Status::WT_RENAMED,
     ) {
-        bail!(
+        bail!(crate::tr!(
             "Hunk staging supports modified tracked files; use whole-file staging for this change"
-        );
+        ));
     }
     let current = diff(repo, path, staged)?;
     if current != expected {
-        bail!("Diff changed; refresh and select the hunk again");
+        bail!(crate::tr!(
+            "Diff changed; refresh and select the hunk again"
+        ));
     }
     let status = repo.status_file(path)?;
     if status.is_conflicted() {
-        bail!("Resolve conflicts before staging hunks");
+        bail!(crate::tr!("Resolve conflicts before staging hunks"));
     }
     let ranges = hunks(expected);
     let range = ranges
         .get(selected)
-        .context("No text hunk selected; use whole-file staging")?;
+        .context(crate::tr!("No text hunk selected; use whole-file staging"))?;
     let lines: Vec<_> = expected.split_inclusive('\n').collect();
     let header = lines[..ranges[0].start].concat();
     // Structural changes are whole-file operations in this first implementation.
@@ -98,7 +100,7 @@ pub fn apply_hunk(
         || header.contains(" 120000")
         || header.contains(" 160000")
     {
-        bail!("Hunk staging supports modified regular text files; use whole-file staging for this change");
+        bail!(crate::tr!("Hunk staging supports modified regular text files; use whole-file staging for this change"));
     }
     let patch = header + &lines[range.clone()].concat();
     let mut args: Vec<&OsStr> = ["apply", "--cached", "--whitespace=nowarn"]
@@ -110,9 +112,9 @@ pub fn apply_hunk(
     }
     git_bytes(repo, &args, Some(patch.as_bytes()))?;
     Ok(if staged {
-        "Hunk unstaged"
+        crate::tr!("Hunk unstaged")
     } else {
-        "Hunk staged"
+        crate::tr!("Hunk staged")
     }
     .into())
 }
@@ -137,13 +139,15 @@ fn snapshot(repo: &Repository, path: &Path) -> Result<Discard> {
             .components()
             .any(|c| !matches!(c, std::path::Component::Normal(_)))
     {
-        bail!("Discard requires a repository-relative file path");
+        bail!(crate::tr!(
+            "Discard requires a repository-relative file path"
+        ));
     }
-    let root = repo.workdir().context("No working tree")?;
+    let root = repo.workdir().context(crate::tr!("No working tree"))?;
     let mut parent = path.parent();
     while let Some(dir) = parent.filter(|p| !p.as_os_str().is_empty()) {
         if root.join(dir).is_symlink() {
-            bail!("Cannot discard through a symlink directory");
+            bail!(crate::tr!("Cannot discard through a symlink directory"));
         }
         parent = dir.parent();
     }
@@ -165,13 +169,15 @@ fn snapshot(repo: &Repository, path: &Path) -> Result<Discard> {
                 executable,
             )
         }
-        _ => bail!("Directory and submodule discard is not supported"),
+        _ => bail!(crate::tr!(
+            "Directory and submodule discard is not supported"
+        )),
     };
     let mut index = repo.index()?;
     index.read(true)?;
     let entry = index.get_path(path, 0).map(|e| (e.id, e.mode));
     if repo.status_file(path)?.is_conflicted() {
-        bail!("Resolve conflicts with Git before discarding");
+        bail!(crate::tr!("Resolve conflicts with Git before discarding"));
     }
     Ok(Discard {
         path: path.to_owned(),
@@ -189,19 +195,23 @@ pub fn prepare_discard(repo: &Repository, path: &Path) -> Result<Discard> {
             | git2::Status::WT_TYPECHANGE
             | git2::Status::WT_NEW,
     ) {
-        bail!("No unstaged changes; unstage first if you want to discard staged content");
+        bail!(crate::tr!(
+            "No unstaged changes; unstage first if you want to discard staged content"
+        ));
     }
     snapshot(repo, path)
 }
 
 pub fn discard(repo: &Repository, expected: &Discard) -> Result<String> {
     if snapshot(repo, &expected.path)? != *expected {
-        bail!("File or index changed; review the diff and confirm discard again");
+        bail!(crate::tr!(
+            "File or index changed; review the diff and confirm discard again"
+        ));
     }
     if expected.untracked {
         fs::remove_file(
             repo.workdir()
-                .context("No working tree")?
+                .context(crate::tr!("No working tree"))?
                 .join(&expected.path),
         )?;
     } else {
@@ -215,8 +225,8 @@ pub fn discard(repo: &Repository, expected: &Discard) -> Result<String> {
             ],
         )?;
     }
-    Ok(format!(
-        "Discarded unstaged changes: {}",
-        expected.path.display()
+    Ok(crate::trf!(
+        "Discarded unstaged changes: {path}",
+        path = expected.path.display()
     ))
 }

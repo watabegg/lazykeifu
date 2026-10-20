@@ -34,15 +34,15 @@ pub fn checkout_remote_branch(repo: &Repository, remote_branch: &str) -> Result<
     let refname = remote_ref
         .get()
         .name()
-        .context("Invalid remote reference")?;
+        .context(crate::tr!("Invalid remote reference"))?;
     let remote = repo.branch_remote_name(refname)?;
-    let remote = remote.as_str().context("Invalid remote name")?;
+    let remote = remote.as_str().context(crate::tr!("Invalid remote name"))?;
     let local_name = remote_branch
         .strip_prefix(&format!("{remote}/"))
-        .context("Invalid remote branch")?;
+        .context(crate::tr!("Invalid remote branch"))?;
     if let Ok(local) = repo.find_branch(local_name, BranchType::Local) {
         if local.get().peel_to_commit()?.id() != remote_ref.get().peel_to_commit()?.id() {
-            bail!("Local branch '{local_name}' differs from '{remote_branch}'. Select the local branch or reconcile it with Git; it was not reset.");
+            bail!(crate::trf!("Local branch '{local_name}' differs from '{remote_branch}'. Select the local branch or reconcile it with Git; it was not reset.", local_name = local_name, remote_branch = remote_branch));
         }
         return checkout_branch(repo, local_name);
     }
@@ -62,10 +62,15 @@ pub fn checkout_remote_branch(repo: &Repository, remote_branch: &str) -> Result<
 
 /// Create a new branch
 pub fn create_branch(repo: &Repository, branch_name: &str, from_oid: Oid) -> Result<()> {
-    let commit = repo.find_commit(from_oid).context("Commit not found")?;
+    let commit = repo
+        .find_commit(from_oid)
+        .context(crate::tr!("Commit not found"))?;
 
     repo.branch(branch_name, &commit, false)
-        .context(format!("Failed to create branch '{}'", branch_name))?;
+        .context(crate::trf!(
+            "Failed to create branch '{branch_name}'",
+            branch_name = branch_name
+        ))?;
 
     Ok(())
 }
@@ -88,7 +93,7 @@ pub fn delete_branch(repo: &Repository, branch_name: &str) -> Result<()> {
 pub fn stage_path(repo: &Repository, path: &Path) -> Result<()> {
     let workdir = repo
         .workdir()
-        .context("Repository has no working directory")?;
+        .context(crate::tr!("Repository has no working directory"))?;
     let mut index = repo.index()?;
     if workdir.join(path).exists() {
         index.add_path(path)?;
@@ -143,9 +148,9 @@ pub fn unstage_all(repo: &Repository) -> Result<()> {
 
 /// Create a commit from the current index
 pub fn create_commit(repo: &Repository, message: &str) -> Result<Oid> {
-    let signature = repo
-        .signature()
-        .context("Cannot determine author (set user.name and user.email)")?;
+    let signature = repo.signature().context(crate::tr!(
+        "Cannot determine author (set user.name and user.email)"
+    ))?;
 
     let mut index = repo.index()?;
     let tree_oid = index.write_tree()?;
@@ -154,9 +159,9 @@ pub fn create_commit(repo: &Repository, message: &str) -> Result<Oid> {
     let parent = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
     match &parent {
         Some(parent_commit) if parent_commit.tree_id() == tree_oid => {
-            bail!("No staged changes to commit")
+            bail!(crate::tr!("No staged changes to commit"))
         }
-        None if index.is_empty() => bail!("No staged changes to commit"),
+        None if index.is_empty() => bail!(crate::tr!("No staged changes to commit")),
         _ => {}
     }
 
@@ -182,9 +187,11 @@ pub fn push_branch(repo_path: &str, branch: &str) -> Result<()> {
 }
 
 pub fn ensure_current_branch(repo: &Repository, branch: &str) -> Result<()> {
-    let head = repo.head().context("No current branch")?;
+    let head = repo.head().context(crate::tr!("No current branch"))?;
     if !head.is_branch() || head.shorthand() != Some(branch) {
-        bail!("Current branch changed; close this dialog and try again");
+        bail!(crate::tr!(
+            "Current branch changed; close this dialog and try again"
+        ));
     }
     Ok(())
 }
