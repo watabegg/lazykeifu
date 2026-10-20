@@ -1,5 +1,6 @@
 //! UI components
 
+mod commit_composer;
 pub mod commit_detail;
 pub mod dialog;
 pub mod file_diff_view;

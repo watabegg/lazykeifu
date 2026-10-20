@@ -48,6 +48,7 @@ is unauthenticated.
 | Request | Response |
 | --- | --- |
 | `{"cmd":"keys","keys":"j j <enter>"}` | `{"ok":true}` |
+| `{"cmd":"paste","text":"subject\n\nbody"}` | `{"ok":true}`; inserts text without submitting |
 | `{"cmd":"mouse","kind":"click","x":5,"y":3}` | `{"ok":true}` |
 | `{"cmd":"dump"}` | `{"ok":true,"width":…,"height":…,"screen":"…"}` |
 | `{"cmd":"dump","width":100,"height":30}` | same, rendered at the given size |

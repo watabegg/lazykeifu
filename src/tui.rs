@@ -4,7 +4,7 @@ use std::io::{self, Stdout};
 
 use anyhow::Result;
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture},
     execute,
     style::Print,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -28,6 +28,7 @@ pub fn init() -> Result<Tui> {
         stdout,
         EnterAlternateScreen,
         EnableMouseCapture,
+        EnableBracketedPaste,
         Print("\x1b[?1003l\x1b[?1002h")
     )?;
     let backend = CrosstermBackend::new(stdout);
@@ -38,7 +39,12 @@ pub fn init() -> Result<Tui> {
 /// Restore the terminal
 pub fn restore() -> Result<()> {
     disable_raw_mode()?;
-    execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        io::stdout(),
+        LeaveAlternateScreen,
+        DisableMouseCapture,
+        DisableBracketedPaste
+    )?;
     Ok(())
 }
 

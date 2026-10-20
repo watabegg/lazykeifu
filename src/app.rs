@@ -1798,6 +1798,9 @@ impl App {
     }
 
     fn handle_input_action(&mut self, action: Action) -> Result<()> {
+        if self.composing() {
+            return self.composer_action(action);
+        }
         let AppMode::Input {
             title,
             input,
@@ -1852,6 +1855,26 @@ impl App {
                 }
                 self.search_state = SearchState::default();
                 self.mode = AppMode::Normal;
+            }
+            Action::Paste(text) => {
+                input.extend(text.chars().filter_map(|c| {
+                    if c == '\n' || c == '\r' || c == '\t' {
+                        Some(' ')
+                    } else if c.is_control() {
+                        None
+                    } else {
+                        Some(c)
+                    }
+                }));
+                if matches!(input_action, InputAction::Search) {
+                    self.update_fuzzy_search(&input);
+                    self.jump_to_search_result();
+                }
+                self.mode = AppMode::Input {
+                    title,
+                    input,
+                    action: input_action,
+                };
             }
             Action::InputChar(c) => {
                 input.push(c);
@@ -2118,24 +2141,9 @@ impl App {
 
     /// Open the commit message dialog when staged changes exist
     fn open_commit_dialog(&mut self) {
-        let has_staged = self
-            .repo
-            .stage_states()
-            .map(|states| {
-                states
-                    .values()
-                    .any(|s| matches!(s, StageState::Staged | StageState::Partial))
-            })
-            .unwrap_or(false);
-        if !has_staged {
-            self.set_message("No staged changes (2: working files, Space: stage)");
-            return;
+        if let Err(error) = self.open_composer() {
+            self.show_error(error.to_string());
         }
-        self.mode = AppMode::Input {
-            title: "Commit Message".to_string(),
-            input: String::new(),
-            action: InputAction::CommitMessage,
-        };
     }
 
     /// Sync branch selection to the first branch of the given node

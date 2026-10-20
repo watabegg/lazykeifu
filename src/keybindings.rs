@@ -18,6 +18,8 @@ pub fn map_key_to_action(key: KeyEvent, mode: &AppMode) -> Option<Action> {
         AppMode::Input { action, .. } => {
             if *action == crate::app::InputAction::Search {
                 map_search_mode(key)
+            } else if *action == crate::app::InputAction::CommitMessage {
+                Some(Action::CommitInput(key))
             } else {
                 map_input_mode(key)
             }

@@ -30,7 +30,10 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
                 ("Space", "Stage / unstage selected file"),
                 ("a / u", "Stage all / unstage all working files"),
                 ("v", "Switch staged / unstaged diff"),
-                ("c", "Commit staged changes (Git hooks and signing)"),
+                (
+                    "c",
+                    "Review staged diff and compose a commit (draft kept on Esc)",
+                ),
                 (
                     "d",
                     "Discard unstaged changes after confirmation; index kept",

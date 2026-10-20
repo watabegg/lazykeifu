@@ -9,7 +9,7 @@ use crate::{
     workspace_tabs::{FilesTab, RefsTab},
 };
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Clear, List, ListItem, Paragraph, Wrap},
@@ -100,6 +100,35 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             .split(columns[1]);
             app.layout.graph = right[0];
             app.workspace.detail_rect = right[1];
+        }
+    }
+    if app.composing() {
+        app.layout.files = Rect::default();
+        app.workspace.branches_rect = Rect::default();
+        app.workspace.stash_rect = Rect::default();
+        app.workspace.detail_rect = Rect::default();
+        if body.width >= 100 {
+            let columns =
+                Layout::horizontal([Constraint::Percentage(44), Constraint::Percentage(56)])
+                    .split(body);
+            app.workspace.composer.rect = columns[0];
+            let right = Layout::vertical([
+                Constraint::Length((body.height / 4).clamp(4, 8)),
+                Constraint::Min(4),
+            ])
+            .split(columns[1]);
+            app.layout.graph = right[0];
+            app.layout.commit_detail = right[1];
+        } else {
+            let rows = Layout::vertical([
+                Constraint::Length(3),
+                Constraint::Percentage(50),
+                Constraint::Min(3),
+            ])
+            .split(body);
+            app.layout.graph = rows[0];
+            app.workspace.composer.rect = rows[1];
+            app.layout.commit_detail = rows[2];
         }
     }
     let repo_name = std::path::Path::new(&app.repo_path)
@@ -512,25 +541,15 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             );
             let _ = title;
         }
+        AppMode::Input {
+            action: InputAction::CommitMessage,
+            ..
+        } => {
+            super::commit_composer::draw(frame, app);
+        }
         AppMode::Input { title, input, .. } => {
-            if let Some(error) = &app.workspace.commit_error {
-                let rect = super::centered_rect(90, 80, area);
-                frame.render_widget(Clear, rect);
-                let rows = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([Constraint::Length(5), Constraint::Min(1)])
-                    .split(rect);
-                frame.render_widget(InputDialog::new(title, input), rows[0]);
-                frame.render_widget(
-                    Paragraph::new(error.as_str())
-                        .wrap(Wrap { trim: false })
-                        .block(pane_block("Git output", false)),
-                    rows[1],
-                );
-            } else {
-                let rect = super::centered_rect(80, 30, area);
-                frame.render_widget(InputDialog::new(title, input), rect);
-            }
+            let rect = super::centered_rect(80, 30, area);
+            frame.render_widget(InputDialog::new(title, input), rect);
         }
         AppMode::Confirm { message, action } => {
             let height = if matches!(
@@ -598,7 +617,7 @@ fn selection_style(focused: bool) -> Style {
 }
 
 /// Keep the change-kind palette consistent with keifu's file list.
-fn change_color(status: char) -> Color {
+pub(super) fn change_color(status: char) -> Color {
     match status {
         'A' => Color::Green,
         'M' | 'T' => Color::Yellow,

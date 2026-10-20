@@ -52,6 +52,7 @@ struct PreviewKey {
 #[derive(Default)]
 pub struct Workspace {
     pub focus: Panel,
+    pub composer: crate::commit_composer::Composer,
     pub tabs: crate::workspace_tabs::Tabs,
     pub external: Option<crate::external::Request>,
     pub stashes: Vec<crate::git::stash::StashEntry>,
@@ -308,7 +309,7 @@ impl Workspace {
         self.loaded = false;
         self.revision = self.revision.wrapping_add(1);
     }
-    fn load_files(&mut self, repo: &Repository) -> Result<()> {
+    pub(crate) fn load_files(&mut self, repo: &Repository) -> Result<()> {
         if self.loaded && self.files_commit == self.commit {
             return Ok(());
         }
@@ -354,6 +355,12 @@ impl App {
                     let message = self.workspace.commit_message.take();
                     match result {
                         Ok(text) => {
+                            if message.is_some() {
+                                self.workspace.composer = Default::default();
+                                self.workspace.commit_error = None;
+                                self.workspace.focus = Panel::Files;
+                                self.workspace.staged = false;
+                            }
                             self.mode = AppMode::Normal;
                             self.set_message(text.trim());
                             if let Err(e) = self.refresh(true) {
@@ -369,6 +376,9 @@ impl App {
                                     input,
                                     action: InputAction::CommitMessage,
                                 };
+                                self.workspace.composer.field =
+                                    crate::commit_composer::Field::Subject;
+                                self.workspace.composer.error_scroll = 0;
                                 self.workspace.commit_error = Some(error.clone());
                                 self.set_message(error);
                             } else {
@@ -400,6 +410,9 @@ impl App {
             self.workspace.preview = e.to_string();
             return;
         }
+        if self.composing() && self.workspace.composer.staged.is_empty() {
+            self.workspace.file_state.select(None);
+        }
         let key = PreviewKey {
             stash: self.workspace.stash_preview,
             stash_view: self.workspace.focus == Panel::Stashes
@@ -414,6 +427,13 @@ impl App {
                 .map(|r| r.path.clone()),
             staged: self.workspace.staged,
         };
+        if self.composing() && self.workspace.composer.staged.is_empty() {
+            self.workspace.preview =
+                "No staged changes. Esc returns to Files; the draft is kept.".into();
+            self.workspace.preview_rx = None;
+            self.workspace.preview_key = Some(key);
+            return;
+        }
         if self.workspace.preview_key.as_ref() != Some(&key) {
             // Once the visible text is cleared, the former key no longer describes it.
             // Returning to that file while another result is in flight must reload it.

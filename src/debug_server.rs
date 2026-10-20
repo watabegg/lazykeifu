@@ -44,6 +44,9 @@ pub enum DebugRequest {
         width: Option<u16>,
         height: Option<u16>,
     },
+    Paste {
+        text: String,
+    },
     State,
 }
 
@@ -102,6 +105,12 @@ pub fn spawn(addr: &str) -> Result<Receiver<DebugCommand>> {
 /// real terminal size so screen dumps match what the user sees.
 pub fn handle_request(app: &mut App, width: u16, height: u16, request: DebugRequest) -> Value {
     match request {
+        DebugRequest::Paste { text } => {
+            match app.handle_action(crate::action::Action::Paste(text)) {
+                Ok(()) => json!({"ok":true}),
+                Err(error) => json!({"ok":false,"error":error.to_string()}),
+            }
+        }
         DebugRequest::Keys { keys } => match parse_key_sequence(&keys) {
             Ok(events) => {
                 for key in events {
@@ -205,6 +214,12 @@ fn state_json(app: &App) -> Value {
         .and_then(|node| node.commit.as_ref())
         .map(|commit| commit.short_id.clone());
 
+    let composer = json!({
+        "field": format!("{:?}",app.workspace.composer.field),
+        "message": app.workspace.composer.message(),
+        "staged_count": app.workspace.composer.staged.len(),
+        "fields": app.workspace.composer.fields.iter().map(|r| [r.x,r.y,r.width,r.height]).collect::<Vec<_>>(),
+    });
     json!({
         "ok": true,
         "mode": mode,
@@ -225,6 +240,7 @@ fn state_json(app: &App) -> Value {
             "stashes": [app.workspace.stash_rect.x, app.workspace.stash_rect.y, app.workspace.stash_rect.width, app.workspace.stash_rect.height]
         },
         "detail_scroll": app.detail_scroll,
+        "composer": composer,
         "workspace_hunk": app.workspace.hunk_index,
         "workspace_stash_count": app.workspace.stashes.len(),
         "workspace_stash": app.workspace.stash_preview.map(|oid| oid.to_string()),
@@ -245,6 +261,10 @@ fn state_json(app: &App) -> Value {
         "node_count": app.graph_layout.nodes.len(),
         "show_remote_branches": app.show_remote_branches(),
         "detail_scroll": app.detail_scroll,
+        "composer_field": format!("{:?}",app.workspace.composer.field),
+        "composer_message": app.workspace.composer.message(),
+        "composer_staged_count": app.workspace.composer.staged.len(),
+        "composer_fields": app.workspace.composer.fields.iter().map(|r| [r.x,r.y,r.width,r.height]).collect::<Vec<_>>(),
         "help_scroll": app.help_scroll,
         "message": app.get_message(),
         "selected_text": app.text_selection.as_ref().filter(|s| s.dragged).map(|s| s.text()),

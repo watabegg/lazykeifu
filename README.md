@@ -33,6 +33,10 @@ python3 scripts/test-workspace.py
 
 [keifu](https://github.com/trasta298/keifu)の履歴とMITライセンスを引き継いでいます。lazygitは操作仕様の参照元で、現段階ではコードを取り込んでいません。名称と配布方針が固まるまでCargo publishと自動リリースを停止しています。
 
+`c`でコミット専用画面を開きます。stage済みファイルと選択ファイルのSTAGED差分を並べ、`Tab`／`Shift-Tab`で件名・本文・対象一覧を切り替えます。一覧の`j`／`k`でファイルを確認し、`Space`で対象から外せます（作業ファイルは保持）。件名の`Enter`または`Ctrl-s`でコミットし、本文の`Enter`は改行します。`Ctrl-d/u`で差分をスクロールできます。
+
+`Esc`はコミットの下書きを保持してFilesへ戻り、`c`で再開します（起動中の同じリポジトリ内）。フック・署名の失敗時も入力を保持し、Git出力は`Alt-j/k`やホイールで読めます。入力中にindexやHEADが変わった場合は対象を更新して再確認を求めます。複数行ペーストは件名と本文へ分けて入力し、それだけではコミットしません。
+
 現在の同期操作: `f`でfetch、`p`でpull、`P`でpush。追跡先・`pushRemote`・pull方針などはGit設定に従います。pull／push前には確認画面を表示し、設定不足や競合はGitのエラーを表示します。pullによる自動マージのメッセージはGitの既定値を使用します。
 
 `s`で作業ツリーをstashに保存します（未追跡ファイルを含み、ignoredファイルは除外）。`5`のstash一覧では`Space`でapply、`p`でpop、`d`でdrop、`Enter`で差分へ移動します。apply／popはGitの既定動作と同じく元のstage状態を復元しません。競合したpopではstashを残します。外部でstashを変更したときは`R`で一覧を更新してください。

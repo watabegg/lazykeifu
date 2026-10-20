@@ -129,6 +129,11 @@ fn main() -> Result<()> {
                             }
                         }
                     }
+                    InputEvent::Terminal(Event::Paste(text)) => {
+                        if let Err(e) = app.handle_action(lazykeifu::action::Action::Paste(text)) {
+                            app.show_error(e.to_string());
+                        }
+                    }
                     InputEvent::Terminal(Event::Mouse(mouse_event)) => {
                         mouse::handle_mouse(&mut app, mouse_event);
                     }

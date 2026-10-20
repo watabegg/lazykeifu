@@ -138,6 +138,10 @@ fn offset_index(current: usize, max: usize, delta: i32) -> usize {
 }
 
 fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
+    if app.composing() {
+        app.composer_scroll(delta, x, y);
+        return;
+    }
     if app.workspace.help {
         for _ in 0..delta.unsigned_abs().min(100) {
             dispatch(
@@ -236,6 +240,10 @@ fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
 }
 
 fn handle_click(app: &mut App, x: u16, y: u16) {
+    if app.composing() {
+        app.composer_click(x, y);
+        return;
+    }
     if app.workspace.help {
         if !contains(app.workspace.help_rect, x, y) {
             app.workspace.help = false;

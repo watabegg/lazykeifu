@@ -59,6 +59,8 @@ pub enum Action {
     Confirm,
     Cancel,
     InputChar(char),
+    CommitInput(crossterm::event::KeyEvent),
+    Paste(String),
     InputBackspace,
 
     // Search dropdown
