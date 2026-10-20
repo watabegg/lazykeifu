@@ -534,6 +534,12 @@ impl App {
             || Instant::now() < self.diff_debounce_until
     }
 
+    pub fn working_file_count(&self) -> Option<usize> {
+        self.working_tree_status
+            .as_ref()
+            .map_or(Some(0), |status| status.accurate_file_count())
+    }
+
     /// Extend the visible prefix. Re-reading the prefix avoids duplicate/omitted
     /// rows when another process updates refs between requests.
     pub fn load_more_history(&mut self) -> Result<()> {
@@ -1184,6 +1190,15 @@ impl App {
         if self.workspace.help {
             if matches!(action, Action::ToggleHelp | Action::Cancel | Action::Quit) {
                 self.workspace.help = false;
+            } else {
+                match action {
+                    Action::MoveDown => self.help_scroll = self.help_scroll.saturating_add(1),
+                    Action::MoveUp => self.help_scroll = self.help_scroll.saturating_sub(1),
+                    Action::PageDown => self.help_scroll = self.help_scroll.saturating_add(8),
+                    Action::PageUp => self.help_scroll = self.help_scroll.saturating_sub(8),
+                    Action::GoToTop => self.help_scroll = 0,
+                    _ => {}
+                }
             }
             return Ok(());
         }
@@ -2561,7 +2576,7 @@ mod tests {
         let event = MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
             column: app.layout.graph.x + 5,
-            row: 2,
+            row: app.layout.graph.y + 2,
             modifiers: KeyModifiers::NONE,
         };
         crate::mouse::handle_mouse(&mut app, event);
@@ -2580,7 +2595,7 @@ mod tests {
         assert_eq!(app.graph_list_state.selected(), Some(0));
         assert_eq!(app.text_selection.as_ref().unwrap().text(), "first commit");
         assert_eq!(
-            terminal.backend().buffer()[(event.column, 2)].bg,
+            terminal.backend().buffer()[(event.column, event.row)].bg,
             Color::LightBlue
         );
         crate::mouse::handle_scroll(
@@ -2651,6 +2666,7 @@ mod tests {
         app.diff_cache = Some(CommitDiffInfo::from_commit(&app.repo.repo, first).unwrap());
         app.diff_cache_oid = Some(first);
         let graph_x = app.layout.graph.x;
+        let graph_y = app.layout.graph.y;
         for _ in 0..2 {
             handle_request(
                 &mut app,
@@ -2659,7 +2675,7 @@ mod tests {
                 DebugRequest::Mouse {
                     kind: "click".into(),
                     x: graph_x + 10,
-                    y: 2,
+                    y: graph_y + 2,
                 },
             );
         }
@@ -2758,7 +2774,7 @@ mod tests {
                 .unwrap();
         }
         let mut app = make_app_from_repo(repo);
-        let mut terminal = Terminal::new(TestBackend::new(110, 30)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(140, 30)).unwrap();
         assert_eq!(app.selected_node_branches(), vec!["main", "dev"]);
 
         for (action, graph_label, popup_label) in [
@@ -2883,11 +2899,12 @@ mod tests {
                     .draw(|frame| crate::ui::draw(frame, &mut app))
                     .unwrap();
                 let buffer = terminal.backend().buffer();
-                let row: String = (0..width).map(|x| buffer[(x, 1)].symbol()).collect();
+                let graph_y = app.layout.graph.y + 1;
+                let row: String = (0..width).map(|x| buffer[(x, graph_y)].symbol()).collect();
 
                 assert!(row.contains("[main"), "{width}: {row}");
                 assert!(row.contains(" +1]"), "{width}: {row}");
-                assert_eq!(buffer[(width - 1, 1)].symbol(), "│", "{width}: {row}");
+                assert_eq!(buffer[(width - 1, graph_y)].symbol(), "│", "{width}: {row}");
             }
         }
     }

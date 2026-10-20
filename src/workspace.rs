@@ -64,6 +64,8 @@ pub struct Workspace {
     pub scroll: u16,
     pub horizontal: u16,
     pub diff_height: u16,
+    pub diff_visible: bool,
+    pub diff_return: Panel,
     pub hunk_index: usize,
     pub status_rect: Rect,
     pub branches_rect: Rect,
@@ -474,7 +476,19 @@ impl App {
         self.workspace.loaded = false;
     }
 
+    pub fn workspace_open_diff(&mut self) {
+        if self.workspace.focus != Panel::Diff {
+            self.workspace.diff_return = self.workspace.focus;
+        }
+        self.workspace.diff_visible = true;
+        self.workspace.focus = Panel::Diff;
+    }
+
     pub fn workspace_focus(&mut self, panel: Panel) {
+        if panel == Panel::Diff {
+            self.workspace_open_diff();
+            return;
+        }
         self.workspace.focus = panel;
         if panel != Panel::Diff {
             self.workspace.stash_preview = None;
@@ -583,13 +597,16 @@ impl App {
         match action {
             Action::FocusPanel(panel) => self.workspace_focus(*panel),
             Action::FocusNext | Action::FocusPrevious => {
-                let panels = [
+                let mut panels = vec![
                     Panel::Files,
                     Panel::Branches,
                     Panel::Stashes,
                     Panel::Graph,
                     Panel::Diff,
                 ];
+                if !self.workspace.diff_visible {
+                    panels.retain(|panel| *panel != Panel::Diff);
+                }
                 let index = panels.iter().position(|p| *p == focus).unwrap_or(0);
                 let next = if *action == Action::FocusNext {
                     (index + 1) % panels.len()
@@ -613,6 +630,12 @@ impl App {
             }
             Action::ToggleHelp => self.workspace.help = !self.workspace.help,
             Action::Quit => self.should_quit = true,
+            Action::Cancel if self.workspace.diff_visible => {
+                self.workspace.diff_visible = false;
+                if self.workspace.focus == Panel::Diff || self.workspace.focus == Panel::Files {
+                    self.workspace.focus = self.workspace.diff_return;
+                }
+            }
             Action::Cancel => {
                 self.workspace.stash_preview = None;
                 self.workspace.focus = Panel::Files;
@@ -713,9 +736,11 @@ impl App {
                         self.workspace.invalidate();
                     }
                 }
-                Panel::Files => self.workspace.focus = Panel::Diff,
+                Panel::Files => self.workspace_open_diff(),
                 Panel::Graph => {
                     self.workspace_graph_target();
+                    self.workspace.diff_visible = true;
+                    self.workspace.diff_return = Panel::Graph;
                     self.workspace.focus = Panel::Files;
                 }
                 Panel::Branches => {
@@ -984,7 +1009,7 @@ impl App {
             Action::DeleteBranch => StashOperation::Drop,
             Action::Checkout | Action::EnterFileSelect => {
                 if self.workspace.stash_preview.is_some() {
-                    self.workspace.focus = Panel::Diff;
+                    self.workspace_open_diff();
                 }
                 return Ok(true);
             }

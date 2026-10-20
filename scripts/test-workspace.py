@@ -121,6 +121,7 @@ def run():
             app.loaded()
             assert git(root, 'show', ':a.txt').stdout == 'staged-only\n'
             assert app.state()['workspace_file_count'] == 61
+            app.keys('0 2')
             assert '+worktree-only' in app.screen()
             if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
                 evidence = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
@@ -188,7 +189,7 @@ def run():
             assert 'Diff' in app.screen(54, 20)
             if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
                 (evidence / 'workspace-narrow.txt').write_text(app.screen(54, 20))
-            assert 'Diff' in app.screen(20, 6)
+            assert 'Terminal too small' in app.screen(20, 6)
             app.keys('4')
             assert 'initial' in app.screen(54, 20)
             app.keys('2 a')

@@ -209,6 +209,14 @@ fn state_json(app: &App) -> Value {
         "ok": true,
         "mode": mode,
         "git_operation": crate::git::recovery::kind(&app.repo.repo).map(|kind| kind.command()),
+        "workspace_diff_visible": app.workspace.diff_visible,
+        "working_file_count": app.working_file_count(),
+        "layout": {
+            "graph": [app.layout.graph.x, app.layout.graph.y, app.layout.graph.width, app.layout.graph.height],
+            "diff": [app.layout.commit_detail.x, app.layout.commit_detail.y, app.layout.commit_detail.width, app.layout.commit_detail.height],
+            "files": [app.layout.files.x, app.layout.files.y, app.layout.files.width, app.layout.files.height],
+            "stashes": [app.workspace.stash_rect.x, app.workspace.stash_rect.y, app.workspace.stash_rect.width, app.workspace.stash_rect.height]
+        },
         "workspace_hunk": app.workspace.hunk_index,
         "workspace_stash_count": app.workspace.stashes.len(),
         "workspace_stash": app.workspace.stash_preview.map(|oid| oid.to_string()),

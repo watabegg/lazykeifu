@@ -137,6 +137,19 @@ fn offset_index(current: usize, max: usize, delta: i32) -> usize {
 }
 
 fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
+    if app.workspace.help {
+        for _ in 0..delta.unsigned_abs().min(100) {
+            dispatch(
+                app,
+                if delta < 0 {
+                    Action::MoveUp
+                } else {
+                    Action::MoveDown
+                },
+            );
+        }
+        return;
+    }
     if matches!(app.mode, AppMode::Normal) {
         if let Some(panel) = app.workspace_panel_at(x, y) {
             app.workspace.focus = panel;

@@ -101,7 +101,8 @@ impl<'a> GraphViewWidget<'a> {
             .iter()
             .enumerate()
             .map(|(idx, node)| {
-                let is_selected = app.graph_list_state.selected() == Some(idx);
+                let is_selected = app.graph_list_state.selected() == Some(idx)
+                    && app.workspace.focus == crate::workspace::Panel::Graph;
                 let line = render_graph_line(
                     node,
                     max_lane,
@@ -625,7 +626,7 @@ impl<'a> StatefulWidget for GraphViewWidget<'a> {
             return;
         }
 
-        let title = format!("Commits {}/{}", self.position.0, self.position.1);
+        let title = format!("4 Graph · Commits {}/{}", self.position.0, self.position.1);
         let block = super::pane_block(&title, self.focused);
 
         let list = List::new(self.items).block(block);

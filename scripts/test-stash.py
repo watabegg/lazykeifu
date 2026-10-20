@@ -22,7 +22,7 @@ def run():
         (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
-            tui.keys('5')
+            tui.keys('5 0 5')
             tui.loaded()
             assert 'No stashes' in tui.screen()
             (root / 'file').write_text('saved tracked\n')
@@ -37,7 +37,10 @@ def run():
             assert not (root / 'untracked').exists()
             screen = tui.screen()
             assert '5 Stashes' in screen and 'stash@{0}' in screen and 'wip' in screen
-            assert '+saved tracked' in screen and '+saved untracked' in screen
+            assert '+saved tracked' in screen
+            tui.keys('0 G')
+            assert '+saved untracked' in tui.screen()
+            tui.keys('g 5')
             header = next(i for i, line in enumerate(screen.splitlines()) if '5 Stashes' in line)
             tui.request(cmd='mouse', kind='click', x=5, y=header)
             tui.loaded()
@@ -100,7 +103,9 @@ def run():
             assert '+external stash' in tui.screen()
             tui.keys('j')
             tui.loaded()
+            tui.keys('0 G')
             assert '+saved untracked' in tui.screen()
+            tui.keys('5')
             screen = tui.screen()
             row = next(i for i, line in enumerate(screen.splitlines()) if 'stash@{0}' in line)
             tui.request(cmd='mouse', kind='click', x=5, y=row)

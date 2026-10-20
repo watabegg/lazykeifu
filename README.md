@@ -1,8 +1,8 @@
 # lazykeifu（仮称）
 
-keifuのGitグラフを土台に、lazygitの操作感を目指すRust製TUIクライアントです。作業ファイル・ブランチ・コミットグラフ・差分を一画面で操作する最初の版を実装しています。
+keifuのGitグラフを土台に、lazygitの操作感を目指すRust製TUIクライアントです。グラフを常設し、作業ファイル・ブランチ・必要時の差分を一画面で操作できます。
 
-- [現在の操作と対応範囲](docs/workspace-m1.md)
+- [M1実装時の対応範囲](docs/workspace-m1.md)
 - [当面の開発計画](docs/development-plan.md) / [初期化の検証結果](docs/bootstrap-validation.md)
 - [設定](docs/configuration.md) / [TUIデバッグ](docs/debugging.md)
 - [上流keifuの操作説明](docs/upstream/README.md)
@@ -13,6 +13,8 @@ cargo build --locked
 # 対象のGitリポジトリ内で実行
 /path/to/lazykeifu/target/debug/lazykeifu
 ```
+
+グラフは常に表示します。Files／Graph／Stashesの`Enter`、または`0`でdiffを開き、`Esc`で閉じます。閉じているdiffはTab巡回の対象外です。狭い端末ではグラフと操作中のペインを上下に並べます（最小20列×10行）。`?`のヘルプは`j`／`k`やマウスホイールでスクロールできます。
 
 設定はOSの設定ディレクトリ内の `lazykeifu/config.toml`（Linuxでは通常 `~/.config/lazykeifu/config.toml`）、ログレベルは `LAZYKEIFU_LOG` を使用します。既存のkeifuの設定は読みません。現在の既定動作では60秒ごとにGit設定に従ってfetchします。変更方法は設定ドキュメントを参照してください。
 
