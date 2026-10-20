@@ -33,6 +33,7 @@ pub enum Action {
     UnstageAll,
     CommitDialog,
     Push,
+    Pull,
 
     // Clipboard
     CopyHash,

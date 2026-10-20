@@ -1,7 +1,6 @@
 //! Git operations (checkout, merge, rebase, branch operations)
 
 use std::path::Path;
-use std::process::Command;
 
 use anyhow::{bail, Context, Result};
 use git2::{BranchType, IndexAddOption, Oid, Repository};
@@ -254,36 +253,34 @@ pub fn create_commit(repo: &Repository, message: &str) -> Result<Oid> {
     Ok(oid)
 }
 
-/// Push the given branch to origin using git command (sets upstream)
+/// Push using Git's configured remote, refspecs and push policy.
+/// Refuse a branch switch that happened while the confirmation was open.
 pub fn push_branch(repo_path: &str, branch: &str) -> Result<()> {
-    let output = Command::new("git")
-        .args(["push", "--set-upstream", "origin", branch])
-        .current_dir(repo_path)
-        .output()
-        .context("Failed to execute git push")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("git push failed: {}", stderr.trim());
-    }
-
+    let repo = Repository::open(repo_path)?;
+    ensure_current_branch(&repo, branch)?;
+    super::command::git_output(&repo, &["push".as_ref()])?;
     Ok(())
 }
 
-/// Fetch from origin remote using git command
-pub fn fetch_origin(repo_path: &str) -> Result<()> {
-    let output = Command::new("git")
-        .args(["fetch", "origin"])
-        .current_dir(repo_path)
-        .output()
-        .context("Failed to execute git fetch")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("git fetch failed: {}", stderr.trim());
+pub fn ensure_current_branch(repo: &Repository, branch: &str) -> Result<()> {
+    let head = repo.head().context("No current branch")?;
+    if !head.is_branch() || head.shorthand() != Some(branch) {
+        bail!("Current branch changed; close this dialog and try again");
     }
-
     Ok(())
+}
+
+/// Let Git choose the fetch remote from branch configuration and its defaults.
+pub fn fetch_configured(repo_path: &str) -> Result<()> {
+    let repo = Repository::open(repo_path)?;
+    super::command::git_output(&repo, &["fetch".as_ref()])?;
+    Ok(())
+}
+
+/// Respect pull.rebase / pull.ff and branch configuration without overriding policy.
+pub fn pull_branch(repo: &Repository, branch: &str) -> Result<String> {
+    ensure_current_branch(repo, branch)?;
+    super::command::git_output(repo, &["pull".as_ref()])
 }
 
 #[cfg(test)]

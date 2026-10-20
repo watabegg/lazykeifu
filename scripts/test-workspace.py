@@ -196,7 +196,8 @@ def run():
             assert app.state()['workspace_file'] == 'z01.txt'
             assert 'untracked 1' in app.screen()
             app.keys('?')
-            assert 'Stash, pull' in app.screen()
+            assert 'Stash and hunk staging' in app.screen()
+            assert 'p: pull' in app.screen()
             app.keys('<esc>')
             app.keys('q')
             app.proc.wait(timeout=3)

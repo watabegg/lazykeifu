@@ -10,6 +10,7 @@ pub fn git_output(repo: &Repository, args: &[&std::ffi::OsStr]) -> Result<String
         .args(args)
         .current_dir(root)
         .env("GIT_LITERAL_PATHSPECS", "1")
+        .env("GIT_MERGE_AUTOEDIT", "no")
         .stdin(Stdio::null())
         .output()
         .context("Could not run git")?;
@@ -18,12 +19,12 @@ pub fn git_output(repo: &Repository, args: &[&std::ffi::OsStr]) -> Result<String
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let message = if stderr.trim().is_empty() {
-            stdout.trim()
-        } else {
+        bail!(
+            "Git exited with {}:\n{}\n{}",
+            output.status,
+            stdout.trim(),
             stderr.trim()
-        };
-        bail!("Git exited with {}: {}", output.status, message);
+        );
     }
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }

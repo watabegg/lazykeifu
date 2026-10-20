@@ -44,6 +44,7 @@ jobs:
         run: |
           cargo build --locked
           python3 scripts/test-workspace.py
+          python3 scripts/test-network.py
 
   security:
     name: Security Audit

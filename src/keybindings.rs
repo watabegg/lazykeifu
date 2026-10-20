@@ -67,7 +67,8 @@ fn map_normal_mode(key: KeyEvent) -> Option<Action> {
         (_, KeyCode::Char('d')) => Some(Action::DeleteBranch),
         (_, KeyCode::Char('f')) => Some(Action::Fetch),
         (_, KeyCode::Char('P')) => Some(Action::Push),
-        (_, KeyCode::Char('p') | KeyCode::Char('s')) => Some(Action::Unavailable),
+        (_, KeyCode::Char('p')) => Some(Action::Pull),
+        (_, KeyCode::Char('s')) => Some(Action::Unavailable),
         (_, KeyCode::Char('/')) => Some(Action::Search),
         (_, KeyCode::Char('R')) => Some(Action::Refresh),
         (_, KeyCode::Char('o')) => Some(Action::ToggleRemoteBranches),
@@ -238,7 +239,7 @@ mod workspace_tests {
                 KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE),
                 &AppMode::Normal
             ),
-            Some(Action::Unavailable)
+            Some(Action::Pull)
         );
         assert_eq!(
             map_key_to_action(

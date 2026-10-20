@@ -324,6 +324,10 @@ impl App {
                                 self.workspace.commit_error = Some(error.clone());
                                 self.set_message(error);
                             } else {
+                                // A failed pull can still update refs or leave conflicts.
+                                let _ = self.refresh(true);
+                                self.workspace.commit = None;
+                                self.workspace.invalidate();
                                 self.show_error(error);
                             }
                         }
@@ -390,6 +394,19 @@ impl App {
                 let _ = tx.send((key, result.map_err(|e| e.to_string())));
             });
         }
+    }
+
+    pub fn workspace_pull(&mut self, branch: String) {
+        let (tx, rx) = mpsc::channel();
+        self.workspace.job = Some(rx);
+        let path = self.repo_path.clone();
+        self.set_message("Pulling using Git configuration…");
+        thread::spawn(move || {
+            let result = Repository::open(path)
+                .map_err(anyhow::Error::from)
+                .and_then(|repo| crate::git::operations::pull_branch(&repo, &branch));
+            let _ = tx.send(result.map_err(|e| e.to_string()));
+        });
     }
 
     pub fn workspace_commit(&mut self, message: String) {

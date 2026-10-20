@@ -65,10 +65,22 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         app.layout.commit_detail = right[1];
     }
     let status = format!(
-        "{} · {} files{}",
+        "{} · {} files{}{}",
         app.head_name.as_deref().unwrap_or("unborn HEAD"),
         app.workspace.files.len(),
-        if app.workspace.busy() { " · busy" } else { "" }
+        if app.workspace.busy() || app.is_pushing() {
+            " · busy"
+        } else {
+            ""
+        },
+        match app.repo.repo.state() {
+            git2::RepositoryState::Clean => "",
+            git2::RepositoryState::Merge => " · MERGING",
+            git2::RepositoryState::Rebase
+            | git2::RepositoryState::RebaseInteractive
+            | git2::RepositoryState::RebaseMerge => " · REBASING",
+            _ => " · Git operation in progress",
+        }
     );
     frame.render_widget(
         Paragraph::new(status).block(pane_block("1 Status", focus == Panel::Status)),
@@ -249,6 +261,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.workspace.help {
         let rect = super::centered_rect(90, 90, area);
         frame.render_widget(Clear, rect);
-        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\n/: search branches · f: fetch · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\nStash, pull, and hunk staging are not implemented yet.").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
+        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\nStash and hunk staging are not implemented yet.").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
     }
 }

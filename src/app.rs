@@ -20,7 +20,7 @@ use crate::{
         graph::GraphLayout,
         operations::{
             checkout_branch, checkout_commit, checkout_remote_branch, create_branch, delete_branch,
-            fetch_origin, merge_branch, push_branch, rebase_branch, stage_all, stage_path,
+            fetch_configured, merge_branch, push_branch, rebase_branch, stage_all, stage_path,
             unstage_all, unstage_path,
         },
         BranchInfo, CommitDiffInfo, CommitInfo, FileDiffContent, FileDiffInfo, GitRepository,
@@ -96,6 +96,7 @@ pub enum ConfirmAction {
     Merge(String),
     Rebase(String),
     Push(String),
+    Pull(String),
 }
 
 /// Result of async diff computation
@@ -767,8 +768,12 @@ impl App {
         let Some(rx) = &self.fetch_receiver else {
             return;
         };
-        let Ok(fetch_result) = rx.try_recv() else {
-            return;
+        let fetch_result = match rx.try_recv() {
+            Ok(result) => result,
+            Err(mpsc::TryRecvError::Empty) => return,
+            Err(mpsc::TryRecvError::Disconnected) => {
+                Err("Fetch worker stopped unexpectedly".into())
+            }
         };
 
         let silent = self.fetch_silent;
@@ -780,10 +785,10 @@ impl App {
                 self.reset_timers();
                 if !allow_refresh || self.repository_refresh_is_paused() {
                     self.pending_refresh = true;
-                    self.set_message("Fetched from origin");
+                    self.set_message("Fetch completed");
                 } else {
                     match self.refresh(true) {
-                        Ok(()) => self.set_message("Fetched from origin"),
+                        Ok(()) => self.set_message("Fetch completed"),
                         Err(e) => self.show_error(format!("Refresh failed: {e}")),
                     }
                 }
@@ -808,14 +813,16 @@ impl App {
         let Some(rx) = &self.push_receiver else {
             return;
         };
-        let Ok(result) = rx.try_recv() else {
-            return;
+        let result = match rx.try_recv() {
+            Ok(result) => result,
+            Err(mpsc::TryRecvError::Empty) => return,
+            Err(mpsc::TryRecvError::Disconnected) => Err("Push worker stopped unexpectedly".into()),
         };
         self.push_receiver = None;
 
         match result {
             Ok(()) => {
-                self.set_message("Pushed to origin");
+                self.set_message("Push completed");
                 self.reset_timers();
                 if !allow_refresh || self.repository_refresh_is_paused() {
                     self.pending_refresh = true;
@@ -831,7 +838,7 @@ impl App {
     fn start_push(&mut self, branch: String) {
         let (tx, rx) = mpsc::channel();
         let repo_path = self.repo_path.clone();
-        let message = format!("Pushing '{}' to origin...", branch);
+        let message = format!("Pushing '{}' using Git configuration...", branch);
 
         thread::spawn(move || {
             let result = push_branch(&repo_path, &branch).map_err(|e| e.to_string());
@@ -844,7 +851,7 @@ impl App {
 
     /// Check and perform auto-refresh if interval has elapsed
     pub fn check_auto_refresh(&mut self) {
-        if self.is_fetching() {
+        if self.is_fetching() || self.is_pushing() || self.workspace.busy() {
             return;
         }
         if self.repository_refresh_is_paused() {
@@ -886,21 +893,22 @@ impl App {
     }
 
     /// Start fetch in background
-    /// If `show_message` is true, displays "Fetching from origin..."
+    /// If `show_message` is true, displays "Fetching using Git configuration..."
     /// If `silent` is true, errors will not show a dialog (for auto-fetch)
     fn start_fetch(&mut self, show_message: bool, silent: bool) {
+        self.last_fetch_time = Instant::now();
         let (tx, rx) = mpsc::channel();
         let repo_path = self.repo_path.clone();
 
         thread::spawn(move || {
-            let result = fetch_origin(&repo_path).map_err(|e| e.to_string());
+            let result = fetch_configured(&repo_path).map_err(|e| e.to_string());
             let _ = tx.send(result);
         });
 
         self.fetch_receiver = Some(rx);
         self.fetch_silent = silent;
         if show_message {
-            self.set_message("Fetching from origin...");
+            self.set_message("Fetching using Git configuration...");
         }
     }
 
@@ -921,8 +929,8 @@ impl App {
     pub fn get_message(&self) -> Option<&str> {
         const MESSAGE_TIMEOUT_SECS: u64 = 5;
 
-        // Don't timeout while fetching or pushing
-        if self.is_fetching() || self.is_pushing() {
+        // Keep progress visible while a Git operation is running
+        if self.is_fetching() || self.is_pushing() || self.workspace.busy() {
             return self.message.as_deref();
         }
 
@@ -1129,7 +1137,7 @@ impl App {
             return Ok(());
         }
 
-        if self.workspace.busy() {
+        if self.workspace.busy() || self.is_pushing() {
             self.set_message("Git operation in progress…");
             return Ok(());
         }
@@ -1337,18 +1345,33 @@ impl App {
             Action::CommitDialog => {
                 self.open_commit_dialog();
             }
-            Action::Push => {
-                if self.is_pushing() {
-                    self.set_message("Push already in progress");
+            Action::Push | Action::Pull => {
+                if self.is_fetching() {
+                    self.set_message("Wait for fetch to finish");
                 } else if self.repo.repo.head_detached().unwrap_or(false) {
-                    self.set_message("Cannot push: detached HEAD");
-                } else if let Some(branch) = self.head_name.clone() {
+                    self.set_message("Switch to a branch before pull / push");
+                } else if let Some(branch) = self
+                    .repo
+                    .repo
+                    .head()
+                    .ok()
+                    .and_then(|h| h.shorthand().map(str::to_owned))
+                {
+                    let push = action == Action::Push;
                     self.mode = AppMode::Confirm {
-                        message: format!("Push '{}' to origin?", branch),
-                        action: ConfirmAction::Push(branch),
+                        message: format!(
+                            "{} '{}' using Git configuration?",
+                            if push { "Push" } else { "Pull" },
+                            branch
+                        ),
+                        action: if push {
+                            ConfirmAction::Push(branch)
+                        } else {
+                            ConfirmAction::Pull(branch)
+                        },
                     };
                 } else {
-                    self.set_message("Cannot push: no current branch");
+                    self.set_message("Cannot sync: no current branch");
                 }
             }
             _ => {}
@@ -1852,6 +1875,16 @@ impl App {
             return Ok(());
         };
         let confirm_action = confirm_action.clone();
+        if action == Action::Confirm
+            && matches!(
+                confirm_action,
+                ConfirmAction::Push(_) | ConfirmAction::Pull(_)
+            )
+            && self.is_fetching()
+        {
+            self.set_message("Wait for fetch to finish");
+            return Ok(());
+        }
 
         match action {
             Action::Confirm => {
@@ -1864,6 +1897,11 @@ impl App {
                     }
                     ConfirmAction::Rebase(name) => {
                         rebase_branch(&self.repo.repo, &name)?;
+                    }
+                    ConfirmAction::Pull(branch) => {
+                        self.workspace_pull(branch);
+                        self.mode = AppMode::Normal;
+                        return Ok(());
                     }
                     ConfirmAction::Push(branch) => {
                         // Runs in the background; no refresh needed yet
@@ -3083,7 +3121,7 @@ mod tests {
 
         assert!(!app.is_fetching());
         assert!(app.pending_refresh);
-        assert_eq!(app.message.as_deref(), Some("Fetched from origin"));
+        assert_eq!(app.message.as_deref(), Some("Fetch completed"));
     }
 
     #[test]
@@ -3105,7 +3143,7 @@ mod tests {
 
         assert!(!app.is_pushing());
         assert!(app.pending_refresh);
-        assert_eq!(app.message.as_deref(), Some("Pushed to origin"));
+        assert_eq!(app.message.as_deref(), Some("Push completed"));
     }
 
     #[test]

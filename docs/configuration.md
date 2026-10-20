@@ -4,7 +4,7 @@ lazykeifu can be configured via `~/.config/lazykeifu/config.toml`. All settings 
 
 ## Auto-refresh
 
-By default, lazykeifu automatically refreshes the commit graph every 10 seconds and fetches from origin every 60 seconds.
+By default, lazykeifu automatically refreshes the commit graph every 10 seconds and fetches using Git remote configuration every 60 seconds.
 
 ```toml
 [refresh]
@@ -14,7 +14,7 @@ auto_refresh = true
 # Interval in seconds for local refresh (default: 10, minimum: 1)
 refresh_interval = 10
 
-# Enable auto-fetch from origin (default: true)
+# Enable auto-fetch using Git remote configuration (default: true)
 auto_fetch = true
 
 # Interval in seconds for remote fetch (default: 60, minimum: 10)
@@ -59,7 +59,7 @@ The `--file-view` CLI option has been removed.
 | --- | --- | --- | --- |
 | `auto_refresh` | bool | `true` | Enable auto-refresh for local state (commits, branches, working tree) |
 | `refresh_interval` | integer | `10` | Interval in seconds for local refresh (minimum: 1) |
-| `auto_fetch` | bool | `true` | Enable auto-fetch from origin |
+| `auto_fetch` | bool | `true` | Enable auto-fetch using Git remote configuration |
 | `fetch_interval` | integer | `60` | Interval in seconds for remote fetch (minimum: 10) |
 | `graph.show_remote_branches` | bool | `true` | Show remote branches and commits reachable only from remote branches |
 | `graph.show_tags` | bool | `true` | Show tag labels on commits |
