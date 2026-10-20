@@ -26,6 +26,9 @@ pub enum Action {
     Fetch,
     Merge,
     Rebase,
+    CherryPick,
+    Revert,
+    LoadMoreHistory,
 
     // Staging / commit / push
     StageToggle,

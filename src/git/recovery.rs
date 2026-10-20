@@ -1,4 +1,4 @@
-//! Merge/rebase recovery targets and explicit conflict staging.
+//! Native Git operation recovery targets and explicit conflict staging.
 use super::command::git_output;
 use anyhow::{bail, Context, Result};
 use git2::{Oid, Repository, RepositoryState};
@@ -12,17 +12,23 @@ use std::{
 pub enum Kind {
     Merge,
     Rebase,
+    CherryPick,
+    Revert,
 }
 impl Kind {
     pub fn command(self) -> &'static str {
         match self {
             Self::Merge => "merge",
             Self::Rebase => "rebase",
+            Self::CherryPick => "cherry-pick",
+            Self::Revert => "revert",
         }
     }
 }
 pub fn kind(repo: &Repository) -> Option<Kind> {
     match repo.state() {
+        RepositoryState::CherryPick | RepositoryState::CherryPickSequence => Some(Kind::CherryPick),
+        RepositoryState::Revert | RepositoryState::RevertSequence => Some(Kind::Revert),
         RepositoryState::Merge => Some(Kind::Merge),
         RepositoryState::Rebase
         | RepositoryState::RebaseInteractive
@@ -38,9 +44,14 @@ pub struct Operation {
 }
 impl Operation {
     pub fn capture(repo: &Repository) -> Result<Self> {
-        let kind = kind(repo).context("No merge or rebase in progress")?;
+        let kind = kind(repo).context("No merge, rebase, cherry-pick or revert in progress")?;
         let mut markers = Vec::new();
         for name in [
+            "CHERRY_PICK_HEAD",
+            "REVERT_HEAD",
+            "sequencer/head",
+            "sequencer/todo",
+            "sequencer/opts",
             "MERGE_HEAD",
             "MERGE_MSG",
             "rebase-merge/orig-head",

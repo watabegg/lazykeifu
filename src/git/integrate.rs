@@ -15,6 +15,9 @@ pub struct Integration {
 }
 impl Integration {
     pub fn capture(repo: &Repository, branch: &BranchInfo, kind: Kind) -> Result<Self> {
+        if !matches!(kind, Kind::Merge | Kind::Rebase) {
+            bail!("Expected merge or rebase");
+        }
         if repo.state() != RepositoryState::Clean {
             bail!("Finish or abort the current Git operation first");
         }
@@ -52,6 +55,7 @@ impl Integration {
         let source = format!("'{}' ({:.7})", self.target_name, self.target_oid);
         match self.kind {
             Kind::Merge => format!("Merge {source} into current branch '{current}'?"),
+            Kind::CherryPick | Kind::Revert => unreachable!("validated at capture"),
             Kind::Rebase => format!("Rebase current branch '{current}' onto {source}? Current branch commits may be rewritten."),
         }
     }

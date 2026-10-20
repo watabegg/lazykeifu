@@ -512,6 +512,44 @@ impl App {
         if self.workspace_stash_action(action)? {
             return Ok(true);
         }
+        if matches!(action, Action::CherryPick | Action::Revert) {
+            if focus != Panel::Graph {
+                self.set_message("Select a commit in Graph (4) first");
+                return Ok(true);
+            }
+            let commit = self
+                .graph_list_state
+                .selected()
+                .and_then(|i| self.graph_layout.nodes.get(i))
+                .and_then(|n| n.commit.as_ref())
+                .context(
+                    "Select a committed change; working files cannot be applied or reverted",
+                )?;
+            let kind = if *action == Action::CherryPick {
+                crate::git::recovery::Kind::CherryPick
+            } else {
+                crate::git::recovery::Kind::Revert
+            };
+            let target = crate::git::commit_operation::CommitOperation::capture(
+                &self.repo.repo,
+                commit.oid,
+                kind,
+            )?;
+            self.mode = AppMode::Confirm {
+                message: target.message(),
+                action: crate::app::ConfirmAction::CommitOperation(target),
+            };
+            return Ok(true);
+        }
+        if *action == Action::LoadMoreHistory {
+            if focus == Panel::Graph {
+                self.load_more_history()?;
+                self.workspace_graph_target();
+            } else {
+                self.set_message("Use + in Graph (4) to load more history");
+            }
+            return Ok(true);
+        }
         if matches!(action, Action::Merge | Action::Rebase) {
             let branch = match focus {
                 Panel::Branches => self

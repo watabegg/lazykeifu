@@ -247,13 +247,30 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         Some(crate::git::recovery::Kind::Rebase) => {
             "REBASE: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
         }
+        Some(crate::git::recovery::Kind::CherryPick) => {
+            "CHERRY-PICK: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
+        }
+        Some(crate::git::recovery::Kind::Revert) => {
+            "REVERT: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
+        }
         None => {
             "2 files 3 branches 4 graph 5 stash 0 diff · Tab/h/l focus · e edit · c commit · ? help"
         }
     };
+    let graph_hint = format!(
+        "{} commits{} · y cherry-pick · V revert · M merge · r rebase",
+        app.commits.len(),
+        if app.history_has_more {
+            " · + load more"
+        } else {
+            " · all loaded"
+        }
+    );
     let message = app.get_message().unwrap_or(if focus == Panel::Stashes {
         "Space: apply · p: pop · d: drop · Enter: diff · s: save stash"
-    } else if matches!(focus, Panel::Branches | Panel::Graph) {
+    } else if focus == Panel::Graph {
+        &graph_hint
+    } else if focus == Panel::Branches {
         "M: merge selected into current · r: rebase current onto selected · Enter: details/checkout"
     } else if focus == Panel::Diff
         && app.workspace.commit.is_none()
@@ -303,7 +320,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             }
         }
         AppMode::Confirm { message, action } => {
-            let height = if matches!(action, crate::app::ConfirmAction::Integrate(_)) {
+            let height = if matches!(
+                action,
+                crate::app::ConfirmAction::Integrate(_)
+                    | crate::app::ConfirmAction::CommitOperation(_)
+            ) {
                 80
             } else {
                 30
@@ -328,6 +349,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.workspace.help {
         let rect = super::centered_rect(90, 90, area);
         frame.render_widget(Clear, rect);
-        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\nBranches / Graph: M merge into current · r rebase current onto selected\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.\ne: edit working file using Git editor settings (wait for editor exit)\nMerge/rebase: C continue · A abort (confirmation)\nConflicted file: Space marks current contents resolved (confirmation)").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
+        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\nBranches / Graph: M merge into current · r rebase current onto selected\nGraph: y cherry-pick · V revert · + load 500 more commits\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.\ne: edit working file using Git editor settings (wait for editor exit)\nGit operation: C continue · A abort (confirmation)\nConflicted file: Space marks current contents resolved (confirmation)").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
     }
 }

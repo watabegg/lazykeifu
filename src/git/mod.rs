@@ -29,3 +29,5 @@ pub mod changes;
 pub mod recovery;
 
 pub mod integrate;
+
+pub mod commit_operation;

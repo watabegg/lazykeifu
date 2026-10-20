@@ -224,6 +224,8 @@ fn state_json(app: &App) -> Value {
         "selected_commit": selected_commit,
         "selected_branch": app.selected_branch_name(),
         "head": app.head_name,
+        "history_count": app.commits.len(),
+        "history_has_more": app.history_has_more,
         "node_count": app.graph_layout.nodes.len(),
         "show_remote_branches": app.show_remote_branches(),
         "detail_scroll": app.detail_scroll,

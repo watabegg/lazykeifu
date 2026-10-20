@@ -94,6 +94,7 @@ pub struct LayoutMap {
 pub enum ConfirmAction {
     DeleteBranch(String),
     Integrate(crate::git::integrate::Integration),
+    CommitOperation(crate::git::commit_operation::CommitOperation),
     Push(String),
     Pull(String),
     Discard(crate::git::changes::Discard),
@@ -192,6 +193,8 @@ pub struct App {
 
     // Data
     pub commits: Vec<CommitInfo>,
+    history_limit: usize,
+    pub history_has_more: bool,
     pub branches: Vec<BranchInfo>,
     pub tags: Vec<TagInfo>,
     pub graph_layout: GraphLayout,
@@ -313,7 +316,7 @@ impl App {
 
         let show_remote_branches = config.graph.show_remote_branches;
         let show_tags = config.graph.show_tags;
-        let commits = repo.get_commits(500, show_remote_branches)?;
+        let (commits, history_has_more) = repo.get_history(500, show_remote_branches)?;
         let branches = repo.get_branches(show_remote_branches)?;
         let tags = repo.get_tags()?;
         let (working_tree_status, stage_states, initial_message) =
@@ -358,6 +361,8 @@ impl App {
             repo_path,
             head_name,
             commits,
+            history_limit: 500,
+            history_has_more,
             branches,
             tags,
             graph_layout,
@@ -529,6 +534,31 @@ impl App {
             || Instant::now() < self.diff_debounce_until
     }
 
+    /// Extend the visible prefix. Re-reading the prefix avoids duplicate/omitted
+    /// rows when another process updates refs between requests.
+    pub fn load_more_history(&mut self) -> Result<()> {
+        if !self.history_has_more {
+            self.set_message("All reachable history is loaded");
+            return Ok(());
+        }
+        let previous_limit = self.history_limit;
+        self.history_limit = self.history_limit.saturating_add(500);
+        if let Err(error) = self.refresh(false) {
+            self.history_limit = previous_limit;
+            return Err(error);
+        }
+        self.set_message(format!(
+            "Loaded {} commits{}",
+            self.commits.len(),
+            if self.history_has_more {
+                "; + loads 500 more"
+            } else {
+                "; all reachable history loaded"
+            }
+        ));
+        Ok(())
+    }
+
     /// Refresh repository data
     /// If `force` is true, always clears diff cache (for manual refresh)
     /// If `force` is false, keeps cache when the same content is selected (for auto-refresh)
@@ -575,7 +605,11 @@ impl App {
         self.stage_states = stage_states;
 
         let log_started = Instant::now();
-        self.commits = self.repo.get_commits(500, self.show_remote_branches)?;
+        let (commits, has_more) = self
+            .repo
+            .get_history(self.history_limit, self.show_remote_branches)?;
+        self.commits = commits;
+        self.history_has_more = has_more;
         self.branches = self.repo.get_branches(self.show_remote_branches)?;
         self.tags = self.repo.get_tags()?;
         self.perf.record("refresh.log", log_started.elapsed());
@@ -1883,6 +1917,11 @@ impl App {
                     ConfirmAction::DeleteBranch(name) => {
                         delete_branch(&self.repo.repo, &name)?;
                     }
+                    ConfirmAction::CommitOperation(target) => {
+                        self.workspace.external = Some(crate::external::Request::Commit(target));
+                        self.mode = AppMode::Normal;
+                        return Ok(());
+                    }
                     ConfirmAction::Integrate(target) => {
                         self.workspace.external = Some(crate::external::Request::Integrate(target));
                         self.mode = AppMode::Normal;
@@ -2289,7 +2328,7 @@ mod tests {
         let now = Instant::now();
         let show_remote_branches = true;
         let show_tags = true;
-        let commits = repo.get_commits(500, show_remote_branches).unwrap();
+        let (commits, history_has_more) = repo.get_history(500, show_remote_branches).unwrap();
         let branches = repo.get_branches(show_remote_branches).unwrap();
         let tags = repo.get_tags().unwrap();
         let (working_tree_status, stage_states, initial_message) =
@@ -2329,6 +2368,8 @@ mod tests {
             repo,
             head_name: None,
             commits,
+            history_limit: 500,
+            history_has_more,
             branches,
             tags,
             graph_layout,
@@ -2410,6 +2451,8 @@ mod tests {
             repo,
             head_name: None,
             commits,
+            history_limit: 500,
+            history_has_more: false,
             branches: Vec::new(),
             tags: Vec::new(),
             graph_layout: GraphLayout {
@@ -3383,5 +3426,54 @@ mod tests {
             app.repo.head_oid().unwrap().to_string()
         );
         assert_eq!(open_diff_position(&app), (0, 0));
+    }
+    #[test]
+    fn history_expands_without_losing_selection_and_survives_refresh() {
+        let (_temp, repo) = init_repo();
+        let mut oid = commit_file(&repo.repo, "file", "base", "root");
+        for i in 1..1051 {
+            oid = commit_without_ref(&repo.repo, oid, &format!("commit {i}"));
+        }
+        repo.repo
+            .head()
+            .unwrap()
+            .set_target(oid, "test history")
+            .unwrap();
+        let mut app = make_app_from_repo(repo);
+        assert_eq!(app.commits.len(), 500);
+        assert!(app.history_has_more);
+        app.select_node(499);
+        let selected = app
+            .selected_commit_node()
+            .unwrap()
+            .commit
+            .as_ref()
+            .unwrap()
+            .oid;
+        app.load_more_history().unwrap();
+        assert_eq!(app.commits.len(), 1000);
+        assert!(app.history_has_more);
+        assert_eq!(
+            app.selected_commit_node()
+                .unwrap()
+                .commit
+                .as_ref()
+                .unwrap()
+                .oid,
+            selected
+        );
+        app.refresh(true).unwrap();
+        assert_eq!(app.commits.len(), 1000);
+        app.load_more_history().unwrap();
+        assert_eq!(app.commits.len(), 1051);
+        assert!(!app.history_has_more);
+        app.load_more_history().unwrap();
+        assert_eq!(app.commits.len(), 1051);
+        let unique: std::collections::HashSet<_> = app.commits.iter().map(|c| c.oid).collect();
+        assert_eq!(unique.len(), 1051);
+        // An exact page boundary has no phantom next page.
+        let (commits, more) = app.repo.get_history(1051, true).unwrap();
+        assert_eq!(commits.len(), 1051);
+        assert!(!more);
     }
 }

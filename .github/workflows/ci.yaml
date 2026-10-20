@@ -49,6 +49,8 @@ jobs:
           python3 scripts/test-changes.py
           python3 scripts/test-recovery.py
           python3 scripts/test-integrate.py
+          python3 scripts/test-commit-operations.py
+          python3 scripts/test-history.py
 
   security:
     name: Security Audit

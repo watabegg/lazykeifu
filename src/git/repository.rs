@@ -89,6 +89,18 @@ impl GitRepository {
         Ok(commits)
     }
 
+    /// Read a bounded history prefix, probing one extra commit for pagination.
+    pub fn get_history(
+        &self,
+        limit: usize,
+        include_remotes: bool,
+    ) -> Result<(Vec<CommitInfo>, bool)> {
+        let mut commits = self.get_commits(limit.saturating_add(1), include_remotes)?;
+        let has_more = commits.len() > limit;
+        commits.truncate(limit);
+        Ok((commits, has_more))
+    }
+
     /// Get branch list
     pub fn get_branches(&self, include_remotes: bool) -> Result<Vec<BranchInfo>> {
         BranchInfo::list_all(&self.repo, include_remotes)
