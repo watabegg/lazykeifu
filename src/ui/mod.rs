@@ -8,6 +8,7 @@ pub mod help_popup;
 pub mod search_dropdown;
 pub mod status_bar;
 pub mod workspace;
+mod workspace_help;
 
 use ratatui::{
     buffer::Buffer,

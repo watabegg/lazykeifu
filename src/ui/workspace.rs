@@ -72,28 +72,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         let sidebar_width = (area.width * 2 / 5).clamp(36, 64);
         let columns = Layout::horizontal([Constraint::Length(sidebar_width), Constraint::Min(40)])
             .split(body);
-        let file_height = if app.workspace.tabs.files != FilesTab::Files {
-            (body.height / 2).max(4)
-        } else if app.workspace.files.is_empty() {
-            (body.height / 3).max(4)
-        } else {
-            (app.workspace
-                .files
-                .len()
-                .saturating_add(2)
-                .min(u16::MAX as usize) as u16)
-                .clamp(4, (body.height / 2).max(4))
-        };
-        let stash_height = if app.workspace.stashes.is_empty() {
-            3
-        } else {
-            (app.workspace
-                .stashes
-                .len()
-                .saturating_add(2)
-                .min(u16::MAX as usize) as u16)
-                .clamp(3, (body.height / 4).max(3))
-        };
+        // Stable proportions: repository contents and tabs must not move pane boundaries.
+        let file_height = body.height / 2;
+        let stash_height = (body.height / 5).max(3);
         let left = Layout::vertical([
             Constraint::Length(file_height),
             Constraint::Min(4),
@@ -176,20 +157,21 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         .iter()
         .map(|row| {
             let history = app.workspace.commit.is_some();
-            let index_color = if history {
-                Color::Gray
-            } else if row.conflict || row.untracked {
-                Color::Red
-            } else {
-                Color::Green
+            let status_color = |status| {
+                if row.conflict {
+                    Color::LightRed
+                } else {
+                    change_color(status)
+                }
             };
-            let worktree_color = if history { Color::Gray } else { Color::Red };
-            let path_color = if history {
-                Color::Reset
-            } else if row.conflict || row.unstaged || row.untracked {
+            let index_color = status_color(row.index_status);
+            let worktree_color = status_color(row.worktree_status);
+            let path_color = if row.conflict {
                 Color::Red
-            } else {
+            } else if !history && row.staged && !row.unstaged {
                 Color::Green
+            } else {
+                Color::Reset
             };
             ListItem::new(Line::from(vec![
                 Span::styled(
@@ -299,7 +281,19 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             }
         }
     }
-    let mut files_block = tab_block(
+    if app.workspace.tabs.files == FilesTab::Files {
+        if let Some(oid) = app.workspace.commit {
+            frame.render_widget(
+                pane_block("", focus == Panel::Files).title_bottom(Line::styled(
+                    format!(" {:.7} · read-only ", oid),
+                    Style::default().fg(Color::Gray),
+                )),
+                app.layout.files,
+            );
+        }
+    }
+    render_tabs(
+        frame,
         "2",
         &["Files", "Worktrees", "Submodules"],
         app.workspace.tabs.files as usize,
@@ -307,25 +301,14 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         app.layout.files,
         &mut app.workspace.tabs.file_hits,
     );
-    if app.workspace.tabs.files == FilesTab::Files {
-        if let Some(oid) = app.workspace.commit {
-            files_block = files_block.title_bottom(Line::styled(
-                format!(" {:.7} · read-only ", oid),
-                Style::default().fg(Color::Gray),
-            ));
-        }
-    }
-    frame.render_widget(files_block, app.layout.files);
-    frame.render_widget(
-        tab_block(
-            "3",
-            &["Local", "Remotes", "Tags"],
-            app.workspace.tabs.refs as usize,
-            focus == Panel::Branches,
-            app.workspace.branches_rect,
-            &mut app.workspace.tabs.ref_hits,
-        ),
+    render_tabs(
+        frame,
+        "3",
+        &["Local", "Remotes", "Tags"],
+        app.workspace.tabs.refs as usize,
+        focus == Panel::Branches,
         app.workspace.branches_rect,
+        &mut app.workspace.tabs.ref_hits,
     );
     let stashes: Vec<ListItem> = app
         .workspace
@@ -558,12 +541,18 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.workspace.help {
         let rect = super::centered_rect(90, 90, area);
         frame.render_widget(Clear, rect);
-        let lines = wrap_help("j/k: scroll help · Esc: close\n1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\n[ / ]: switch Files/Worktrees/Submodules or Local/Remotes/Tags\nFile status: index (green) / worktree (red); ?? untracked, U conflict\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: open diff; graph → commit files + diff; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\nBranches / Graph: M merge into current · r rebase current onto selected\nGraph: y cherry-pick · V revert · + load 500 more commits\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: close diff / working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.\ne: edit working file using Git editor settings (wait for editor exit)\nGit operation: C continue · A abort (confirmation)\nConflicted file: Space marks current contents resolved (confirmation)", rect.width.saturating_sub(2) as usize);
+        let lines = super::workspace_help::lines(rect.width.saturating_sub(2) as usize);
         let max_scroll = lines
             .len()
             .saturating_sub(rect.height.saturating_sub(2) as usize)
             .min(u16::MAX as usize) as u16;
-        let help = Paragraph::new(lines).block(pane_block("Help · j/k scroll", true));
+        let help =
+            Paragraph::new(lines).block(pane_block("Help", true).title_bottom(Line::from(vec![
+                Span::styled(" j/k ↑↓ ", Style::default().fg(Color::Cyan)),
+                Span::raw("scroll · "),
+                Span::styled("Esc / ?", Style::default().fg(Color::Cyan)),
+                Span::raw(" close "),
+            ])));
         app.help_scroll = app.help_scroll.min(max_scroll);
         frame.render_widget(help.scroll((app.help_scroll, 0)), rect);
     }
@@ -579,57 +568,65 @@ fn selection_style(focused: bool) -> Style {
     }
 }
 
-fn wrap_help(text: &str, width: usize) -> Vec<Line<'static>> {
-    use unicode_width::UnicodeWidthStr;
-    let mut lines = Vec::new();
-    for source in text.lines() {
-        let mut line = String::new();
-        for word in source.split_whitespace() {
-            if !line.is_empty() && line.width() + 1 + word.width() > width {
-                lines.push(Line::from(std::mem::take(&mut line)));
-            }
-            if !line.is_empty() {
-                line.push(' ');
-            }
-            line.push_str(word);
-        }
-        lines.push(Line::from(line));
+/// Keep the change-kind palette consistent with keifu's file list.
+fn change_color(status: char) -> Color {
+    match status {
+        'A' => Color::Green,
+        'M' | 'T' => Color::Yellow,
+        'D' => Color::Red,
+        'R' | 'C' => Color::Cyan,
+        'U' => Color::LightRed,
+        '?' => Color::Magenta,
+        _ => Color::Reset,
     }
-    lines
 }
 
-fn tab_block(
+// Fixed-width tab slots: selecting a tab never moves its neighbours. The same
+// clipped rectangle is used to draw each label and to handle pointer input.
+#[allow(clippy::too_many_arguments)]
+fn render_tabs(
+    frame: &mut Frame,
     number: &str,
     labels: &[&str],
     active: usize,
     focused: bool,
     rect: Rect,
     hits: &mut Vec<(Rect, usize)>,
-) -> ratatui::widgets::Block<'static> {
-    let mut spans = vec![Span::raw(format!(" {number} "))];
-    let mut x = rect.x + 1 + number.len() as u16 + 2;
+) {
+    hits.clear();
+    if rect.width < 3 || rect.height == 0 {
+        return;
+    }
+    let end = rect.right() - 1;
+    let prefix = format!(" {number} ");
+    let mut x = rect.x + 1;
+    frame.render_widget(
+        Paragraph::new(prefix.clone()).style(Style::default().fg(Color::Gray)),
+        Rect::new(x, rect.y, (prefix.len() as u16).min(end - x), 1),
+    );
+    x += prefix.len() as u16;
     for (index, label) in labels.iter().enumerate() {
+        if x >= end {
+            break;
+        }
         let text = if index == active {
             format!("[{label}]")
         } else {
-            label.to_string()
+            format!(" {label} ")
         };
-        let width = text.len() as u16;
-        if x + width < rect.right() {
-            hits.push((Rect::new(x, rect.y, width, 1), index));
-        }
-        spans.push(Span::styled(
-            text,
-            if index == active {
-                Style::default()
-                    .fg(if focused { Color::Cyan } else { Color::White })
-                    .add_modifier(Modifier::BOLD)
+        let width = (text.len() as u16).min(end - x);
+        let target = Rect::new(x, rect.y, width, 1);
+        let style = if index == active {
+            Style::default().fg(Color::Cyan).add_modifier(if focused {
+                Modifier::BOLD
             } else {
-                Style::default().fg(Color::Gray)
-            },
-        ));
-        spans.push(Span::raw(" "));
-        x += width + 1;
+                Modifier::empty()
+            })
+        } else {
+            Style::default().fg(Color::Gray)
+        };
+        frame.render_widget(Paragraph::new(text).style(style), target);
+        hits.push((target, index));
+        x += width;
     }
-    pane_block("", focused).title(Line::from(spans))
 }

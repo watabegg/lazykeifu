@@ -216,6 +216,7 @@ fn state_json(app: &App) -> Value {
         "workspace_diff_visible": app.workspace.diff_visible,
         "working_file_count": app.working_file_count(),
         "layout": {
+            "branches": [app.workspace.branches_rect.x, app.workspace.branches_rect.y, app.workspace.branches_rect.width, app.workspace.branches_rect.height],
             "graph": [app.layout.graph.x, app.layout.graph.y, app.layout.graph.width, app.layout.graph.height],
             "diff": [app.layout.commit_detail.x, app.layout.commit_detail.y, app.layout.commit_detail.width, app.layout.commit_detail.height],
             "files": [app.layout.files.x, app.layout.files.y, app.layout.files.width, app.layout.files.height],

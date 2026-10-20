@@ -16,9 +16,9 @@ cargo build --locked
 
 グラフは常に表示します。Files／Graph／Stashesの`Enter`、または`0`でdiffを開き、`Esc`で閉じます。閉じているdiffはTab巡回の対象外です。狭い端末ではグラフと操作中のペインを上下に並べます（最小20列×10行）。`?`のヘルプは`j`／`k`やマウスホイールでスクロールできます。
 
-作業ペインは画面幅の約4割です。Filesペイン（`2`）ではFiles／Worktrees／Submodules、Branchesペイン（`3`）ではLocal／Remotes／Tagsを`[`／`]`または見出しのクリックで切り替えます。Remotesはリモート追跡ブランチの一覧です。Worktrees／初期化済みSubmodulesの`Enter`でそのリポジトリを開き、Tagsの`Enter`でコミット差分を表示します。
+作業ペインは画面幅の約4割です。Filesの高さは作業領域の半分で、変更件数やタブを切り替えても動きません。Filesペイン（`2`）ではFiles／Worktrees／Submodules、Branchesペイン（`3`）ではLocal／Remotes／Tagsを`[`／`]`または見出しのクリックで切り替えます。Remotesはリモート追跡ブランチの一覧です。Worktrees／初期化済みSubmodulesの`Enter`でそのリポジトリを開き、Tagsの`Enter`でコミット差分を表示します。
 
-ファイル状態はGitの2列表示です。左がstage済み（緑）、右が未stage（赤）で、`M`変更、`A`追加、`D`削除、`R`rename、`??`未追跡、`UU`などが競合を表します。部分stageは`MM`のように両方を表示します。
+ファイル状態はGitの2列表示です。左がstage済み、右が未stageです。`M`変更（黄）、`A`追加（緑）、`D`削除（赤）、`R`rename（水色）、`??`未追跡（紫）、`UU`などの競合（明るい赤）で種類を区別します。部分stageは`MM`のように両方を表示します。
 
 設定はOSの設定ディレクトリ内の `lazykeifu/config.toml`（Linuxでは通常 `~/.config/lazykeifu/config.toml`）、ログレベルは `LAZYKEIFU_LOG` を使用します。既存のkeifuの設定は読みません。現在の既定動作では60秒ごとにGit設定に従ってfetchします。変更方法は設定ドキュメントを参照してください。
 

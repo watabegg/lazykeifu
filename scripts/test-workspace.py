@@ -204,8 +204,13 @@ def run():
             assert app.state()['workspace_file'] == 'z01.txt'
             assert 'untracked 1' in app.screen()
             app.keys('?')
-            assert '5 Stashes: Space apply' in app.screen()
-            assert 'p: pull' in app.screen()
+            assert 'Navigation' in app.screen()
+            help_pages = []
+            for _ in range(12):
+                help_pages.append(app.screen())
+                app.keys('<c-d>')
+            assert 'Stashes: apply / pop / drop' in '\n'.join(help_pages)
+            assert 'Fetch / pull / push' in '\n'.join(help_pages)
             app.keys('<esc>')
             try:
                 app.keys('q')

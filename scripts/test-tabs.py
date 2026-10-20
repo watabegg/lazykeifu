@@ -48,7 +48,7 @@ def run():
             tui.loaded()
             screen = tui.screen()
             assert tui.state()['layout']['files'][2] == 48
-            assert '[Files] Worktrees Submodules' in screen, screen
+            assert '[Files] Worktrees  Submodules' in screen, screen
             for text in ('A  added', ' D deleted', ' M modified', 'MM partial', 'R  new-name', '?? unknown'):
                 assert text in screen, (text, screen)
             original = git(root, 'write-tree').stdout
@@ -77,7 +77,7 @@ def run():
                 assert tui.state()['files_tab'] == expected
             tui.keys('3')
             screen = tui.screen()
-            assert '[Local] Remotes Tags' in screen, screen
+            assert '[Local] Remotes  Tags' in screen, screen
             # Remote branches are separated from local branches.
             tui.keys(']')
             assert 'team/topic' in tui.screen()

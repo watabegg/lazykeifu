@@ -204,7 +204,7 @@ fn detached_head_history_includes_unreferenced_commits() {
 }
 
 #[test]
-fn file_status_columns_match_git_porcelain_and_use_independent_colors() {
+fn file_status_columns_match_git_porcelain_and_preserve_change_kind_colors() {
     use lazykeifu::{app::App, git::GitRepository};
     use ratatui::{backend::TestBackend, style::Color, Terminal};
     let (temp, repo) = repo();
@@ -243,17 +243,35 @@ fn file_status_columns_match_git_porcelain_and_use_independent_colors() {
         .draw(|frame| lazykeifu::ui::draw(frame, &mut app))
         .unwrap();
     let x = app.layout.files.x + 3; // border + selection gutter
-    let y = app.layout.files.y
-        + 1
-        + rows
-            .iter()
-            .position(|r| r.path == Path::new("partial"))
-            .unwrap() as u16;
     let buffer = terminal.backend().buffer();
-    assert_eq!(buffer[(x, y)].symbol(), "M");
-    assert_eq!(buffer[(x, y)].fg, Color::Green);
-    assert_eq!(buffer[(x + 1, y)].symbol(), "M");
-    assert_eq!(buffer[(x + 1, y)].fg, Color::Red);
+    for (name, column, symbol, color) in [
+        ("added", 0, "A", Color::Green),
+        ("deleted", 1, "D", Color::Red),
+        ("modified", 1, "M", Color::Yellow),
+        ("new-name", 0, "R", Color::Cyan),
+        ("partial", 0, "M", Color::Yellow),
+        ("partial", 1, "M", Color::Yellow),
+        ("unknown", 0, "?", Color::Magenta),
+    ] {
+        let y = app.layout.files.y
+            + 1
+            + rows.iter().position(|r| r.path == Path::new(name)).unwrap() as u16;
+        assert_eq!(buffer[(x + column, y)].symbol(), symbol);
+        assert_eq!(buffer[(x + column, y)].fg, color);
+    }
+    app.workspace.help = true;
+    terminal
+        .draw(|frame| lazykeifu::ui::draw(frame, &mut app))
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    assert!(buffer
+        .content
+        .iter()
+        .any(|c| c.symbol() == "N" && c.fg == Color::Yellow));
+    assert!(buffer
+        .content
+        .iter()
+        .any(|c| c.symbol() == "T" && c.fg == Color::Cyan));
 }
 
 #[test]
