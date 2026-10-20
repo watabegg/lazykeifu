@@ -4,6 +4,8 @@
 pub enum Action {
     FocusPanel(crate::workspace::Panel),
     FocusPrevious,
+    TreeLeft,
+    TreeRight,
     ToggleDiffSide,
     Unavailable,
     // Navigation

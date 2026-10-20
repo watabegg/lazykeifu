@@ -86,7 +86,7 @@ impl<'a> Widget for ConfirmDialog<'a> {
             Line::from(""),
             Line::from(vec![
                 Span::styled(
-                    "  y",
+                    "  Enter / y",
                     Style::default()
                         .fg(Color::Green)
                         .add_modifier(Modifier::BOLD),

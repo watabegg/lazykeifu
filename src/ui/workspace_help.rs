@@ -28,11 +28,13 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
             "Files & staging",
             &[
                 ("Space", "Stage / unstage selected file"),
+                ("Enter / Space", "Folder: expand / collapse"),
+                ("← / →", "Files: parent / collapse; expand / child"),
                 ("a / u", "Stage all / unstage all working files"),
                 ("v", "Switch staged / unstaged diff"),
                 (
                     "c",
-                    "Review staged diff and compose a commit (draft kept on Esc)",
+                    "Commit dialog; if nothing staged, confirm stage all first",
                 ),
                 (
                     "d",

@@ -102,35 +102,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             app.workspace.detail_rect = right[1];
         }
     }
-    if app.composing() {
-        app.layout.files = Rect::default();
-        app.workspace.branches_rect = Rect::default();
-        app.workspace.stash_rect = Rect::default();
-        app.workspace.detail_rect = Rect::default();
-        if body.width >= 100 {
-            let columns =
-                Layout::horizontal([Constraint::Percentage(44), Constraint::Percentage(56)])
-                    .split(body);
-            app.workspace.composer.rect = columns[0];
-            let right = Layout::vertical([
-                Constraint::Length((body.height / 4).clamp(4, 8)),
-                Constraint::Min(4),
-            ])
-            .split(columns[1]);
-            app.layout.graph = right[0];
-            app.layout.commit_detail = right[1];
-        } else {
-            let rows = Layout::vertical([
-                Constraint::Length(3),
-                Constraint::Percentage(50),
-                Constraint::Min(3),
-            ])
-            .split(body);
-            app.layout.graph = rows[0];
-            app.workspace.composer.rect = rows[1];
-            app.layout.commit_detail = rows[2];
-        }
-    }
     let repo_name = std::path::Path::new(&app.repo_path)
         .file_name()
         .unwrap_or_default()
@@ -191,9 +162,26 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     );
     let rows: Vec<ListItem> = app
         .workspace
-        .files
+        .tree
+        .nodes
         .iter()
-        .map(|row| {
+        .map(|node| {
+            let indent = "  ".repeat(node.depth);
+            let name = node.path.file_name().unwrap_or_default().to_string_lossy();
+            let Some(index) = node.file else {
+                let marker = if app.workspace.tree.closed.contains(&node.path) {
+                    "▸"
+                } else {
+                    "▾"
+                };
+                return ListItem::new(Line::styled(
+                    format!("   {indent}{marker} {name}/"),
+                    Style::default().fg(Color::Cyan),
+                ));
+            };
+            let Some(row) = app.workspace.files.get(index) else {
+                return ListItem::new("");
+            };
             let history = app.workspace.commit.is_some();
             let status_color = |status| {
                 if row.conflict {
@@ -220,10 +208,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                     row.worktree_status.to_string(),
                     Style::default().fg(worktree_color),
                 ),
-                Span::styled(
-                    format!(" {}", row.path.display()),
-                    Style::default().fg(path_color),
-                ),
+                Span::styled(format!(" {indent}{name}"), Style::default().fg(path_color)),
             ]))
         })
         .collect();
@@ -233,7 +218,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             .highlight_style(selection_style(focus == Panel::Files))
             .highlight_symbol(if focus == Panel::Files { "› " } else { "  " }),
         app.layout.files,
-        &mut app.workspace.file_state,
+        &mut app.workspace.tree.state,
     );
     if app.workspace.files.is_empty() {
         let text = if app.workspace.commit.is_some() {
@@ -460,66 +445,30 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             app.layout.commit_detail,
         );
     }
-    let hints = match crate::git::recovery::kind(&app.repo.repo) {
-        Some(crate::git::recovery::Kind::Merge) => {
-            "MERGE: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
-        }
-        Some(crate::git::recovery::Kind::Rebase) => {
-            "REBASE: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
-        }
-        Some(crate::git::recovery::Kind::CherryPick) => {
-            "CHERRY-PICK: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
-        }
-        Some(crate::git::recovery::Kind::Revert) => {
-            "REVERT: C continue · A abort · e edit file · Space stage resolution · 2 files · ? help"
-        }
-        None => {
-            "? help  Tab focus  2 files  3 branches  4 graph  5 stash  6 detail  0 diff"
-        }
+    let context = super::context_keys::line(app);
+    let recovery_hint = match crate::git::recovery::kind(&app.repo.repo) {
+        Some(crate::git::recovery::Kind::Merge) => Some("MERGE"),
+        Some(crate::git::recovery::Kind::Rebase) => Some("REBASE"),
+        Some(crate::git::recovery::Kind::CherryPick) => Some("CHERRY-PICK"),
+        Some(crate::git::recovery::Kind::Revert) => Some("REVERT"),
+        None => None,
     };
-    let graph_hint = format!(
-        "{} commits{} · Enter diff · y pick · V revert",
-        app.commits.len(),
-        if app.history_has_more {
-            " · + load more"
-        } else {
-            " · all loaded"
-        }
-    );
-    let message = app
-        .get_message()
-        .unwrap_or(if let Some(slot) = app.workspace.tabs.slot(focus) {
-            if slot <= 1 {
-                "[ / ] tabs · Enter open repository · R refresh"
-            } else if slot == 2 {
-                "[ / ] tabs · Enter checkout · M merge · r rebase"
-            } else {
-                "[ / ] tabs · Enter inspect tag · R refresh"
-            }
-        } else if focus == Panel::Stashes {
-            "Space: apply · p: pop · d: drop · Enter: diff · s: save stash"
-        } else if focus == Panel::Graph {
-            &graph_hint
-        } else if focus == Panel::CommitDetail {
-            "j/k scroll detail · Enter commit diff · 4 graph"
-        } else if focus == Panel::Branches {
-            "[ / ] tabs · Enter checkout · M merge · r rebase · b create"
-        } else if focus == Panel::Diff
-            && app.workspace.commit.is_none()
-            && app.workspace.stash_preview.is_none()
-        {
-            "Esc close diff · Space stage · [ / ] hunk · v side"
-        } else if focus == Panel::Diff {
-            "j/k scroll · H/L horizontal · Esc close diff"
-        } else if app.workspace.commit.is_some() {
-            "Enter diff · j/k file · 2 working files · Esc close diff"
-        } else {
-            "[ / ] tabs · Space stage · Enter diff · c commit"
-        });
+    let message = if let Some(kind) = recovery_hint {
+        format!(
+            "{kind}: C continue · A abort · e edit conflict · {}",
+            app.get_message().unwrap_or("? help")
+        )
+    } else {
+        app.get_message()
+            .unwrap_or(
+                "Tab / h / l focus · 2 files · 3 refs · 4 graph · 5 stash · 6 detail · ? help",
+            )
+            .to_string()
+    };
     frame.render_widget(
         Paragraph::new(vec![
-            Line::styled(hints, Style::default().fg(Color::Gray)),
-            Line::styled(message, Style::default().fg(Color::Cyan)),
+            context,
+            Line::styled(message, Style::default().fg(Color::Gray)),
         ]),
         footer,
     );

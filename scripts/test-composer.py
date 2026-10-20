@@ -81,7 +81,9 @@ def run():
             assert tui.state()['mode']=='input'
             assert 'No staged changes' in tui.screen()
             tui.keys('<esc> c')
-            assert tui.state()['mode']=='normal'
+            assert tui.state()['mode']=='confirm'
+            tui.keys('<esc>')
+            assert not git(root,'diff','--cached','--name-only').stdout.strip()
             assert tui.state()['composer']['message'].startswith('Long subject')
         finally:tui.close()
     print('PASS: staged-only partial diff, review/unstage, draft resume, native multiline paste, hook retry, changed index review, commit contents, compact editing')

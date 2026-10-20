@@ -23,3 +23,5 @@ pub mod external;
 pub mod workspace_tabs;
 
 pub mod commit_composer;
+
+pub mod file_tree;

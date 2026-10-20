@@ -2,6 +2,7 @@
 
 mod commit_composer;
 pub mod commit_detail;
+mod context_keys;
 pub mod dialog;
 pub mod file_diff_view;
 pub mod graph_view;

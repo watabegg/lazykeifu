@@ -92,6 +92,7 @@ pub struct LayoutMap {
 /// Confirmation action kinds
 #[derive(Debug, Clone)]
 pub enum ConfirmAction {
+    StageAllCommit,
     DeleteBranch(String),
     Integrate(crate::git::integrate::Integration),
     CommitOperation(crate::git::commit_operation::CommitOperation),
@@ -1960,6 +1961,18 @@ impl App {
         match action {
             Action::Confirm => {
                 match confirm_action {
+                    ConfirmAction::StageAllCommit => {
+                        if self.repo.repo.index()?.has_conflicts() {
+                            anyhow::bail!("Resolve conflicts before staging all");
+                        }
+                        crate::git::command::git_output(
+                            &self.repo.repo,
+                            &["add".as_ref(), "--all".as_ref()],
+                        )?;
+                        self.mode = AppMode::Normal;
+                        self.open_composer()?;
+                        return Ok(());
+                    }
                     ConfirmAction::DeleteBranch(name) => {
                         delete_branch(&self.repo.repo, &name)?;
                     }

@@ -135,6 +135,7 @@ pub struct Composer {
     pub selected: usize,
     pub list_top: usize,
     pub rect: Rect,
+    pub diff_rect: Rect,
     pub fields: [Rect; 3],
     pub error_rect: Rect,
     pub error_scroll: u16,
@@ -216,12 +217,18 @@ impl App {
     pub(crate) fn open_composer(&mut self) -> Result<()> {
         self.composer_refresh()?;
         if self.workspace.composer.staged.is_empty() {
-            self.set_message("No staged changes (2: working files, Space: stage)");
+            if self.workspace.files.is_empty() {
+                self.set_message("No changes to commit");
+            } else {
+                self.mode = AppMode::Confirm {
+                    message: "Nothing staged. Stage all changes (including untracked files) and open commit?".into(),
+                    action: crate::app::ConfirmAction::StageAllCommit,
+                };
+            }
             return Ok(());
         }
         self.workspace.tabs.files = crate::workspace_tabs::FilesTab::Files;
-        self.workspace.diff_visible = true;
-        self.workspace.diff_return = Panel::Files;
+
         self.workspace.focus = Panel::Files;
         self.workspace.composer.field = Field::Subject;
         self.workspace.commit_error = None;
@@ -449,8 +456,9 @@ impl App {
             return;
         }
         if self
-            .layout
-            .commit_detail
+            .workspace
+            .composer
+            .diff_rect
             .contains(ratatui::layout::Position::new(x, y))
         {
             let max = self

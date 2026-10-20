@@ -1,4 +1,4 @@
-//! Commit review and editing, beside the staged diff rather than over it.
+//! Centered commit dialog with staged review and message editing.
 use super::pane_block;
 use crate::{
     app::App,
@@ -14,7 +14,16 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
-    let rect = app.workspace.composer.rect;
+    let area = frame.area();
+    let width = area.width.saturating_sub(4).min(112);
+    let height = area.height.saturating_sub(4).min(28);
+    let rect = Rect::new(
+        area.x + (area.width - width) / 2,
+        area.y + (area.height - height) / 2,
+        width,
+        height,
+    );
+    app.workspace.composer.rect = rect;
     frame.render_widget(Clear, rect);
     let busy = app.workspace.busy();
     let title = if busy {
@@ -26,7 +35,56 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         )
     };
     frame.render_widget(pane_block(&title, true), rect);
-    let inner = rect.inner(Margin::new(1, 1));
+    let content = rect.inner(Margin::new(1, 1));
+    let footer = Rect::new(
+        content.x,
+        content.bottom().saturating_sub(2),
+        content.width,
+        2.min(content.height),
+    );
+    let content = Rect::new(
+        content.x,
+        content.y,
+        content.width,
+        content.height.saturating_sub(2),
+    );
+    let parts = if content.width >= 86 {
+        Layout::horizontal([Constraint::Percentage(52), Constraint::Percentage(48)]).split(content)
+    } else {
+        Layout::vertical([
+            Constraint::Min(5),
+            Constraint::Length((content.height / 3).max(3)),
+        ])
+        .split(content)
+    };
+    let inner = parts[0];
+    app.workspace.composer.diff_rect = parts[1];
+    app.workspace.diff_height = parts[1].height.saturating_sub(2);
+    let diff: Vec<Line> = app
+        .workspace
+        .preview
+        .lines()
+        .map(|line| {
+            Line::styled(
+                line.to_string(),
+                Style::default().fg(if line.starts_with('+') {
+                    Color::Green
+                } else if line.starts_with('-') {
+                    Color::Red
+                } else if line.starts_with("@@") {
+                    Color::Cyan
+                } else {
+                    Color::Reset
+                }),
+            )
+        })
+        .collect();
+    frame.render_widget(
+        Paragraph::new(diff)
+            .scroll((app.workspace.scroll, 0))
+            .block(pane_block("STAGED diff", false)),
+        parts[1],
+    );
     let field = app.workspace.composer.field;
     let compact = inner.height < 14;
     let error_height = if app.workspace.commit_error.is_some() {
@@ -128,7 +186,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             rows[3],
         );
     }
-    let footer = app.layout.status_bar;
+
     let hint = match field {
         Field::Subject => "Enter commit · Tab body · Shift-Tab review",
         Field::Body => "Enter newline · Tab review · Ctrl-s commit",

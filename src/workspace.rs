@@ -62,6 +62,7 @@ pub struct Workspace {
     stashes_loaded: bool,
     pub files: Vec<FileRow>,
     pub file_state: ListState,
+    pub tree: crate::file_tree::Tree,
     pub branch_state: ListState,
     pub commit: Option<Oid>,
     pub staged: bool,
@@ -410,6 +411,9 @@ impl App {
             self.workspace.preview = e.to_string();
             return;
         }
+        if !self.composing() {
+            self.tree_sync();
+        }
         if self.composing() && self.workspace.composer.staged.is_empty() {
             self.workspace.file_state.select(None);
         }
@@ -572,6 +576,17 @@ impl App {
         }
         if focus == Panel::Files {
             self.workspace.load_files(&self.repo.repo)?;
+            self.tree_sync();
+        }
+        if self.tree_action(action) {
+            return Ok(true);
+        }
+        if matches!(action, Action::TreeLeft | Action::TreeRight) {
+            return self.workspace_action(&if matches!(action, Action::TreeLeft) {
+                Action::FocusPrevious
+            } else {
+                Action::FocusNext
+            });
         }
         if self.workspace_recovery_action(action)? {
             return Ok(true);
@@ -720,10 +735,11 @@ impl App {
                 match focus {
                     Panel::Files => {
                         move_list(
-                            &mut self.workspace.file_state,
-                            self.workspace.files.len(),
+                            &mut self.workspace.tree.state,
+                            self.workspace.tree.nodes.len(),
                             delta,
                         );
+                        self.tree_select();
                         if let Some(row) = self
                             .workspace
                             .file_state
@@ -986,8 +1002,8 @@ impl App {
         let (rect, offset, len) = match panel {
             Panel::Files => (
                 self.layout.files,
-                self.workspace.file_state.offset(),
-                self.workspace.files.len(),
+                self.workspace.tree.state.offset(),
+                self.workspace.tree.nodes.len(),
             ),
             Panel::Stashes => (
                 self.workspace.stash_rect,
@@ -1019,9 +1035,21 @@ impl App {
                 self.workspace_select_stash();
             }
             Panel::Files => {
-                self.workspace.file_state.select(Some(index));
-                let row = &self.workspace.files[index];
-                self.workspace.staged = row.staged && !row.unstaged;
+                self.workspace.tree.state.select(Some(index));
+                self.tree_select();
+                if self
+                    .workspace
+                    .tree
+                    .selected()
+                    .is_some_and(|n| n.file.is_none())
+                {
+                    self.tree_action(&Action::Checkout);
+                    return;
+                }
+                if let Some(file) = self.workspace.file_state.selected() {
+                    let row = &self.workspace.files[file];
+                    self.workspace.staged = row.staged && !row.unstaged;
+                }
             }
             Panel::Branches => {
                 self.workspace.branch_state.select(Some(index));
