@@ -1,6 +1,6 @@
 # lazykeifu 開発計画書
 
-> M0は完了しています。M1の初回実装と現時点の制約は[workspace-m1.md](workspace-m1.md)を参照してください。M2はfetch／pull／pushのGit設定対応とstashの保存・apply／pop／dropまで実装済みです。変更破棄・hunk単位のstageは未実装です。以下は初期化時に定めた計画です。
+> M0は完了しています。M1の初回実装と現時点の制約は[workspace-m1.md](workspace-m1.md)を参照してください。M2はfetch／pull／pushのGit設定対応とstashの保存・apply／pop／dropまで実装済みです。確認付きの未stage変更破棄と、変更済みUTF-8通常ファイルのhunk単位stage／unstageも実装済みです。外部エディタへの切り替えは未実装です。以下は初期化時に定めた計画です。
 
 ## 目的と基本合意
 

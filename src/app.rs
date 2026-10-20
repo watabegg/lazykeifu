@@ -98,6 +98,7 @@ pub enum ConfirmAction {
     Rebase(String),
     Push(String),
     Pull(String),
+    Discard(crate::git::changes::Discard),
     Stash(
         crate::git::stash::StashEntry,
         crate::git::stash::StashOperation,
@@ -1910,6 +1911,11 @@ impl App {
                     }
                     ConfirmAction::Stash(entry, operation) => {
                         self.workspace_stash_execute(entry, operation);
+                        self.mode = AppMode::Normal;
+                        return Ok(());
+                    }
+                    ConfirmAction::Discard(target) => {
+                        self.workspace_discard(target);
                         self.mode = AppMode::Normal;
                         return Ok(());
                     }

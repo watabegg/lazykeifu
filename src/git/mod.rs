@@ -23,3 +23,5 @@ pub use tag::TagInfo;
 pub mod command;
 
 pub mod stash;
+
+pub mod changes;

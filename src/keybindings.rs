@@ -60,6 +60,8 @@ fn map_normal_mode(key: KeyEvent) -> Option<Action> {
         (_, KeyCode::Char('G') | KeyCode::Char('>') | KeyCode::End) => Some(Action::GoToBottom),
         (_, KeyCode::Enter) => Some(Action::Checkout),
         (_, KeyCode::Char(' ')) => Some(Action::StageToggle),
+        (_, KeyCode::Char(']')) => Some(Action::NextHunk),
+        (_, KeyCode::Char('[')) => Some(Action::PrevHunk),
         (_, KeyCode::Char('v')) => Some(Action::ToggleDiffSide),
         (_, KeyCode::Char('a')) => Some(Action::StageAll),
         (_, KeyCode::Char('u')) => Some(Action::UnstageAll),

@@ -63,6 +63,7 @@ pub struct Workspace {
     pub scroll: u16,
     pub horizontal: u16,
     pub diff_height: u16,
+    pub hunk_index: usize,
     pub status_rect: Rect,
     pub branches_rect: Rect,
     pub help: bool,
@@ -177,6 +178,14 @@ fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
             path.display(),
             String::from_utf8_lossy(&bytes)
         ));
+    }
+    if key.commit.is_none() {
+        let text = crate::git::changes::diff(repo, path, key.staged)?;
+        return Ok(if text.is_empty() {
+            "No changes on this side (v: staged / unstaged)".into()
+        } else {
+            text
+        });
     }
     let mut args = vec![
         OsStr::new("diff"),
@@ -388,6 +397,7 @@ impl App {
             // Returning to that file while another result is in flight must reload it.
             self.workspace.preview_key = None;
             self.workspace.preview = "Loading diff…".into();
+            self.workspace.hunk_index = 0;
             self.workspace.scroll = 0;
             self.workspace.horizontal = 0;
         }
@@ -491,6 +501,9 @@ impl App {
         let focus = self.workspace.focus;
         if focus == Panel::Files {
             self.workspace.load_files(&self.repo.repo)?;
+        }
+        if self.workspace_changes_action(action)? {
+            return Ok(true);
         }
         if self.workspace_stash_action(action)? {
             return Ok(true);
@@ -925,16 +938,16 @@ impl App {
         Ok(true)
     }
     pub fn workspace_stash_save(&mut self, message: String) {
-        self.workspace_stash_job(move |repo| crate::git::stash::save(repo, &message));
+        self.workspace_git_job(move |repo| crate::git::stash::save(repo, &message));
     }
     pub fn workspace_stash_execute(
         &mut self,
         entry: crate::git::stash::StashEntry,
         operation: crate::git::stash::StashOperation,
     ) {
-        self.workspace_stash_job(move |repo| crate::git::stash::execute(repo, &entry, operation));
+        self.workspace_git_job(move |repo| crate::git::stash::execute(repo, &entry, operation));
     }
-    fn workspace_stash_job(
+    fn workspace_git_job(
         &mut self,
         operation: impl FnOnce(&Repository) -> Result<String> + Send + 'static,
     ) {
@@ -942,12 +955,89 @@ impl App {
         self.workspace.job = Some(rx);
         self.workspace.commit_message = None;
         let path = self.repo_path.clone();
-        self.set_message("Running stash operation…");
+        self.set_message("Running Git operation…");
         thread::spawn(move || {
             let result = Repository::open(path)
                 .map_err(anyhow::Error::from)
                 .and_then(|repo| operation(&repo));
             let _ = tx.send(result.map_err(|e| e.to_string()));
         });
+    }
+}
+
+impl App {
+    fn workspace_changes_action(&mut self, action: &Action) -> Result<bool> {
+        use crate::git::changes;
+        let focus = self.workspace.focus;
+        if focus == Panel::Diff && matches!(action, Action::NextHunk | Action::PrevHunk) {
+            let hunks = changes::hunks(&self.workspace.preview);
+            if !hunks.is_empty() {
+                self.workspace.hunk_index = if *action == Action::NextHunk {
+                    (self.workspace.hunk_index + 1).min(hunks.len() - 1)
+                } else {
+                    self.workspace.hunk_index.saturating_sub(1)
+                };
+                self.workspace.scroll = hunks[self.workspace.hunk_index]
+                    .start
+                    .min(u16::MAX as usize) as u16;
+            }
+            return Ok(true);
+        }
+        let stage = focus == Panel::Diff && *action == Action::StageToggle;
+        let discard = focus == Panel::Files && *action == Action::DeleteBranch;
+        if !stage && !discard {
+            return Ok(false);
+        }
+        if self.workspace.commit.is_some() || self.workspace.stash_preview.is_some() {
+            self.set_message("Historical and stash diffs are read-only (2: working files)");
+            return Ok(true);
+        }
+        if self.workspace.preview_loading() {
+            self.set_message("Wait for the current diff to load");
+            return Ok(true);
+        }
+        let Some(row) = self
+            .workspace
+            .file_state
+            .selected()
+            .and_then(|i| self.workspace.files.get(i))
+            .cloned()
+        else {
+            return Ok(true);
+        };
+        if stage {
+            let text = self.workspace.preview.clone();
+            let index = self.workspace.hunk_index;
+            let staged = self.workspace.staged;
+            self.workspace_git_job(move |repo| {
+                changes::apply_hunk(repo, &row.path, staged, &text, index)
+            });
+        } else {
+            if self.workspace.staged {
+                self.set_message("Switch to the unstaged diff with v before discarding");
+                return Ok(true);
+            }
+            if let Some(key) = &self.workspace.preview_key {
+                if preview(&self.repo.repo, key)? != self.workspace.preview {
+                    bail!("Diff changed; refresh and review it before discarding");
+                }
+            }
+            let target = changes::prepare_discard(&self.repo.repo, &row.path)?;
+            self.mode = AppMode::Confirm {
+                message: if target.untracked {
+                    format!("Delete untracked file {} permanently?", row.path.display())
+                } else {
+                    format!(
+                        "Discard ALL unstaged changes in {}? Staged content is kept.",
+                        row.path.display()
+                    )
+                },
+                action: crate::app::ConfirmAction::Discard(target),
+            };
+        }
+        Ok(true)
+    }
+    pub fn workspace_discard(&mut self, target: crate::git::changes::Discard) {
+        self.workspace_git_job(move |repo| crate::git::changes::discard(repo, &target));
     }
 }

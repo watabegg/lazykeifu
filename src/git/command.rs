@@ -1,11 +1,22 @@
 //! Run Git with repository-local configuration and literal pathspecs.
 use anyhow::{bail, Context, Result};
 use git2::Repository;
-use std::process::{Command, Stdio};
+use std::{
+    io::Write,
+    process::{Command, Stdio},
+};
 
 pub fn git_output(repo: &Repository, args: &[&std::ffi::OsStr]) -> Result<String> {
+    Ok(String::from_utf8_lossy(&git_bytes(repo, args, None)?).into_owned())
+}
+
+pub fn git_bytes(
+    repo: &Repository,
+    args: &[&std::ffi::OsStr],
+    input: Option<&[u8]>,
+) -> Result<Vec<u8>> {
     let root = repo.workdir().context("A working tree is required")?;
-    let output = Command::new("git")
+    let mut child = Command::new("git")
         .arg("--no-pager")
         .args(args)
         .current_dir(root)
@@ -23,9 +34,28 @@ pub fn git_output(repo: &Repository, args: &[&std::ffi::OsStr]) -> Result<String
             },
         )
         .env("GIT_MERGE_AUTOEDIT", "no")
-        .stdin(Stdio::null())
-        .output()
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .context("Could not run git")?;
+    let writer = input.map(|bytes| {
+        let bytes = bytes.to_vec();
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        std::thread::spawn(move || stdin.write_all(&bytes))
+    });
+    let output = child.wait_with_output()?;
+    let write_result = writer
+        .map(|handle| {
+            handle
+                .join()
+                .map_err(|_| anyhow::anyhow!("Git input worker stopped"))
+        })
+        .transpose()?;
     // CLI mutations bypass libgit2's cached index. Refresh before any later read.
     repo.index()?.read(true)?;
     if !output.status.success() {
@@ -38,5 +68,8 @@ pub fn git_output(repo: &Repository, args: &[&std::ffi::OsStr]) -> Result<String
             stderr.trim()
         );
     }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    if let Some(result) = write_result {
+        result?;
+    }
+    Ok(output.stdout)
 }
