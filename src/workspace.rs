@@ -512,6 +512,36 @@ impl App {
         if self.workspace_stash_action(action)? {
             return Ok(true);
         }
+        if matches!(action, Action::Merge | Action::Rebase) {
+            let branch = match focus {
+                Panel::Branches => self
+                    .workspace
+                    .branch_state
+                    .selected()
+                    .and_then(|i| self.branches.get(i)),
+                Panel::Graph => self
+                    .selected_branch_name()
+                    .filter(|name| self.selected_node_branches().contains(name))
+                    .and_then(|name| self.branches.iter().find(|b| b.name == name)),
+                _ => None,
+            };
+            if let Some(branch) = branch {
+                let kind = if *action == Action::Merge {
+                    crate::git::recovery::Kind::Merge
+                } else {
+                    crate::git::recovery::Kind::Rebase
+                };
+                let target =
+                    crate::git::integrate::Integration::capture(&self.repo.repo, branch, kind)?;
+                self.mode = AppMode::Confirm {
+                    message: target.message(),
+                    action: crate::app::ConfirmAction::Integrate(target),
+                };
+            } else {
+                self.set_message("Select a branch in Branches (3) or Graph (4) first");
+            }
+            return Ok(true);
+        }
         match action {
             Action::FocusPanel(panel) => self.workspace_focus(*panel),
             Action::FocusNext | Action::FocusPrevious => {

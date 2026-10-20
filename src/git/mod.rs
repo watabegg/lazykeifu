@@ -27,3 +27,5 @@ pub mod stash;
 pub mod changes;
 
 pub mod recovery;
+
+pub mod integrate;

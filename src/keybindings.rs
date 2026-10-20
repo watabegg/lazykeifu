@@ -66,6 +66,8 @@ fn map_normal_mode(key: KeyEvent) -> Option<Action> {
         (_, KeyCode::Char('a')) => Some(Action::StageAll),
         (_, KeyCode::Char('u')) => Some(Action::UnstageAll),
         (_, KeyCode::Char('c')) => Some(Action::CommitDialog),
+        (_, KeyCode::Char('M')) => Some(Action::Merge),
+        (_, KeyCode::Char('r')) => Some(Action::Rebase),
         (_, KeyCode::Char('b')) => Some(Action::CreateBranch),
         (_, KeyCode::Char('d')) => Some(Action::DeleteBranch),
         (_, KeyCode::Char('f')) => Some(Action::Fetch),

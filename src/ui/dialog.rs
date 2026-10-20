@@ -5,7 +5,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Clear, Paragraph, Widget},
+    widgets::{Block, BorderType, Borders, Clear, Paragraph, Widget, Wrap},
 };
 
 use super::graph_view::{display_width, truncate_with_ellipsis};
@@ -100,7 +100,9 @@ impl<'a> Widget for ConfirmDialog<'a> {
             ]),
         ];
 
-        let paragraph = Paragraph::new(lines).block(block);
+        let paragraph = Paragraph::new(lines)
+            .wrap(Wrap { trim: false })
+            .block(block);
         Widget::render(paragraph, area, buf);
     }
 }

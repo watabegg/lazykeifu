@@ -253,6 +253,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     };
     let message = app.get_message().unwrap_or(if focus == Panel::Stashes {
         "Space: apply · p: pop · d: drop · Enter: diff · s: save stash"
+    } else if matches!(focus, Panel::Branches | Panel::Graph) {
+        "M: merge selected into current · r: rebase current onto selected · Enter: details/checkout"
     } else if focus == Panel::Diff
         && app.workspace.commit.is_none()
         && app.workspace.stash_preview.is_none()
@@ -300,10 +302,17 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                 frame.render_widget(InputDialog::new(title, input), rect);
             }
         }
-        AppMode::Confirm { message, .. } => frame.render_widget(
-            ConfirmDialog::new(message),
-            super::centered_rect(80, 30, area),
-        ),
+        AppMode::Confirm { message, action } => {
+            let height = if matches!(action, crate::app::ConfirmAction::Integrate(_)) {
+                80
+            } else {
+                30
+            };
+            frame.render_widget(
+                ConfirmDialog::new(message),
+                super::centered_rect(80, height, area),
+            );
+        }
         AppMode::Error { message } => {
             let rect = super::centered_rect(85, 60, area);
             frame.render_widget(Clear, rect);
@@ -319,6 +328,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.workspace.help {
         let rect = super::centered_rect(90, 90, area);
         frame.render_widget(Clear, rect);
-        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.\ne: edit working file using Git editor settings (wait for editor exit)\nMerge/rebase: C continue · A abort (confirmation)\nConflicted file: Space marks current contents resolved (confirmation)").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
+        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\nBranches / Graph: M merge into current · r rebase current onto selected\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.\ne: edit working file using Git editor settings (wait for editor exit)\nMerge/rebase: C continue · A abort (confirmation)\nConflicted file: Space marks current contents resolved (confirmation)").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
     }
 }

@@ -8,10 +8,12 @@ use std::{path::PathBuf, process::Command};
 pub enum Request {
     Edit(PathBuf),
     Continue(Operation),
+    Integrate(crate::git::integrate::Integration),
 }
 impl Request {
     pub fn command(&self, repo: &Repository) -> Result<Command> {
         match self {
+            Self::Integrate(target) => target.command(repo),
             Self::Continue(operation) => operation.continue_command(repo),
             Self::Edit(path) => {
                 let root = repo.workdir().context("No working tree")?;

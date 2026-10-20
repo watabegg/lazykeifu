@@ -48,6 +48,7 @@ jobs:
           python3 scripts/test-stash.py
           python3 scripts/test-changes.py
           python3 scripts/test-recovery.py
+          python3 scripts/test-integrate.py
 
   security:
     name: Security Audit

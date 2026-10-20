@@ -20,8 +20,7 @@ use crate::{
         graph::GraphLayout,
         operations::{
             checkout_branch, checkout_commit, checkout_remote_branch, create_branch, delete_branch,
-            fetch_configured, merge_branch, push_branch, rebase_branch, stage_all, stage_path,
-            unstage_all, unstage_path,
+            fetch_configured, push_branch, stage_all, stage_path, unstage_all, unstage_path,
         },
         BranchInfo, CommitDiffInfo, CommitInfo, FileDiffContent, FileDiffInfo, GitRepository,
         StageState, TagInfo, WorkingTreeStatus,
@@ -94,8 +93,7 @@ pub struct LayoutMap {
 #[derive(Debug, Clone)]
 pub enum ConfirmAction {
     DeleteBranch(String),
-    Merge(String),
-    Rebase(String),
+    Integrate(crate::git::integrate::Integration),
     Push(String),
     Pull(String),
     Discard(crate::git::changes::Discard),
@@ -1290,26 +1288,6 @@ impl App {
                     }
                 }
             }
-            Action::Merge => {
-                if let Some(branch) = self.selected_branch() {
-                    if !branch.is_head {
-                        self.mode = AppMode::Confirm {
-                            message: format!("Merge '{}' into current branch?", branch.name),
-                            action: ConfirmAction::Merge(branch.name.clone()),
-                        };
-                    }
-                }
-            }
-            Action::Rebase => {
-                if let Some(branch) = self.selected_branch() {
-                    if !branch.is_head {
-                        self.mode = AppMode::Confirm {
-                            message: format!("Rebase current branch onto '{}'?", branch.name),
-                            action: ConfirmAction::Rebase(branch.name.clone()),
-                        };
-                    }
-                }
-            }
             Action::EnterFileSelect => {
                 if let Some(diff) = self.cached_diff() {
                     if diff.files.is_empty() {
@@ -1905,11 +1883,10 @@ impl App {
                     ConfirmAction::DeleteBranch(name) => {
                         delete_branch(&self.repo.repo, &name)?;
                     }
-                    ConfirmAction::Merge(name) => {
-                        merge_branch(&self.repo.repo, &name)?;
-                    }
-                    ConfirmAction::Rebase(name) => {
-                        rebase_branch(&self.repo.repo, &name)?;
+                    ConfirmAction::Integrate(target) => {
+                        self.workspace.external = Some(crate::external::Request::Integrate(target));
+                        self.mode = AppMode::Normal;
+                        return Ok(());
                     }
                     ConfirmAction::Stash(entry, operation) => {
                         self.workspace_stash_execute(entry, operation);
