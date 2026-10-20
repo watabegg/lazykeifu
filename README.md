@@ -1,6 +1,8 @@
 # lazykeifu（仮称）
 
-keifuのGitグラフを土台に、lazygitの操作感を目指すRust製TUIクライアントです。グラフを常設し、作業ファイル・ブランチ・必要時の差分を一画面で操作できます。
+A lightweight Git TUI client in Rust featuring a persistent graph and intuitive navigation.
+
+lazykeifu は、常設された Git グラフと詳細なコミット表示を特徴とする Rust 製の軽量 TUI クライアントです。作業ペインでのステージング、コミット、ブランチや stash の操作をキーボードから素早く実行できます。
 
 - [M1実装時の対応範囲](docs/workspace-m1.md)
 - [当面の開発計画](docs/development-plan.md) / [初期化の検証結果](docs/bootstrap-validation.md)
@@ -33,7 +35,7 @@ cargo build --locked
 python3 scripts/test-workspace.py
 ```
 
-[keifu](https://github.com/trasta298/keifu)の履歴とMITライセンスを引き継いでいます。lazygitは操作仕様・翻訳用語の参照元です。共通の翻訳には[上流のMITライセンス](locales/LICENSE.lazygit)を保持しています。名称と配布方針が固まるまでCargo publishと自動リリースを停止しています。
+名称と配布方針が固まるまでCargo publishと自動リリースを停止しています。
 
 Filesはディレクトリごとに畳めるツリー表示です。フォルダの`Enter`で開閉、`Space`でディレクトリ内をstage／unstage、`-`／`=`で全て折り畳み／展開します。`a`は全ファイルのstage／unstage切替です。ペイン移動は`h`／`l`、`←`／`→`または`Tab`です。画面下には選択中のペインでよく使うキーを表示し、通知が出ていても操作を確認できます。
 
@@ -58,3 +60,9 @@ Graph（`4`）でコミットを選び、`C`でコピーして`V`でcherry-pick�
 `@`でExtrasメニューを開きます。HEADのamend（stage済み変更も含める）、reword（メッセージだけ変更しstageは保持）、直前コミットのUndo（変更をstage済みに戻す）、soft／mixed／hard reset、直近200件のHEAD reflogからの復元ができます。履歴操作は対象を確認して実行し、hard resetは未追跡ファイルも含めて作業ツリーがcleanな場合に限ります。
 
 直接操作はFilesの`A`でamend、Graphの`r`でHEADのreword、`g`でreset、`T`で軽量タグ作成です。古いコミットのamend／rewordは未対応です。BranchesのLocalタブでは`Space`でcheckout、`Enter`で履歴へ移動、`n`でブランチ作成、`R`で名前変更できます。既存の名前は上書きしません。Commit Detailにはコミット全体とファイル別の`+/-`、未コミットノードには作業中の変更量を表示します。Diffとコミットダイアログは行番号・構文色・単語単位の変更強調に対応し、ファイルの変更量を上部に固定表示します。
+
+## 謝辞とライセンス
+
+本ソフトウェアは [trasta298/keifu](https://github.com/trasta298/keifu) をフォークして機能を拡張した独立したプロジェクトであり、上流の公式後継や共同開発プロジェクトではありません。コードベースには [LICENSE](LICENSE)（MIT License, Copyright (c) 2025 trasta298, Copyright (c) 2026 watabegg）を適用しています。
+
+また、UI の操作感やキー配置の設計にあたっては [jesseduffield/lazygit](https://github.com/jesseduffield/lazygit) を参照し、一部の共通翻訳リソースを MIT License のもとで利用しています（lazygit の Go 実装本体を移植したものではありません）。翻訳リソースのライセンス全文は [locales/LICENSE.lazygit](locales/LICENSE.lazygit) をご確認ください。
