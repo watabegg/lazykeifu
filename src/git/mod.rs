@@ -21,3 +21,5 @@ pub use repository::{GitRepository, StageState, WorkingTreeStatus};
 pub use tag::TagInfo;
 
 pub mod command;
+
+pub mod stash;

@@ -46,9 +46,9 @@ Press `t` in the TUI to toggle tags for the current session.
 
 ## Workspace layout
 
-The workspace shows files and branches beside the graph and diff. Below 80 columns
-or 18 rows it shows the focused pane. Use `2`, `3`, `4`, and `0` to focus files,
-branches, graph, and diff respectively.
+The workspace shows files, branches, and stashes beside the graph and diff. Below 80 columns
+or 18 rows it shows the focused pane. Use `2`, `3`, `4`, `5`, and `0` to focus files,
+branches, graph, stashes, and diff respectively.
 
 The inherited `ui.file_view` setting no longer changes the workspace layout.
 The `--file-view` CLI option has been removed.

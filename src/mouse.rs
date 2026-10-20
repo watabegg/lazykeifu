@@ -90,6 +90,7 @@ fn selection_area(app: &App, position: Position) -> Rect {
                 app.layout.commit_detail,
                 app.layout.files,
                 app.workspace.branches_rect,
+                app.workspace.stash_rect,
                 app.workspace.status_rect,
             ]
         }
@@ -139,6 +140,9 @@ fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
     if matches!(app.mode, AppMode::Normal) {
         if let Some(panel) = app.workspace_panel_at(x, y) {
             app.workspace.focus = panel;
+            if panel != crate::workspace::Panel::Diff {
+                app.workspace.stash_preview = None;
+            }
             for _ in 0..delta.unsigned_abs().min(100) {
                 dispatch(
                     app,

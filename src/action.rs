@@ -34,6 +34,7 @@ pub enum Action {
     CommitDialog,
     Push,
     Pull,
+    StashSave,
 
     // Clipboard
     CopyHash,

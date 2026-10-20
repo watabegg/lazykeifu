@@ -9,7 +9,19 @@ pub fn git_output(repo: &Repository, args: &[&std::ffi::OsStr]) -> Result<String
         .arg("--no-pager")
         .args(args)
         .current_dir(root)
-        .env("GIT_LITERAL_PATHSPECS", "1")
+        // Stash constructs its own magic pathspecs when cleaning saved untracked
+        // files. Literal mode breaks that cleanup; stash calls accept no user paths.
+        .env(
+            "GIT_LITERAL_PATHSPECS",
+            if args
+                .first()
+                .is_some_and(|arg| *arg == std::ffi::OsStr::new("stash"))
+            {
+                "0"
+            } else {
+                "1"
+            },
+        )
         .env("GIT_MERGE_AUTOEDIT", "no")
         .stdin(Stdio::null())
         .output()

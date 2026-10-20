@@ -21,6 +21,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     app.layout = LayoutMap::default();
     app.workspace.status_rect = Rect::default();
     app.workspace.branches_rect = Rect::default();
+    app.workspace.stash_rect = Rect::default();
     app.status_hints.clear();
     if area.width < 20 || area.height < 6 {
         frame.render_widget(Paragraph::new("Terminal too small"), area);
@@ -38,6 +39,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             Panel::Status => app.workspace.status_rect = body,
             Panel::Files => app.layout.files = body,
             Panel::Branches => app.workspace.branches_rect = body,
+            Panel::Stashes => app.workspace.stash_rect = body,
             Panel::Graph => app.layout.graph = body,
             Panel::Diff => app.layout.commit_detail = body,
         }
@@ -51,7 +53,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             .constraints([
                 Constraint::Length(3),
                 Constraint::Min(5),
-                Constraint::Percentage(30),
+                Constraint::Percentage(20),
+                Constraint::Percentage(20),
             ])
             .split(columns[0]);
         let right = Layout::default()
@@ -61,6 +64,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         app.workspace.status_rect = left[0];
         app.layout.files = left[1];
         app.workspace.branches_rect = left[2];
+        app.workspace.stash_rect = left[3];
         app.layout.graph = right[0];
         app.layout.commit_detail = right[1];
     }
@@ -152,6 +156,20 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         app.workspace.branches_rect,
         &mut app.workspace.branch_state,
     );
+    let stashes: Vec<ListItem> = app
+        .workspace
+        .stashes
+        .iter()
+        .map(|entry| ListItem::new(format!("{} {}", entry.selector, entry.message)))
+        .collect();
+    frame.render_stateful_widget(
+        List::new(stashes)
+            .block(pane_block("5 Stashes", focus == Panel::Stashes))
+            .highlight_style(Style::default().bg(Color::DarkGray))
+            .highlight_symbol("› "),
+        app.workspace.stash_rect,
+        &mut app.workspace.stash_state,
+    );
     if app.layout.graph.width > 0 {
         frame.render_stateful_widget(
             GraphViewWidget::new(app, app.layout.graph.width),
@@ -162,7 +180,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if focus == Panel::Graph && app.layout.graph.height >= 12 {
         super::render_branch_info_popup(frame, app, app.layout.graph);
     }
-    let title = if let Some(oid) = app.workspace.commit {
+    let title = if let Some(oid) = app.workspace.stash_preview {
+        format!("0 Diff · stash {} · read-only", &oid.to_string()[..7])
+    } else if focus == Panel::Stashes {
+        "0 Diff · no stash selected".into()
+    } else if let Some(oid) = app.workspace.commit {
         format!("0 Diff · commit {}", &oid.to_string()[..7])
     } else {
         format!(
@@ -199,10 +221,12 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         app.layout.commit_detail,
     );
     let hints =
-        "2 files 3 branches 4 graph 0 diff · Tab/h/l focus · Space stage · c commit · ? help";
-    let message = app
-        .get_message()
-        .unwrap_or("Enter: details · v: staged/unstaged · Esc: worktree · q: quit");
+        "2 files 3 branches 4 graph 5 stash 0 diff · Tab/h/l focus · Space stage · c commit · ? help";
+    let message = app.get_message().unwrap_or(if focus == Panel::Stashes {
+        "Space: apply · p: pop · d: drop · Enter: diff · s: save stash"
+    } else {
+        "Enter: details · v: staged/unstaged · s: save stash · Esc: worktree · q: quit"
+    });
     frame.render_widget(Paragraph::new(format!("{hints}\n{message}")), footer);
     match &app.mode {
         AppMode::Input {
@@ -261,6 +285,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.workspace.help {
         let rect = super::centered_rect(90, 90, area);
         frame.render_widget(Clear, rect);
-        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\nStash and hunk staging are not implemented yet.").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
+        frame.render_widget(Paragraph::new("1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: file → diff; graph → commit files; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nHunk staging is not implemented yet.").wrap(Wrap { trim: false }).block(pane_block("Help",true)),rect);
     }
 }

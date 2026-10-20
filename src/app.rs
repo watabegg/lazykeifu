@@ -70,6 +70,7 @@ pub enum InputAction {
     CreateBranch,
     Search,
     CommitMessage,
+    StashMessage,
 }
 
 /// Focusable panes in Normal mode
@@ -97,6 +98,10 @@ pub enum ConfirmAction {
     Rebase(String),
     Push(String),
     Pull(String),
+    Stash(
+        crate::git::stash::StashEntry,
+        crate::git::stash::StashOperation,
+    ),
 }
 
 /// Result of async diff computation
@@ -1783,6 +1788,11 @@ impl App {
                         self.jump_to_search_result();
                         self.workspace_graph_target();
                     }
+                    InputAction::StashMessage => {
+                        self.workspace_stash_save(input);
+                        self.mode = AppMode::Normal;
+                        return Ok(());
+                    }
                     InputAction::CommitMessage => {
                         let message = input.trim().to_string();
                         if message.is_empty() {
@@ -1897,6 +1907,11 @@ impl App {
                     }
                     ConfirmAction::Rebase(name) => {
                         rebase_branch(&self.repo.repo, &name)?;
+                    }
+                    ConfirmAction::Stash(entry, operation) => {
+                        self.workspace_stash_execute(entry, operation);
+                        self.mode = AppMode::Normal;
+                        return Ok(());
                     }
                     ConfirmAction::Pull(branch) => {
                         self.workspace_pull(branch);

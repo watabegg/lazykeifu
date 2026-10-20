@@ -42,7 +42,9 @@ class Tui:
             (wrapper / 'git').write_text('#!/bin/sh\ncase "$*" in *"--no-pager diff"*) sleep 0.2;; esac\nexec ' + shlex.quote(executable) + ' "$@"\n')
             (wrapper / 'git').chmod(0o755)
             env['PATH'] = str(wrapper) + os.pathsep + env['PATH']
-        command = f'{shlex.quote(str(BINARY))} --debug-listen 127.0.0.1:{self.port} --log-file {shlex.quote(str(config.parent / "tui-test.log"))}'
+        # Keep normal redraws at the same size as mouse-test dumps. A 0x0 PTY
+        # otherwise clears hit-test rectangles between debug requests.
+        command = f'stty rows 32 cols 120; exec {shlex.quote(str(BINARY))} --debug-listen 127.0.0.1:{self.port} --log-file {shlex.quote(str(config.parent / "tui-test.log"))}'
         self.proc = subprocess.Popen(['script', '-qec', command, '/dev/null'], cwd=root, env=env,
                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
@@ -196,11 +198,16 @@ def run():
             assert app.state()['workspace_file'] == 'z01.txt'
             assert 'untracked 1' in app.screen()
             app.keys('?')
-            assert 'Stash and hunk staging' in app.screen()
+            assert '5 Stashes: Space apply' in app.screen()
             assert 'p: pull' in app.screen()
             app.keys('<esc>')
-            app.keys('q')
+            try:
+                app.keys('q')
+            except (OSError, json.JSONDecodeError):
+                # The app can exit before the debug thread finishes its reply.
+                pass
             app.proc.wait(timeout=3)
+            assert app.proc.returncode == 0
             assert app.proc.returncode == 0
         finally:
             app.close()

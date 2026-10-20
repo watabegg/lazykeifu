@@ -208,6 +208,8 @@ fn state_json(app: &App) -> Value {
     json!({
         "ok": true,
         "mode": mode,
+        "workspace_stash_count": app.workspace.stashes.len(),
+        "workspace_stash": app.workspace.stash_preview.map(|oid| oid.to_string()),
         "workspace_focus": format!("{:?}", app.workspace.focus),
         "workspace_commit": app.workspace.commit.map(|oid| oid.to_string()),
         "workspace_file": app.workspace.file_state.selected().and_then(|i| app.workspace.files.get(i)).map(|r| r.path.to_string_lossy()),

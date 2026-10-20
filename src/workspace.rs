@@ -23,6 +23,7 @@ pub enum Panel {
     Branches,
     Graph,
     Diff,
+    Stashes,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -37,6 +38,8 @@ pub struct FileRow {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PreviewKey {
+    stash: Option<Oid>,
+    stash_view: bool,
     revision: u64,
     commit: Option<Oid>,
     path: Option<PathBuf>,
@@ -46,6 +49,11 @@ struct PreviewKey {
 #[derive(Default)]
 pub struct Workspace {
     pub focus: Panel,
+    pub stashes: Vec<crate::git::stash::StashEntry>,
+    pub stash_state: ListState,
+    pub stash_rect: Rect,
+    pub stash_preview: Option<Oid>,
+    stashes_loaded: bool,
     pub files: Vec<FileRow>,
     pub file_state: ListState,
     pub branch_state: ListState,
@@ -143,6 +151,12 @@ fn commit_files(repo: &Repository, oid: Oid) -> Result<Vec<FileRow>> {
 
 fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
     use std::ffi::OsStr;
+    if let Some(oid) = key.stash {
+        return crate::git::stash::preview(repo, oid);
+    }
+    if key.stash_view {
+        return Ok("No stashes (s: save working changes)".into());
+    }
     let Some(path) = &key.path else {
         return Ok("No changed files".into());
     };
@@ -245,6 +259,8 @@ impl Workspace {
     }
     pub fn preview_loading(&self) -> bool {
         let key = PreviewKey {
+            stash: self.stash_preview,
+            stash_view: self.focus == Panel::Stashes || self.stash_preview.is_some(),
             revision: self.revision,
             commit: self.commit,
             path: self
@@ -257,6 +273,7 @@ impl Workspace {
         !self.loaded || self.preview_rx.is_some() || self.preview_key.as_ref() != Some(&key)
     }
     pub fn invalidate(&mut self) {
+        self.stashes_loaded = false;
         self.loaded = false;
         self.revision = self.revision.wrapping_add(1);
     }
@@ -328,6 +345,7 @@ impl App {
                                 let _ = self.refresh(true);
                                 self.workspace.commit = None;
                                 self.workspace.invalidate();
+                                self.set_message("Git operation failed; working files refreshed");
                                 self.show_error(error);
                             }
                         }
@@ -340,6 +358,11 @@ impl App {
                 Err(mpsc::TryRecvError::Empty) => {}
             }
         }
+        if !self.workspace.stashes_loaded {
+            if let Err(e) = self.workspace_load_stashes() {
+                self.set_message(e.to_string());
+            }
+        }
         if let Err(e) = self.workspace.load_files(&self.repo.repo) {
             self.workspace.files.clear();
             self.workspace.loaded = true;
@@ -347,6 +370,9 @@ impl App {
             return;
         }
         let key = PreviewKey {
+            stash: self.workspace.stash_preview,
+            stash_view: self.workspace.focus == Panel::Stashes
+                || self.workspace.stash_preview.is_some(),
             revision: self.workspace.revision,
             commit: self.workspace.commit,
             path: self
@@ -427,6 +453,7 @@ impl App {
     }
 
     pub fn workspace_graph_target(&mut self) {
+        self.workspace.stash_preview = None;
         self.workspace.commit = self
             .graph_list_state
             .selected()
@@ -438,6 +465,12 @@ impl App {
 
     pub fn workspace_focus(&mut self, panel: Panel) {
         self.workspace.focus = panel;
+        if panel != Panel::Diff {
+            self.workspace.stash_preview = None;
+        }
+        if panel == Panel::Stashes {
+            self.workspace_select_stash();
+        }
         if panel == Panel::Files {
             self.workspace.commit = None;
             self.workspace.loaded = false;
@@ -459,18 +492,33 @@ impl App {
         if focus == Panel::Files {
             self.workspace.load_files(&self.repo.repo)?;
         }
+        if self.workspace_stash_action(action)? {
+            return Ok(true);
+        }
         match action {
             Action::FocusPanel(panel) => self.workspace_focus(*panel),
             Action::FocusNext | Action::FocusPrevious => {
-                let panels = [Panel::Files, Panel::Branches, Panel::Graph, Panel::Diff];
+                let panels = [
+                    Panel::Files,
+                    Panel::Branches,
+                    Panel::Stashes,
+                    Panel::Graph,
+                    Panel::Diff,
+                ];
                 let index = panels.iter().position(|p| *p == focus).unwrap_or(0);
                 let next = if *action == Action::FocusNext {
-                    (index + 1) % 4
+                    (index + 1) % panels.len()
                 } else {
-                    (index + 3) % 4
+                    (index + panels.len() - 1) % panels.len()
                 };
                 // Cycling into files preserves the commit context; 2 explicitly returns to worktree.
                 self.workspace.focus = panels[next];
+                if panels[next] != Panel::Diff {
+                    self.workspace.stash_preview = None;
+                }
+                if panels[next] == Panel::Stashes {
+                    self.workspace_select_stash();
+                }
                 if panels[next] == Panel::Graph {
                     self.workspace_graph_target();
                 }
@@ -481,6 +529,7 @@ impl App {
             Action::ToggleHelp => self.workspace.help = !self.workspace.help,
             Action::Quit => self.should_quit = true,
             Action::Cancel => {
+                self.workspace.stash_preview = None;
                 self.workspace.focus = Panel::Files;
                 self.workspace.commit = None;
                 self.workspace.loaded = false;
@@ -545,6 +594,14 @@ impl App {
                         self.workspace.scroll = (i64::from(self.workspace.scroll)
                             + i64::from(delta))
                         .clamp(0, max) as u16;
+                    }
+                    Panel::Stashes => {
+                        move_list(
+                            &mut self.workspace.stash_state,
+                            self.workspace.stashes.len(),
+                            delta,
+                        );
+                        self.workspace_select_stash();
                     }
                     Panel::Status => {}
                 }
@@ -642,6 +699,7 @@ impl App {
                 return Ok(false);
             }
             Action::Search => {
+                self.workspace.stash_preview = None;
                 self.workspace.focus = Panel::Graph;
                 return Ok(false);
             }
@@ -701,6 +759,7 @@ impl App {
         [
             (self.layout.files, Panel::Files),
             (self.workspace.branches_rect, Panel::Branches),
+            (self.workspace.stash_rect, Panel::Stashes),
             (self.layout.graph, Panel::Graph),
             (self.layout.commit_detail, Panel::Diff),
             (self.workspace.status_rect, Panel::Status),
@@ -710,7 +769,7 @@ impl App {
         .map(|(_, panel)| panel)
     }
     pub fn workspace_click(&mut self, x: u16, y: u16) {
-        if self.workspace.busy() || self.workspace.help {
+        if self.workspace.busy() || self.is_pushing() || self.workspace.help {
             return;
         }
         let Some(panel) = self.workspace_panel_at(x, y) else {
@@ -721,11 +780,22 @@ impl App {
         });
         self.last_click = Some((std::time::Instant::now(), x, y));
         self.workspace.focus = panel;
+        if panel != Panel::Diff {
+            self.workspace.stash_preview = None;
+        }
+        if panel == Panel::Stashes {
+            self.workspace_select_stash();
+        }
         let (rect, offset, len) = match panel {
             Panel::Files => (
                 self.layout.files,
                 self.workspace.file_state.offset(),
                 self.workspace.files.len(),
+            ),
+            Panel::Stashes => (
+                self.workspace.stash_rect,
+                self.workspace.stash_state.offset(),
+                self.workspace.stashes.len(),
             ),
             Panel::Branches => (
                 self.workspace.branches_rect,
@@ -747,6 +817,10 @@ impl App {
             return;
         }
         match panel {
+            Panel::Stashes => {
+                self.workspace.stash_state.select(Some(index));
+                self.workspace_select_stash();
+            }
             Panel::Files => {
                 self.workspace.file_state.select(Some(index));
                 let row = &self.workspace.files[index];
@@ -767,5 +841,113 @@ impl App {
                 self.show_error(error.to_string());
             }
         }
+    }
+}
+
+impl App {
+    fn workspace_load_stashes(&mut self) -> Result<()> {
+        self.workspace.stashes_loaded = true;
+        let old = self
+            .workspace
+            .stash_state
+            .selected()
+            .and_then(|i| self.workspace.stashes.get(i))
+            .map(|e| e.oid);
+        self.workspace.stashes = crate::git::stash::list(&self.repo.repo)?;
+        let index = old
+            .and_then(|oid| self.workspace.stashes.iter().position(|e| e.oid == oid))
+            .unwrap_or(0);
+        self.workspace
+            .stash_state
+            .select((!self.workspace.stashes.is_empty()).then_some(index));
+        if self.workspace.focus == Panel::Stashes || self.workspace.stash_preview.is_some() {
+            self.workspace_select_stash();
+        }
+        Ok(())
+    }
+    fn workspace_select_stash(&mut self) {
+        self.workspace.stash_preview = self
+            .workspace
+            .stash_state
+            .selected()
+            .and_then(|i| self.workspace.stashes.get(i))
+            .map(|e| e.oid);
+    }
+    fn workspace_stash_action(&mut self, action: &Action) -> Result<bool> {
+        use crate::{app::ConfirmAction, git::stash::StashOperation};
+        if *action == Action::StashSave {
+            self.workspace.commit_error = None;
+            self.mode = AppMode::Input {
+                title: "Save stash (includes untracked files) — message".into(),
+                input: String::new(),
+                action: InputAction::StashMessage,
+            };
+            return Ok(true);
+        }
+        if self.workspace.focus != Panel::Stashes {
+            return Ok(false);
+        }
+        if !self.workspace.stashes_loaded {
+            self.workspace_load_stashes()?;
+        }
+        let operation = match action {
+            Action::StageToggle => StashOperation::Apply,
+            Action::Pull => StashOperation::Pop,
+            Action::DeleteBranch => StashOperation::Drop,
+            Action::Checkout | Action::EnterFileSelect => {
+                if self.workspace.stash_preview.is_some() {
+                    self.workspace.focus = Panel::Diff;
+                }
+                return Ok(true);
+            }
+            _ => return Ok(false),
+        };
+        if let Some(entry) = self
+            .workspace
+            .stash_state
+            .selected()
+            .and_then(|i| self.workspace.stashes.get(i))
+            .cloned()
+        {
+            self.mode = AppMode::Confirm {
+                message: format!(
+                    "{} {} ({})? {}",
+                    operation.label(),
+                    entry.selector,
+                    &entry.oid.to_string()[..7],
+                    entry.message
+                ),
+                action: ConfirmAction::Stash(entry, operation),
+            };
+        } else {
+            self.set_message("No stashes");
+        }
+        Ok(true)
+    }
+    pub fn workspace_stash_save(&mut self, message: String) {
+        self.workspace_stash_job(move |repo| crate::git::stash::save(repo, &message));
+    }
+    pub fn workspace_stash_execute(
+        &mut self,
+        entry: crate::git::stash::StashEntry,
+        operation: crate::git::stash::StashOperation,
+    ) {
+        self.workspace_stash_job(move |repo| crate::git::stash::execute(repo, &entry, operation));
+    }
+    fn workspace_stash_job(
+        &mut self,
+        operation: impl FnOnce(&Repository) -> Result<String> + Send + 'static,
+    ) {
+        let (tx, rx) = mpsc::channel();
+        self.workspace.job = Some(rx);
+        self.workspace.commit_message = None;
+        let path = self.repo_path.clone();
+        self.set_message("Running stash operation…");
+        thread::spawn(move || {
+            let result = Repository::open(path)
+                .map_err(anyhow::Error::from)
+                .and_then(|repo| operation(&repo));
+            let _ = tx.send(result.map_err(|e| e.to_string()));
+        });
     }
 }
