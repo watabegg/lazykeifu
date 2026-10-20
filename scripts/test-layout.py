@@ -30,7 +30,8 @@ def run():
             assert 'Clean working tree' in closed and 'No stashes' in closed
             assert '0 Diff' not in closed
             assert tui.state()['layout']['graph'][3] >= 27
-            assert tui.state()['layout']['files'][3] == 3
+            assert tui.state()['layout']['files'][3] >= 6
+            assert tui.state()['layout']['files'][2] == 48
             # Moving through panels never reveals a hidden preview.
             tui.keys('4 <tab>')
             assert tui.state()['workspace_focus'] == 'Files'

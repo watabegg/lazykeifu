@@ -34,6 +34,8 @@ pub struct FileRow {
     pub unstaged: bool,
     pub untracked: bool,
     pub conflict: bool,
+    pub index_status: char,
+    pub worktree_status: char,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -49,6 +51,7 @@ struct PreviewKey {
 #[derive(Default)]
 pub struct Workspace {
     pub focus: Panel,
+    pub tabs: crate::workspace_tabs::Tabs,
     pub external: Option<crate::external::Request>,
     pub stashes: Vec<crate::git::stash::StashEntry>,
     pub stash_state: ListState,
@@ -101,7 +104,10 @@ pub fn working_files(repo: &Repository) -> Result<Vec<FileRow>> {
             .head_to_index()
             .filter(|d| d.status() == git2::Delta::Renamed)
             .and_then(|d| d.old_file().path().map(PathBuf::from));
+        let (index_status, worktree_status) = status_letters(repo, &path, status)?;
         rows.push(FileRow {
+            index_status,
+            worktree_status,
             path,
             old_path,
             staged: status.intersects(
@@ -148,6 +154,15 @@ fn commit_files(repo: &Repository, oid: Oid) -> Result<Vec<FileRow>> {
                     unstaged: false,
                     untracked: false,
                     conflict: false,
+                    index_status: match d.status() {
+                        git2::Delta::Added => 'A',
+                        git2::Delta::Deleted => 'D',
+                        git2::Delta::Renamed => 'R',
+                        git2::Delta::Copied => 'C',
+                        git2::Delta::Typechange => 'T',
+                        _ => 'M',
+                    },
+                    worktree_status: ' ',
                 })
         })
         .collect())
@@ -285,6 +300,7 @@ impl Workspace {
         !self.loaded || self.preview_rx.is_some() || self.preview_key.as_ref() != Some(&key)
     }
     pub fn invalidate(&mut self) {
+        self.tabs.invalidate();
         self.stashes_loaded = false;
         self.loaded = false;
         self.revision = self.revision.wrapping_add(1);
@@ -465,6 +481,12 @@ impl App {
         });
     }
 
+    pub(crate) fn workspace_commit_target(&mut self, oid: Oid) {
+        self.workspace.commit = Some(oid);
+        self.workspace.stash_preview = None;
+        self.workspace.loaded = false;
+    }
+
     pub fn workspace_graph_target(&mut self) {
         self.workspace.stash_preview = None;
         self.workspace.commit = self
@@ -509,11 +531,15 @@ impl App {
             }
             self.workspace_select_branch();
         }
+        self.workspace_tab_target();
     }
 
     /// Returns true for actions owned by the workspace, false for shared dialogs/operations.
     pub fn workspace_action(&mut self, action: &Action) -> Result<bool> {
         let focus = self.workspace.focus;
+        if self.workspace_tabs_action(action)? {
+            return Ok(true);
+        }
         if focus == Panel::Files {
             self.workspace.load_files(&self.repo.repo)?;
         }
@@ -566,11 +592,7 @@ impl App {
         }
         if matches!(action, Action::Merge | Action::Rebase) {
             let branch = match focus {
-                Panel::Branches => self
-                    .workspace
-                    .branch_state
-                    .selected()
-                    .and_then(|i| self.branches.get(i)),
+                Panel::Branches => self.workspace_selected_branch(),
                 Panel::Graph => self
                     .selected_branch_name()
                     .filter(|name| self.selected_node_branches().contains(name))
@@ -678,7 +700,11 @@ impl App {
                         }
                     }
                     Panel::Branches => {
-                        move_list(&mut self.workspace.branch_state, self.branches.len(), delta);
+                        move_list(
+                            &mut self.workspace.branch_state,
+                            self.branches.iter().filter(|b| !b.is_remote).count(),
+                            delta,
+                        );
                         self.workspace_select_branch();
                     }
                     Panel::Graph => {
@@ -738,19 +764,14 @@ impl App {
                 }
                 Panel::Files => self.workspace_open_diff(),
                 Panel::Graph => {
+                    self.workspace.tabs.files = crate::workspace_tabs::FilesTab::Files;
                     self.workspace_graph_target();
                     self.workspace.diff_visible = true;
                     self.workspace.diff_return = Panel::Graph;
                     self.workspace.focus = Panel::Files;
                 }
                 Panel::Branches => {
-                    if let Some(branch) = self
-                        .workspace
-                        .branch_state
-                        .selected()
-                        .and_then(|i| self.branches.get(i))
-                        .cloned()
-                    {
+                    if let Some(branch) = self.workspace_selected_branch().cloned() {
                         if branch.is_remote {
                             crate::git::operations::checkout_remote_branch(
                                 &self.repo.repo,
@@ -820,6 +841,20 @@ impl App {
             Action::Unavailable => self.set_message("Not implemented yet; see development plan"),
             Action::CreateBranch | Action::DeleteBranch => {
                 if focus == Panel::Branches {
+                    if *action == Action::DeleteBranch {
+                        if let Some(branch) = self
+                            .workspace_selected_branch()
+                            .filter(|b| !b.is_head && !b.is_remote)
+                        {
+                            self.mode = AppMode::Confirm {
+                                message: format!("Delete branch '{}' ?", branch.name),
+                                action: crate::app::ConfirmAction::DeleteBranch(
+                                    branch.name.clone(),
+                                ),
+                            };
+                        }
+                        return Ok(true);
+                    }
                     self.workspace_select_branch();
                     return Ok(false);
                 }
@@ -830,13 +865,8 @@ impl App {
         Ok(true)
     }
 
-    fn workspace_select_branch(&mut self) {
-        if let Some(branch) = self
-            .workspace
-            .branch_state
-            .selected()
-            .and_then(|i| self.branches.get(i))
-        {
+    pub(crate) fn workspace_select_branch(&mut self) {
+        if let Some(branch) = self.workspace_selected_branch().cloned() {
             let oid = branch.tip_oid;
             let name = branch.name.clone();
             if let Some(index) = self
@@ -892,6 +922,16 @@ impl App {
             px == x && py == y && time.elapsed() < std::time::Duration::from_millis(400)
         });
         self.last_click = Some((std::time::Instant::now(), x, y));
+        if matches!(panel, Panel::Files | Panel::Branches) {
+            match self.workspace_tabs_click(panel, x, y, double_click) {
+                Ok(true) => return,
+                Err(error) => {
+                    self.show_error(error.to_string());
+                    return;
+                }
+                _ => {}
+            }
+        }
         self.workspace.focus = panel;
         if panel != Panel::Diff {
             self.workspace.stash_preview = None;
@@ -913,7 +953,7 @@ impl App {
             Panel::Branches => (
                 self.workspace.branches_rect,
                 self.workspace.branch_state.offset(),
-                self.branches.len(),
+                self.branches.iter().filter(|b| !b.is_remote).count(),
             ),
             Panel::Graph => (
                 self.layout.graph,
@@ -1224,4 +1264,54 @@ impl App {
     pub fn workspace_resolve(&mut self, target: crate::git::recovery::Resolution) {
         self.workspace_git_job(move |repo| target.stage(repo));
     }
+}
+
+fn status_letters(
+    repo: &Repository,
+    path: &std::path::Path,
+    status: Status,
+) -> Result<(char, char)> {
+    if status.is_conflicted() {
+        let index = repo.index()?;
+        let stages = (
+            index.get_path(path, 1).is_some(),
+            index.get_path(path, 2).is_some(),
+            index.get_path(path, 3).is_some(),
+        );
+        return Ok(match stages {
+            (true, true, true) => ('U', 'U'),
+            (false, true, true) => ('A', 'A'),
+            (true, true, false) => ('U', 'D'),
+            (true, false, true) => ('D', 'U'),
+            (false, true, false) => ('A', 'U'),
+            (false, false, true) => ('U', 'A'),
+            _ => ('D', 'D'),
+        });
+    }
+    if status.is_wt_new() {
+        return Ok(('?', '?'));
+    }
+    let code = |flags: [Status; 5]| {
+        flags
+            .into_iter()
+            .zip(['A', 'D', 'R', 'T', 'M'])
+            .find(|(flag, _)| status.intersects(*flag))
+            .map_or(' ', |(_, code)| code)
+    };
+    Ok((
+        code([
+            Status::INDEX_NEW,
+            Status::INDEX_DELETED,
+            Status::INDEX_RENAMED,
+            Status::INDEX_TYPECHANGE,
+            Status::INDEX_MODIFIED,
+        ]),
+        code([
+            Status::WT_NEW,
+            Status::WT_DELETED,
+            Status::WT_RENAMED,
+            Status::WT_TYPECHANGE,
+            Status::WT_MODIFIED,
+        ]),
+    ))
 }

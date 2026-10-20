@@ -202,3 +202,104 @@ fn detached_head_history_includes_unreferenced_commits() {
     let commits = wrapper.get_commits(500, false).unwrap();
     assert!(commits.iter().any(|c| c.oid == detached));
 }
+
+#[test]
+fn file_status_columns_match_git_porcelain_and_use_independent_colors() {
+    use lazykeifu::{app::App, git::GitRepository};
+    use ratatui::{backend::TestBackend, style::Color, Terminal};
+    let (temp, repo) = repo();
+    for name in ["modified", "partial", "deleted", "renamed"] {
+        fs::write(temp.path().join(name), "base\n").unwrap();
+    }
+    git(temp.path(), &["add", "."]);
+    commit(&repo);
+    fs::write(temp.path().join("modified"), "edit\n").unwrap();
+    fs::write(temp.path().join("partial"), "staged\n").unwrap();
+    git(temp.path(), &["add", "partial"]);
+    fs::write(temp.path().join("partial"), "worktree\n").unwrap();
+    fs::remove_file(temp.path().join("deleted")).unwrap();
+    git(temp.path(), &["mv", "renamed", "new-name"]);
+    fs::write(temp.path().join("added"), "added\n").unwrap();
+    git(temp.path(), &["add", "added"]);
+    fs::write(temp.path().join("unknown"), "unknown\n").unwrap();
+    let rows = working_files(&repo).unwrap();
+    for (name, expected) in [
+        ("added", "A "),
+        ("deleted", " D"),
+        ("modified", " M"),
+        ("new-name", "R "),
+        ("partial", "MM"),
+        ("unknown", "??"),
+    ] {
+        let row = rows.iter().find(|row| row.path == Path::new(name)).unwrap();
+        assert_eq!(
+            format!("{}{}", row.index_status, row.worktree_status),
+            expected
+        );
+    }
+    let mut app = App::from_repository(GitRepository::open(temp.path()).unwrap()).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(120, 32)).unwrap();
+    terminal
+        .draw(|frame| lazykeifu::ui::draw(frame, &mut app))
+        .unwrap();
+    let x = app.layout.files.x + 3; // border + selection gutter
+    let y = app.layout.files.y
+        + 1
+        + rows
+            .iter()
+            .position(|r| r.path == Path::new("partial"))
+            .unwrap() as u16;
+    let buffer = terminal.backend().buffer();
+    assert_eq!(buffer[(x, y)].symbol(), "M");
+    assert_eq!(buffer[(x, y)].fg, Color::Green);
+    assert_eq!(buffer[(x + 1, y)].symbol(), "M");
+    assert_eq!(buffer[(x + 1, y)].fg, Color::Red);
+}
+
+#[test]
+fn conflict_columns_match_git_including_delete_modify_and_add_add() {
+    for case in ["modify", "delete-us", "delete-them", "add-add"] {
+        let (temp, repo) = repo();
+        fs::write(temp.path().join("base"), "base\n").unwrap();
+        if case != "add-add" {
+            fs::write(temp.path().join("file"), "base\n").unwrap();
+        }
+        git(temp.path(), &["add", "."]);
+        commit(&repo);
+        git(temp.path(), &["switch", "-c", "topic"]);
+        if case == "delete-them" {
+            fs::remove_file(temp.path().join("file")).unwrap();
+        } else {
+            fs::write(temp.path().join("file"), "topic\n").unwrap();
+        }
+        git(temp.path(), &["add", "-A"]);
+        commit(&repo);
+        git(temp.path(), &["switch", "main"]);
+        if case == "delete-us" {
+            fs::remove_file(temp.path().join("file")).unwrap();
+        } else {
+            fs::write(temp.path().join("file"), "main\n").unwrap();
+        }
+        git(temp.path(), &["add", "-A"]);
+        commit(&repo);
+        assert!(!Command::new("git")
+            .args(["merge", "topic"])
+            .current_dir(temp.path())
+            .output()
+            .unwrap()
+            .status
+            .success());
+        let rows = working_files(&repo).unwrap();
+        let row = rows.iter().find(|r| r.path == Path::new("file")).unwrap();
+        let actual = Command::new("git")
+            .args(["status", "--porcelain", "--", "file"])
+            .current_dir(temp.path())
+            .output()
+            .unwrap();
+        assert_eq!(
+            format!("{}{}", row.index_status, row.worktree_status),
+            String::from_utf8(actual.stdout).unwrap()[..2],
+            "{case}"
+        );
+    }
+}

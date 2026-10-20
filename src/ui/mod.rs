@@ -63,11 +63,15 @@ pub fn pane_block(title: &str, focused: bool) -> Block<'static> {
     } else {
         Style::default().fg(Color::Gray)
     };
-    Block::default()
-        .title(Span::styled(format!(" {} ", title), title_style))
+    let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(pane_border_style(focused))
+        .border_style(pane_border_style(focused));
+    if title.is_empty() {
+        block
+    } else {
+        block.title(Span::styled(format!(" {} ", title), title_style))
+    }
 }
 
 /// Render a vertical scrollbar inside a bordered pane when content overflows

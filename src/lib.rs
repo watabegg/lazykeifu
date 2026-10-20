@@ -19,3 +19,5 @@ pub mod ui;
 pub mod workspace;
 
 pub mod external;
+
+pub mod workspace_tabs;

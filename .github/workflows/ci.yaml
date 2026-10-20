@@ -52,6 +52,7 @@ jobs:
           python3 scripts/test-commit-operations.py
           python3 scripts/test-history.py
           python3 scripts/test-layout.py
+          python3 scripts/test-tabs.py
 
   security:
     name: Security Audit

@@ -307,10 +307,13 @@ impl App {
 
     /// Create a new application
     pub fn new() -> Result<Self> {
+        Self::from_repository(GitRepository::discover()?)
+    }
+
+    pub fn from_repository(repo: GitRepository) -> Result<Self> {
         let config = Config::load();
         let now = Instant::now();
 
-        let repo = GitRepository::discover()?;
         let repo_path = repo.path.clone();
         let head_name = repo.head_name();
 
@@ -573,7 +576,7 @@ impl App {
             .workspace
             .branch_state
             .selected()
-            .and_then(|i| self.branches.get(i))
+            .and_then(|i| self.branches.iter().filter(|b| !b.is_remote).nth(i))
             .map(|b| b.name.clone());
         self.repo.repo.index()?.read(true)?;
         tracing::debug!(force, "refresh repository data");
@@ -722,7 +725,12 @@ impl App {
         }
         self.workspace.branch_state.select(
             workspace_branch
-                .and_then(|name| self.branches.iter().position(|b| b.name == name))
+                .and_then(|name| {
+                    self.branches
+                        .iter()
+                        .filter(|b| !b.is_remote)
+                        .position(|b| b.name == name)
+                })
                 .or_else(|| (!self.branches.is_empty()).then_some(0)),
         );
         self.workspace.invalidate();
@@ -2774,7 +2782,7 @@ mod tests {
                 .unwrap();
         }
         let mut app = make_app_from_repo(repo);
-        let mut terminal = Terminal::new(TestBackend::new(140, 30)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(180, 30)).unwrap();
         assert_eq!(app.selected_node_branches(), vec!["main", "dev"]);
 
         for (action, graph_label, popup_label) in [

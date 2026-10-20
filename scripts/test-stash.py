@@ -124,7 +124,7 @@ def run():
             tui.keys('<esc> 2')
             tui.loaded()
             screen = tui.screen()
-            assert '!  file' in screen or '!* file' in screen, screen
+            assert 'UU file' in screen, screen
             assert git(root, 'ls-files', '-u').stdout
             print('PASS: stash save including untracked, preview, narrow layout, apply/pop/drop, cancel, stale selection, conflict retention')
         finally:

@@ -6,6 +6,7 @@ use super::{
 use crate::{
     app::{App, AppMode, InputAction, LayoutMap},
     workspace::Panel,
+    workspace_tabs::{FilesTab, RefsTab},
 };
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -17,6 +18,13 @@ use ratatui::{
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
     app.workspace_tick();
+    if app.workspace.tabs.files != FilesTab::Files || app.workspace.tabs.refs != RefsTab::Local {
+        if let Err(error) = app.workspace_load_tabs() {
+            app.set_message(error.to_string());
+        }
+    }
+    app.workspace.tabs.file_hits.clear();
+    app.workspace.tabs.ref_hits.clear();
     let area = frame.area();
     app.layout = LayoutMap::default();
     app.workspace.status_rect = Rect::default();
@@ -61,11 +69,13 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             app.layout.graph = body;
         }
     } else {
-        let sidebar_width = (area.width / 4).clamp(28, 38);
+        let sidebar_width = (area.width * 2 / 5).clamp(36, 64);
         let columns = Layout::horizontal([Constraint::Length(sidebar_width), Constraint::Min(40)])
             .split(body);
-        let file_height = if app.workspace.files.is_empty() {
-            3
+        let file_height = if app.workspace.tabs.files != FilesTab::Files {
+            (body.height / 2).max(4)
+        } else if app.workspace.files.is_empty() {
+            (body.height / 3).max(4)
         } else {
             (app.workspace
                 .files
@@ -160,51 +170,46 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         }),
         header,
     );
-    let files_title = match app.workspace.commit {
-        Some(oid) => format!("2 Files · {} · {:.7}", app.workspace.files.len(), oid),
-        None => format!("2 Working files · {}", app.workspace.files.len()),
-    };
     let rows: Vec<ListItem> = app
         .workspace
         .files
         .iter()
         .map(|row| {
-            let label = if app.workspace.commit.is_some() {
-                format!("  {}", row.path.display())
+            let history = app.workspace.commit.is_some();
+            let index_color = if history {
+                Color::Gray
+            } else if row.conflict || row.untracked {
+                Color::Red
             } else {
-                format!(
-                    "{}{} {}",
-                    if row.conflict {
-                        '!'
-                    } else if row.staged {
-                        '+'
-                    } else {
-                        ' '
-                    },
-                    if row.untracked {
-                        '?'
-                    } else if row.unstaged {
-                        '*'
-                    } else {
-                        ' '
-                    },
-                    row.path.display()
-                )
+                Color::Green
             };
-            ListItem::new(label).style(if row.conflict {
-                Style::default().fg(Color::Red)
-            } else if row.staged && !row.unstaged {
-                Style::default().fg(Color::Green)
-            } else if row.untracked {
-                Style::default().fg(Color::Yellow)
+            let worktree_color = if history { Color::Gray } else { Color::Red };
+            let path_color = if history {
+                Color::Reset
+            } else if row.conflict || row.unstaged || row.untracked {
+                Color::Red
             } else {
-                Style::default()
-            })
+                Color::Green
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(
+                    row.index_status.to_string(),
+                    Style::default().fg(index_color),
+                ),
+                Span::styled(
+                    row.worktree_status.to_string(),
+                    Style::default().fg(worktree_color),
+                ),
+                Span::styled(
+                    format!(" {}", row.path.display()),
+                    Style::default().fg(path_color),
+                ),
+            ]))
         })
         .collect();
     frame.render_stateful_widget(
         List::new(rows)
-            .block(pane_block(&files_title, focus == Panel::Files))
+            .block(pane_block("", focus == Panel::Files))
             .highlight_style(selection_style(focus == Panel::Files))
             .highlight_symbol(if focus == Panel::Files { "› " } else { "  " }),
         app.layout.files,
@@ -224,6 +229,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let rows: Vec<ListItem> = app
         .branches
         .iter()
+        .filter(|b| !b.is_remote)
         .map(|b| {
             ListItem::new(format!(
                 "{} {}",
@@ -247,7 +253,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     }
     frame.render_stateful_widget(
         List::new(rows)
-            .block(pane_block("3 Branches", focus == Panel::Branches))
+            .block(pane_block("", focus == Panel::Branches))
             .highlight_style(selection_style(focus == Panel::Branches))
             .highlight_symbol(if focus == Panel::Branches {
                 "› "
@@ -256,6 +262,70 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             }),
         app.workspace.branches_rect,
         &mut app.workspace.branch_state,
+    );
+    for (panel, rect) in [
+        (Panel::Files, app.layout.files),
+        (Panel::Branches, app.workspace.branches_rect),
+    ] {
+        if let Some(slot) = app.workspace.tabs.slot(panel) {
+            let entries = &app.workspace.tabs.rows[slot];
+            let rows: Vec<ListItem> = entries
+                .iter()
+                .map(|row| {
+                    let content = vec![Line::from(row.label.clone())];
+                    ListItem::new(content)
+                })
+                .collect();
+            frame.render_widget(Clear, rect);
+            frame.render_stateful_widget(
+                List::new(rows)
+                    .block(pane_block("", focus == panel))
+                    .highlight_style(selection_style(focus == panel))
+                    .highlight_symbol(if focus == panel { "› " } else { "  " }),
+                rect,
+                &mut app.workspace.tabs.states[slot],
+            );
+            if entries.is_empty() {
+                let empty = [
+                    "No worktrees",
+                    "No submodules",
+                    "No remote branches",
+                    "No tags",
+                ][slot];
+                frame.render_widget(
+                    Paragraph::new(empty).style(Style::default().fg(Color::Gray)),
+                    rect.inner(ratatui::layout::Margin::new(1, 1)),
+                );
+            }
+        }
+    }
+    let mut files_block = tab_block(
+        "2",
+        &["Files", "Worktrees", "Submodules"],
+        app.workspace.tabs.files as usize,
+        focus == Panel::Files,
+        app.layout.files,
+        &mut app.workspace.tabs.file_hits,
+    );
+    if app.workspace.tabs.files == FilesTab::Files {
+        if let Some(oid) = app.workspace.commit {
+            files_block = files_block.title_bottom(Line::styled(
+                format!(" {:.7} · read-only ", oid),
+                Style::default().fg(Color::Gray),
+            ));
+        }
+    }
+    frame.render_widget(files_block, app.layout.files);
+    frame.render_widget(
+        tab_block(
+            "3",
+            &["Local", "Remotes", "Tags"],
+            app.workspace.tabs.refs as usize,
+            focus == Panel::Branches,
+            app.workspace.branches_rect,
+            &mut app.workspace.tabs.ref_hits,
+        ),
+        app.workspace.branches_rect,
     );
     let stashes: Vec<ListItem> = app
         .workspace
@@ -385,24 +455,34 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             " · all loaded"
         }
     );
-    let message = app.get_message().unwrap_or(if focus == Panel::Stashes {
-        "Space: apply · p: pop · d: drop · Enter: diff · s: save stash"
-    } else if focus == Panel::Graph {
-        &graph_hint
-    } else if focus == Panel::Branches {
-        "Enter checkout · M merge · r rebase · b create · d delete"
-    } else if focus == Panel::Diff
-        && app.workspace.commit.is_none()
-        && app.workspace.stash_preview.is_none()
-    {
-        "Esc close diff · Space stage · [ / ] hunk · v side"
-    } else if focus == Panel::Diff {
-        "j/k scroll · H/L horizontal · Esc close diff"
-    } else if app.workspace.commit.is_some() {
-        "Enter diff · j/k file · 2 working files · Esc close diff"
-    } else {
-        "Space stage · Enter diff · v side · c commit · d discard"
-    });
+    let message = app
+        .get_message()
+        .unwrap_or(if let Some(slot) = app.workspace.tabs.slot(focus) {
+            if slot <= 1 {
+                "[ / ] tabs · Enter open repository · R refresh"
+            } else if slot == 2 {
+                "[ / ] tabs · Enter checkout · M merge · r rebase"
+            } else {
+                "[ / ] tabs · Enter inspect tag · R refresh"
+            }
+        } else if focus == Panel::Stashes {
+            "Space: apply · p: pop · d: drop · Enter: diff · s: save stash"
+        } else if focus == Panel::Graph {
+            &graph_hint
+        } else if focus == Panel::Branches {
+            "[ / ] tabs · Enter checkout · M merge · r rebase · b create"
+        } else if focus == Panel::Diff
+            && app.workspace.commit.is_none()
+            && app.workspace.stash_preview.is_none()
+        {
+            "Esc close diff · Space stage · [ / ] hunk · v side"
+        } else if focus == Panel::Diff {
+            "j/k scroll · H/L horizontal · Esc close diff"
+        } else if app.workspace.commit.is_some() {
+            "Enter diff · j/k file · 2 working files · Esc close diff"
+        } else {
+            "[ / ] tabs · Space stage · Enter diff · c commit"
+        });
     frame.render_widget(
         Paragraph::new(vec![
             Line::styled(hints, Style::default().fg(Color::Gray)),
@@ -478,7 +558,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.workspace.help {
         let rect = super::centered_rect(90, 90, area);
         frame.render_widget(Clear, rect);
-        let lines = wrap_help("j/k: scroll help · Esc: close\n1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: open diff; graph → commit files + diff; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\nBranches / Graph: M merge into current · r rebase current onto selected\nGraph: y cherry-pick · V revert · + load 500 more commits\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: close diff / working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.\ne: edit working file using Git editor settings (wait for editor exit)\nGit operation: C continue · A abort (confirmation)\nConflicted file: Space marks current contents resolved (confirmation)", rect.width.saturating_sub(2) as usize);
+        let lines = wrap_help("j/k: scroll help · Esc: close\n1 status · 2 working files · 3 branches · 4 graph · 5 stashes · 0 diff\nTab / Shift-Tab / h / l: move focus\n[ / ]: switch Files/Worktrees/Submodules or Local/Remotes/Tags\nFile status: index (green) / worktree (red); ?? untracked, U conflict\nj / k: select / scroll · Ctrl-d / Ctrl-u: page\nSpace: stage / unstage file; checkout branch\nEnter: open diff; graph → commit files + diff; branch → checkout\nv: staged / unstaged diff · H / L: horizontal scroll\nc: commit staged changes (Git hooks and signing)\na: stage all · u: unstage all (working files only)\nb: create branch · d: delete branch (branches only)\nBranches / Graph: M merge into current · r rebase current onto selected\nGraph: y cherry-pick · V revert · + load 500 more commits\n/: search branches · f: fetch · p: pull · P: push · R: refresh\no: remote visibility · t: tags\nEsc: close diff / working files · q: quit · ?: close help\n\nCommit files are read-only. Use 2 to return to working files.\ns: save stash including untracked files\n5 Stashes: Space apply · p pop · d drop · Enter diff\nFiles: d discards unstaged changes (confirmation; index kept)\nDiff: [ / ] select hunk · Space stage/unstage selected hunk\nHunks: modified UTF-8 regular files; other changes use file stage.\ne: edit working file using Git editor settings (wait for editor exit)\nGit operation: C continue · A abort (confirmation)\nConflicted file: Space marks current contents resolved (confirmation)", rect.width.saturating_sub(2) as usize);
         let max_scroll = lines
             .len()
             .saturating_sub(rect.height.saturating_sub(2) as usize)
@@ -516,4 +596,40 @@ fn wrap_help(text: &str, width: usize) -> Vec<Line<'static>> {
         lines.push(Line::from(line));
     }
     lines
+}
+
+fn tab_block(
+    number: &str,
+    labels: &[&str],
+    active: usize,
+    focused: bool,
+    rect: Rect,
+    hits: &mut Vec<(Rect, usize)>,
+) -> ratatui::widgets::Block<'static> {
+    let mut spans = vec![Span::raw(format!(" {number} "))];
+    let mut x = rect.x + 1 + number.len() as u16 + 2;
+    for (index, label) in labels.iter().enumerate() {
+        let text = if index == active {
+            format!("[{label}]")
+        } else {
+            label.to_string()
+        };
+        let width = text.len() as u16;
+        if x + width < rect.right() {
+            hits.push((Rect::new(x, rect.y, width, 1), index));
+        }
+        spans.push(Span::styled(
+            text,
+            if index == active {
+                Style::default()
+                    .fg(if focused { Color::Cyan } else { Color::White })
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::Gray)
+            },
+        ));
+        spans.push(Span::raw(" "));
+        x += width + 1;
+    }
+    pane_block("", focused).title(Line::from(spans))
 }

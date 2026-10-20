@@ -209,6 +209,10 @@ fn state_json(app: &App) -> Value {
         "ok": true,
         "mode": mode,
         "git_operation": crate::git::recovery::kind(&app.repo.repo).map(|kind| kind.command()),
+        "files_tab": format!("{:?}", app.workspace.tabs.files),
+        "refs_tab": format!("{:?}", app.workspace.tabs.refs),
+        "repo_path": app.repo_path,
+        "tab_counts": app.workspace.tabs.rows.iter().map(|rows| rows.len()).collect::<Vec<_>>(),
         "workspace_diff_visible": app.workspace.diff_visible,
         "working_file_count": app.working_file_count(),
         "layout": {
