@@ -685,8 +685,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "keifu"
-version = "0.7.0"
+name = "lazykeifu"
+version = "0.1.0-dev"
 dependencies = [
  "anyhow",
  "chrono",

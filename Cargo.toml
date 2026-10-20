@@ -1,11 +1,12 @@
 [package]
-name = "keifu"
-version = "0.7.0"
+name = "lazykeifu"
+version = "0.1.0-dev"
 edition = "2021"
-description = "A TUI tool to visualize Git commit graphs with branch genealogy"
+description = "A graph-first Git TUI evolving toward lazygit-style workflows"
 license = "MIT"
 authors = ["trasta298"]
-repository = "https://github.com/trasta298/keifu"
+repository = "https://github.com/watabegg/lazykeifu"
+publish = false
 readme = "README.md"
 keywords = ["git", "tui", "cli", "graph", "visualization"]
 categories = ["command-line-utilities", "development-tools"]

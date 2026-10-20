@@ -12,7 +12,7 @@ const MAX_LOG_SIZE: u64 = 5 * 1024 * 1024;
 
 /// Initialize tracing to append to the given file.
 ///
-/// The level filter is read from the KEIFU_LOG environment variable
+/// The level filter is read from the LAZYKEIFU_LOG environment variable
 /// (RUST_LOG syntax) and defaults to "debug".
 pub fn init(path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
@@ -27,7 +27,8 @@ pub fn init(path: &Path) -> Result<()> {
         .open(path)
         .with_context(|| format!("Failed to open log file: {}", path.display()))?;
 
-    let filter = EnvFilter::try_from_env("KEIFU_LOG").unwrap_or_else(|_| EnvFilter::new("debug"));
+    let filter =
+        EnvFilter::try_from_env("LAZYKEIFU_LOG").unwrap_or_else(|_| EnvFilter::new("debug"));
 
     tracing_subscriber::fmt()
         .with_env_filter(filter)
@@ -35,7 +36,7 @@ pub fn init(path: &Path) -> Result<()> {
         .with_ansi(false)
         .init();
 
-    tracing::info!(version = env!("CARGO_PKG_VERSION"), "keifu started");
+    tracing::info!(version = env!("CARGO_PKG_VERSION"), "lazykeifu started");
     Ok(())
 }
 

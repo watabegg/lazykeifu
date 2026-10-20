@@ -1,4 +1,4 @@
-//! keifu: a TUI tool that shows Git commit graphs
+//! lazykeifu: a TUI tool that shows Git commit graphs
 
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::Parser;
 use crossterm::event::Event;
 
-use keifu::{
+use lazykeifu::{
     app::App,
     config::FileView,
     debug_server,
@@ -20,14 +20,14 @@ use keifu::{
 const MAINTENANCE_IDLE_PERIOD: Duration = Duration::from_millis(250);
 
 #[derive(Parser)]
-#[command(name = "keifu")]
+#[command(name = "lazykeifu")]
 #[command(
     version,
     about = "A TUI tool to visualize Git commit graphs with branch genealogy"
 )]
 struct Cli {
     /// Append debug logs and a perf summary on exit to this file
-    /// (level via KEIFU_LOG, default "debug")
+    /// (level via LAZYKEIFU_LOG, default "debug")
     #[arg(long, value_name = "PATH")]
     log_file: Option<PathBuf>,
 

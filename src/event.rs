@@ -74,7 +74,7 @@ impl EventReader {
         let raw_count = Arc::new(AtomicUsize::new(0));
         let reader_raw_count = Arc::clone(&raw_count);
         let _reader_thread = thread::Builder::new()
-            .name("keifu-input".to_string())
+            .name("lazykeifu-input".to_string())
             .spawn(move || {
                 let mut scroll = ScrollNormalizer::default();
                 loop {

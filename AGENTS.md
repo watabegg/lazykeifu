@@ -1,19 +1,19 @@
-# keifu development notes
+# lazykeifu development notes
 
-keifu is a Rust TUI (ratatui + crossterm) that visualizes Git commit graphs.
+lazykeifu is a Rust TUI (ratatui + crossterm) that visualizes Git commit graphs.
 
 ## Build / test
 
 ```bash
 cargo build
-cargo test
-cargo clippy --all-targets
+cargo test --locked
+cargo clippy --all-targets --locked -- -D warnings
 cargo fmt --check
 ```
 
 ## Debugging the TUI yourself
 
-keifu has a remote-control debug server (`--debug-listen`), so you can drive
+lazykeifu has a remote-control debug server (`--debug-listen`), so you can drive
 the real app and see its screen without a human. Use the **debug-tui** skill
 (`.claude/skills/debug-tui/SKILL.md`) for the full workflow and its gotchas;
 the wire protocol is documented in docs/debugging.md. Always reproduce
@@ -30,3 +30,11 @@ after a fix.
 - `src/keybindings.rs` — key → `Action` mapping per mode
 - `src/git/` — git2-based operations; fetch/push shell out to `git` for auth
 - `src/debug_server.rs` — NDJSON-over-TCP remote control described above
+
+## Fork development
+
+- Read `docs/development-plan.md` before non-trivial implementation.
+- `origin` is `watabegg/lazykeifu`; `upstream` is `trasta298/keifu`.
+- Preserve upstream copyright notices and graph regression tests.
+- The executable/crate is `lazykeifu`; use `LAZYKEIFU_LOG` and the `lazykeifu` config directory.
+- Release automation is parked in `.github/workflows/release.yaml.disabled`; Cargo publishing is disabled while the name and distribution policy are provisional. Do not use the inherited release skill without adapting it first.

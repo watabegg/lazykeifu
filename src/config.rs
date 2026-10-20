@@ -93,11 +93,11 @@ where
 }
 
 impl Config {
-    /// Load config from ~/.config/keifu/config.toml
+    /// Load config from ~/.config/lazykeifu/config.toml
     /// Returns default config if file doesn't exist or is invalid
     pub fn load() -> Self {
         let path = dirs::config_dir()
-            .map(|p| p.join("keifu/config.toml"))
+            .map(|p| p.join("lazykeifu/config.toml"))
             .filter(|p| p.exists());
 
         let Some(path) = path else {

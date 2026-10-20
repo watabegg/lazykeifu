@@ -1,10 +1,10 @@
 # Configuration
 
-keifu can be configured via `~/.config/keifu/config.toml`. All settings are optional.
+lazykeifu can be configured via `~/.config/lazykeifu/config.toml`. All settings are optional.
 
 ## Auto-refresh
 
-By default, keifu automatically refreshes the commit graph every 10 seconds and fetches from origin every 60 seconds.
+By default, lazykeifu automatically refreshes the commit graph every 10 seconds and fetches from origin every 60 seconds.
 
 ```toml
 [refresh]
@@ -23,7 +23,7 @@ fetch_interval = 60
 
 ## Graph display
 
-By default, keifu shows remote branches and commits that are reachable only from
+By default, lazykeifu shows remote branches and commits that are reachable only from
 remote branches. You can hide them by default:
 
 ```toml
@@ -34,7 +34,7 @@ show_remote_branches = false
 
 Press `o` in the TUI to toggle remote branches for the current session.
 
-By default, keifu shows tag labels on commits. You can hide them by default:
+By default, lazykeifu shows tag labels on commits. You can hide them by default:
 
 ```toml
 [graph]
@@ -55,7 +55,7 @@ graph pane instead, keeping commit detail and the file list visible:
 file_view = "replace"
 ```
 
-The config can be overridden for a single run with `keifu --file-view replace`.
+The config can be overridden for a single run with `lazykeifu --file-view replace`.
 
 ### Options
 

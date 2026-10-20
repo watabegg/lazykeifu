@@ -1,3 +1,5 @@
+> この文書はkeifu由来の操作マニュアルです。lazykeifuの実行名・設定・開発状況は[ルートREADME](../README.md)を参照してください。
+
 # 🧬 keifu
 
 [![Crate Status](https://img.shields.io/crates/v/keifu.svg)](https://crates.io/crates/keifu)

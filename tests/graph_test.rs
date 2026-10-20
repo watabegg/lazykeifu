@@ -2,7 +2,7 @@
 
 use chrono::Local;
 use git2::Oid;
-use keifu::git::{build_graph, graph::CellType, BranchInfo, CommitInfo};
+use lazykeifu::git::{build_graph, graph::CellType, BranchInfo, CommitInfo};
 
 fn make_oid(id: &str) -> Oid {
     // Convert id into a 40-char hex hash
@@ -58,7 +58,7 @@ fn render_cells(cells: &[CellType]) -> String {
         .collect()
 }
 
-fn get_short_id(node: &keifu::git::graph::GraphNode) -> String {
+fn get_short_id(node: &lazykeifu::git::graph::GraphNode) -> String {
     node.commit
         .as_ref()
         .map(|c| c.short_id.clone())
