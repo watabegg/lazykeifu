@@ -114,7 +114,7 @@ pub fn handle_request(app: &mut App, width: u16, height: u16, request: DebugRequ
         DebugRequest::Keys { keys } => match parse_key_sequence(&keys) {
             Ok(events) => {
                 for key in events {
-                    if let Some(action) = map_key_to_action(key, &app.mode) {
+                    if let Some(action) = map_key_to_action(key, app) {
                         if let Err(e) = app.handle_action(action) {
                             app.show_error(format!("{}", e));
                         }

@@ -125,7 +125,7 @@ impl App {
                     }
                 }
             }
-            Action::Checkout | Action::StageToggle if node.file.is_none() => {
+            Action::Checkout if node.file.is_none() => {
                 if !self.workspace.tree.closed.remove(&node.path) {
                     self.workspace.tree.closed.insert(node.path);
                 }

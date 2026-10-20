@@ -27,10 +27,11 @@ def run():
             assert 'No stashes' in tui.screen()
             (root / 'file').write_text('saved tracked\n')
             (root / 'untracked').write_text('saved untracked\n')
-            tui.keys('R s')
+            tui.keys('2 R s')
             assert 'includes untracked' in tui.screen()
             tui.keys('w i p <enter>')
             tui.wait(lambda: not tui.state()['workspace_busy'])
+            tui.keys('5')
             tui.loaded()
             assert tui.state()['workspace_stash_count'] == 1
             assert (root / 'file').read_text() == 'base\n'
@@ -38,9 +39,9 @@ def run():
             screen = tui.screen()
             assert '5 Stashes' in screen and 'stash@{0}' in screen and 'wip' in screen
             assert '+saved tracked' in screen
-            tui.keys('0 G')
+            tui.keys('0 <end>')
             assert '+saved untracked' in tui.screen()
-            tui.keys('g 5')
+            tui.keys('<home> 5')
             header = next(i for i, line in enumerate(screen.splitlines()) if '5 Stashes' in line)
             tui.request(cmd='mouse', kind='click', x=5, y=header)
             tui.loaded()
@@ -78,17 +79,18 @@ def run():
             assert (root / 'untracked').exists()
             assert 'No stashes' in tui.screen()
             # Save again and pop: both tracked and untracked content restored.
-            tui.keys('s p o p <enter>')
+            tui.keys('2 s p o p <enter>')
             tui.wait(lambda: not tui.state()['workspace_busy'])
-            tui.keys('p')
+            tui.keys('5 g')
             assert 'Pop stash@{0}' in tui.screen()
             tui.keys('<enter>')
             tui.wait(lambda: not tui.state()['workspace_busy'])
             assert not git(root, 'stash', 'list').stdout
             assert (root / 'untracked').exists()
             # A stash pushed outside the app must not change a confirmed drop target.
-            tui.keys('s o l d <enter>')
+            tui.keys('2 s o l d <enter>')
             tui.wait(lambda: not tui.state()['workspace_busy'])
+            tui.keys('5')
             tui.keys('d')
             assert 'Drop stash@{0}' in tui.screen()
             (root / 'file').write_text('external stash\n')
@@ -98,12 +100,12 @@ def run():
             assert tui.state()['mode'] == 'error'
             assert 'Stash list changed' in tui.screen()
             assert len(git(root, 'stash', 'list').stdout.splitlines()) == 2
-            tui.keys('<esc> 5 g')
+            tui.keys('<esc> 5 <home>')
             tui.loaded()
             assert '+external stash' in tui.screen()
             tui.keys('j')
             tui.loaded()
-            tui.keys('0 G')
+            tui.keys('0 <end>')
             assert '+saved untracked' in tui.screen()
             tui.keys('5')
             screen = tui.screen()
@@ -116,7 +118,7 @@ def run():
             # Conflicting pop keeps the selected stash and exposes the conflict files.
             (root / 'file').write_text('new base\n')
             git(root, 'commit', '-am', 'new base')
-            tui.keys('p <enter>')
+            tui.keys('g <enter>')
             tui.wait(lambda: not tui.state()['workspace_busy'])
             assert tui.state()['mode'] == 'error'
             assert 'CONFLICT' in tui.screen()

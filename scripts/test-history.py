@@ -22,32 +22,32 @@ def run():
         tui = Tui(root, config)
         try:
             tui.loaded()
-            tui.keys('4 G')
+            tui.keys('4 <end>')
             assert tui.state()['history_count'] == 500
             assert tui.state()['history_has_more']
-            assert '+ load more' in tui.screen()
+            assert 'Ctrl-l log' in tui.screen()
             selected = tui.state()['selected_commit']
-            tui.keys('+')
+            tui.keys('<c-l> <enter>')
             assert tui.state()['history_count'] == 1000
             assert tui.state()['selected_commit'] == selected
             assert 'Loaded 1000 commits' in tui.screen()
-            tui.keys('R')
+            tui.keys('1 R 4')
             assert tui.state()['history_count'] == 1000
             assert tui.state()['selected_commit'] == selected
-            tui.keys('+')
+            tui.keys('<c-l> <enter>')
             assert tui.state()['history_count'] == 1051
             assert not tui.state()['history_has_more']
             assert tui.state()['selected_commit'] == selected
             assert 'Loaded 1051 commits' in tui.screen(width=60, height=24)
-            tui.keys('G')
+            tui.keys('<end>')
             root_oid = git(root, 'rev-list', '--max-parents=0', 'HEAD').stdout.strip()
             assert tui.state()['selected_commit'] == root_oid[:7]
-            tui.keys('+')
+            tui.keys('<c-l> <enter>')
             assert 'All reachable history is loaded' in tui.screen()
             assert tui.state()['history_count'] == 1051
             # New refs/commits cannot introduce duplicated pages or reset the range.
             git(root, 'commit', '--allow-empty', '-m', 'new head')
-            tui.keys('R')
+            tui.keys('1 R 4')
             assert tui.state()['history_count'] == 1052
             assert tui.state()['selected_commit'] == root_oid[:7]
             assert not tui.state()['history_has_more']

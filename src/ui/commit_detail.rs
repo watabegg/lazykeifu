@@ -203,15 +203,41 @@ impl CommitDetailWidget {
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             ));
+            let add_width = diff
+                .files
+                .iter()
+                .map(|f| f.insertions.to_string().len() + 1)
+                .max()
+                .unwrap_or(2);
+            let del_width = diff
+                .files
+                .iter()
+                .map(|f| f.deletions.to_string().len() + 1)
+                .max()
+                .unwrap_or(2);
+            let stat_width = (add_width + 2 + del_width).max(6);
             for file in &diff.files {
-                let mut line = if file.is_binary {
-                    Line::styled(" binary", Style::default().fg(Color::Yellow))
+                let mut spans = if file.is_binary {
+                    vec![Span::styled(
+                        format!("{:>stat_width$}", "binary"),
+                        Style::default().fg(Color::Yellow),
+                    )]
                 } else {
-                    super::patch::totals(None, file.insertions, file.deletions)
+                    vec![
+                        Span::styled(
+                            format!("{:>add_width$}", format!("+{}", file.insertions)),
+                            Style::default().fg(Color::Green),
+                        ),
+                        Span::raw("  "),
+                        Span::styled(
+                            format!("{:>del_width$}", format!("-{}", file.deletions)),
+                            Style::default().fg(Color::Red),
+                        ),
+                        Span::raw(" ".repeat(stat_width - (add_width + 2 + del_width))),
+                    ]
                 };
-                line.spans
-                    .push(Span::raw(format!("  {}", file.path.display())));
-                lines.push(line);
+                spans.push(Span::raw(format!("  {}", file.path.display())));
+                lines.push(Line::from(spans));
             }
             if diff.truncated {
                 lines.push(Line::styled(

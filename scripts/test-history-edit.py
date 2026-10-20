@@ -10,7 +10,7 @@ def choose(tui,label):
     menu=tui.state()['git_menu']
     assert menu, tui.screen()
     i=next(i for i,v in enumerate(menu['items']) if v.startswith(label))
-    tui.keys('g '+'j '*i+'<enter>')
+    tui.keys('<home> '+'j '*i+'<enter>')
 
 def run():
     with tempfile.TemporaryDirectory(prefix='lazykeifu-history-edit-') as temp:
@@ -24,10 +24,10 @@ def run():
         file.write_text('staged\n');git(root,'add','file');file.write_text('unstaged\n')
         tui=Tui(root,config)
         try:
-            tui.keys('x');assert 'Amend HEAD' in tui.screen();choose(tui,'Amend HEAD')
+            tui.keys('@');assert 'Amend HEAD' in tui.screen();choose(tui,'Amend HEAD')
             assert 'Published' in tui.screen(),tui.screen()
             tui.keys('<esc>');assert git(root,'rev-parse','HEAD').stdout.strip()==original
-            tui.keys('x');choose(tui,'Amend HEAD');tui.keys('<enter>');tui.loaded()
+            tui.keys('@');choose(tui,'Amend HEAD');tui.keys('<enter>');tui.loaded()
             assert 'Amend HEAD' in tui.screen() and '+staged' in tui.screen(),tui.screen()
             tui.keys('<home>');tui.request(cmd='paste',text='Amended ')
             # Hook failure must retain amend mode and edited draft.
@@ -41,29 +41,29 @@ def run():
             assert git(root,'show','HEAD:file').stdout=='staged\n' and file.read_text()=='unstaged\n'
             assert git(root,'log','-1','--format=%s').stdout.strip()=='Amended second'
             git(root,'add','file');index=git(root,'write-tree').stdout
-            tui.keys('x');choose(tui,'Reword HEAD');tui.keys('<enter>');tui.loaded()
+            tui.keys('@');choose(tui,'Reword HEAD');tui.keys('<enter>');tui.loaded()
             assert 'Message-only amend' in tui.screen(),tui.screen()
             tui.keys('<home>');tui.request(cmd='paste',text='Reword ');tui.keys('<c-s>');tui.wait(lambda:not tui.state()['workspace_busy'])
             amended=git(root,'rev-parse','HEAD').stdout.strip()
             assert git(root,'write-tree').stdout==index and git(root,'show','HEAD:file').stdout=='staged\n'
-            tui.keys('x');choose(tui,'Undo last');tui.keys('<enter>');tui.wait(lambda:not tui.state()['workspace_busy'])
+            tui.keys('@');choose(tui,'Undo last');tui.keys('<enter>');tui.wait(lambda:not tui.state()['workspace_busy'])
             assert git(root,'rev-parse','HEAD').stdout.strip()==parent and file.read_text()=='unstaged\n'
             assert git(root,'write-tree').stdout==index
             # Reflog selects exact OID; soft restoration preserves files and index.
-            tui.keys('x');choose(tui,'Reflog');assert amended[:7] in tui.screen(),tui.screen()
+            tui.keys('@');choose(tui,'Reflog');assert amended[:7] in tui.screen(),tui.screen()
             menu=tui.state()['git_menu'];label=next(v for v in menu['items'] if amended[:7] in v)
             choose(tui,label);choose(tui,'--soft');tui.keys('<enter>');tui.wait(lambda:not tui.state()['workspace_busy'])
             assert git(root,'rev-parse','HEAD').stdout.strip()==amended and git(root,'write-tree').stdout==index
-            tui.keys('2 x');choose(tui,'Reset current');choose(tui,'--mixed');tui.keys('<enter>');tui.wait(lambda:not tui.state()['workspace_busy'])
+            tui.keys('2 @');choose(tui,'Reset current');choose(tui,'--mixed');tui.keys('<enter>');tui.wait(lambda:not tui.state()['workspace_busy'])
             assert not git(root,'diff','--cached','--name-only').stdout.strip() and file.read_text()=='unstaged\n'
-            tui.keys('x');choose(tui,'Reset current');choose(tui,'--hard');tui.keys('<enter>');tui.wait(lambda:not tui.state()['workspace_busy'])
+            tui.keys('@');choose(tui,'Reset current');choose(tui,'--hard');tui.keys('<enter>');tui.wait(lambda:not tui.state()['workspace_busy'])
             assert 'clean worktree' in tui.screen(),tui.screen();assert file.read_text()=='unstaged\n'
-            tui.keys('<esc> x');choose(tui,'Create tag');tui.keys('v 1 <enter>')
+            tui.keys('<esc> @');choose(tui,'Create tag');tui.keys('v 1 <enter>')
             assert git(root,'rev-parse','v1').stdout.strip()==amended
-            tui.keys('3 x');choose(tui,'Rename branch');tui.keys('<backspace> <backspace> <backspace> <backspace> t o p i c <enter>')
+            tui.keys('3 @');choose(tui,'Rename branch');tui.keys('<backspace> <backspace> <backspace> <backspace> t o p i c <enter>')
             assert git(root,'branch','--show-current').stdout.strip()=='topic'
             # A stale confirmation cannot reset a newly moved HEAD.
-            tui.keys('x');choose(tui,'Undo last');git(root,'add','file');git(root,'commit','-m','external')
+            tui.keys('@');choose(tui,'Undo last');git(root,'add','file');git(root,'commit','-m','external')
             fresh=git(root,'rev-parse','HEAD').stdout.strip();tui.keys('<enter>');tui.wait(lambda:not tui.state()['workspace_busy'])
             assert 'changed' in tui.screen() and git(root,'rev-parse','HEAD').stdout.strip()==fresh
         finally:tui.close()

@@ -17,7 +17,7 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
                 ("6", "Commit detail; j / k: scroll, Enter: inspect diff"),
                 ("Tab / Shift-Tab", "Next / previous pane (also h / l)"),
                 ("j / k · ↑ / ↓", "Move selection; Ctrl-d / Ctrl-u: page"),
-                ("g / G", "First / last loaded row"),
+                ("Home / End · < / >", "First / last loaded row"),
                 ("[ / ]", "Files or Branches: switch tabs"),
                 ("Enter / 0", "Open diff; Esc: close diff"),
                 ("/", "Search branches; Enter: select, Esc: cancel"),
@@ -28,10 +28,12 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
             "History & refs",
             &[
                 (
-                    "x",
-                    "Git actions: amend / reword HEAD, undo, reset, reflog, tag",
+                    "@",
+                    "Extras: undo last commit, reflog, and additional operations",
                 ),
-                ("x in Local", "Rename selected local branch"),
+                ("A / r", "Files: amend HEAD; Graph: reword HEAD"),
+                ("R / T", "Local: rename branch; Local / Graph: create tag"),
+                ("g", "Graph / refs: reset to selected commit/ref"),
                 (
                     "Amend / Reword",
                     "Include staged changes / change message only",
@@ -48,10 +50,10 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
             "Files & staging",
             &[
                 ("Space", "Stage / unstage selected file"),
-                ("Enter / Space", "Folder: expand / collapse"),
-                ("← / →", "Files: parent / collapse; expand / child"),
-                ("a / u", "Stage all / unstage all working files"),
-                ("v", "Switch staged / unstaged diff"),
+                ("Enter", "Folder: expand / collapse; Space: stage directory"),
+                ("- / =", "Files: collapse / expand all directories"),
+                ("a", "Toggle stage all / unstage all working files"),
+                ("Tab in Diff", "Switch staged / unstaged diff"),
                 (
                     "c",
                     "Commit dialog; if nothing staged, confirm stage all first",
@@ -75,7 +77,7 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
             "Diff & history",
             &[
                 (
-                    "[ / ] · Space",
+                    "h / l · Space",
                     "Diff: select hunk; stage / unstage selected hunk",
                 ),
                 ("H / L", "Scroll diff horizontally"),
@@ -83,9 +85,17 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
                     "Enter",
                     "Graph: inspect commit files (read-only); 2: working files",
                 ),
-                ("y / V", "Graph: cherry-pick / revert selected commit"),
-                ("+", "Graph: load 500 more commits"),
-                ("o / t", "Toggle remote branches / tags in graph"),
+                (
+                    "C then V / t",
+                    "Graph: copy then cherry-pick / revert selected commit",
+                ),
+                ("Space", "Graph: checkout selected commit (detached HEAD)"),
+                ("Ctrl-r", "Graph: clear copied cherry-pick commit"),
+                (
+                    "Ctrl-l",
+                    "Graph: log options, load 500 more commits, reflog",
+                ),
+                ("n / N in Diff", "Next / previous file"),
                 (
                     "Hunks",
                     "Modified UTF-8 regular files; other changes use file stage",
@@ -95,11 +105,14 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
         (
             "Branches & repositories",
             &[
-                ("Enter / Space", "Local / Remotes: checkout selected branch"),
-                ("b / d", "Local: create / delete branch"),
+                (
+                    "Space / Enter",
+                    "Local / Remote: checkout / inspect history",
+                ),
+                ("n / d", "Local: create / delete branch"),
                 (
                     "M / r",
-                    "Branches or Graph: merge into current / rebase onto selected",
+                    "Branches: merge into current / rebase onto selected",
                 ),
                 (
                     "Enter",
@@ -112,8 +125,11 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
         (
             "Stashes",
             &[
-                ("s", "Save working changes including untracked files"),
-                ("Space / p / d", "Stashes: apply / pop / drop"),
+                (
+                    "s in Files",
+                    "Save working changes including untracked files",
+                ),
+                ("Space / g / d", "Stashes: apply / pop / drop"),
                 ("Enter", "Stashes: inspect diff"),
             ],
         ),
@@ -121,7 +137,10 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
             "Recovery & selection",
             &[
                 ("Drag", "Select text; release to copy"),
-                ("C / A", "Continue / abort Git operation after confirmation"),
+                (
+                    "m",
+                    "Continue / abort current operation; Graph: merge / rebase menu",
+                ),
                 (
                     "Space",
                     "Conflicted file: mark current contents resolved after confirmation",

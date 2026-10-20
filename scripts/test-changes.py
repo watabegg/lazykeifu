@@ -29,7 +29,7 @@ def run():
             tui.loaded()
             tui.keys('<enter>')
             assert 'hunk 1/2' in tui.screen()
-            tui.keys(']')
+            tui.keys('l')
             assert 'hunk 2/2' in tui.screen() and '+second edit' in tui.screen()
             assert 'hunk 2/2' in tui.screen(54, 20)
             tui.screen()
@@ -39,7 +39,7 @@ def run():
             assert git(root, 'show', ':[x] file.txt').stdout == original.replace('line 30\n', 'second edit\n')
             assert file.read_text() == changed
             assert 'hunk 1/1' in tui.screen()
-            tui.keys('v')
+            tui.keys('<tab>')
             tui.loaded()
             assert 'STAGED' in tui.screen() and '+second edit' in tui.screen()
             tui.keys('<space>')
@@ -99,7 +99,7 @@ def run():
             assert not (root / 'z[x]').exists()
             assert (root / 'zx').exists()
             # Historical diff hunk remains read-only.
-            tui.keys('4 G <enter> <enter>')
+            tui.keys('4 <end> <enter> <enter>')
             tui.loaded()
             index = git(root, 'write-tree').stdout
             tui.keys('<space>')

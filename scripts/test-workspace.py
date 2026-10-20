@@ -127,12 +127,12 @@ def run():
                 evidence = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
                 evidence.mkdir(parents=True, exist_ok=True)
                 (evidence / 'workspace-wide.txt').write_text(app.screen())
-            app.keys('v')
+            app.keys('0 <tab> 2')
             app.wait(lambda: app.state()['workspace_preview_loading'])
-            app.keys('v')  # return to the original side while the other diff is in flight
+            app.keys('0 <tab> 2')  # return to the original side while the other diff is in flight
             app.loaded()
             assert '+worktree-only' in app.screen()
-            app.keys('v')
+            app.keys('0 <tab> 2')
             app.loaded()
             screen = app.screen()
             assert '+staged-only' in screen and '+worktree-only' not in screen, screen
@@ -174,11 +174,11 @@ def run():
             assert git(root, 'log', '-1', '--format=%s').stdout.strip() == 'retained'
             assert git(root, 'show', 'HEAD:a.txt').stdout == 'worktree-only\n'
             assert 'retained' in app.screen()
-            app.keys('2 G')
+            app.keys('2 <end>')
             app.loaded()
             assert app.state()['workspace_file'] == 'z59.txt'
             assert 'untracked 59' in app.screen()
-            app.keys('4 G <enter>')
+            app.keys('4 <end> <enter>')
             app.loaded()
             assert app.state()['workspace_commit'] == original
             before = git(root, 'diff', '--cached').stdout
@@ -195,11 +195,11 @@ def run():
             app.keys('2 a')
             app.loaded()
             assert len(git(root, 'diff', '--cached', '--name-only').stdout.splitlines()) == 60
-            app.keys('u')
+            app.keys('a')
             app.loaded()
             assert git(root, 'diff', '--cached', '--quiet', check=False).returncode == 0
             assert (root / 'z59.txt').exists()
-            app.keys('2 g j j k')
+            app.keys('2 <home> j j k')
             app.loaded()
             assert app.state()['workspace_file'] == 'z01.txt'
             assert 'untracked 1' in app.screen()

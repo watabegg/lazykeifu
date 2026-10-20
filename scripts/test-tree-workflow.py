@@ -20,7 +20,7 @@ def run():
         (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
-            tui.keys('2 g j'); tui.loaded()
+            tui.keys('2 <home> j'); tui.loaded()
             screen = tui.screen()
             assert '▾ src/' in screen and 'nested/' in screen, screen
             assert tui.state()['workspace_file'] is None
@@ -29,7 +29,7 @@ def run():
             assert '▸ src/' in screen and 'nested/' not in '\n'.join(line[:tui.state()['layout']['files'][2]] for line in screen.splitlines()), screen
             tui.keys('R'); assert '▸ src/' in tui.screen()
             assert not git(root, 'diff', '--cached', '--name-only').stdout.strip()
-            tui.keys('<right> <right>'); tui.loaded()
+            tui.keys('<enter> j'); tui.loaded()
             assert tui.state()['workspace_file'] == 'src/a', tui.state()
             assert 'Space stage' in tui.screen().splitlines()[-2]
             tui.keys('<space>'); tui.loaded()
@@ -37,7 +37,7 @@ def run():
             tui.keys('<enter>'); tui.loaded()
             assert '+changed-src/a' in tui.screen()
             assert 'unstage hunk' in tui.screen().splitlines()[-2]
-            tui.keys('<esc> <left> <space>')
+            tui.keys('<esc> k <enter>')
             assert 'nested/' not in '\n'.join(line[:tui.state()['layout']['files'][2]] for line in tui.screen().splitlines())
             assert git(root, 'diff', '--cached', '--name-only').stdout.strip() == 'src/a'
             # Clicking a folder expands it without selecting/staging an unrelated file.
@@ -47,7 +47,7 @@ def run():
             assert tui.state()['workspace_file'] is None
             tui.keys('4'); assert 'revert' in tui.screen().splitlines()[-2]
             tui.keys('<left>'); assert tui.state()['workspace_focus'] == 'Stashes'
-            tui.keys('2 u'); tui.loaded()
+            tui.keys('2 a a'); tui.loaded()
             assert not git(root, 'diff', '--cached', '--name-only').stdout.strip()
             tui.screen(); layout = tui.state()['layout']
             tui.keys('c'); screen = tui.screen()

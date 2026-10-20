@@ -57,6 +57,7 @@ type PreviewResult = (
 #[derive(Default)]
 pub struct Workspace {
     pub focus: Panel,
+    pub copied_commit: Option<Oid>,
     pub composer: crate::commit_composer::Composer,
     pub tabs: crate::workspace_tabs::Tabs,
     pub external: Option<crate::external::Request>,
@@ -215,7 +216,7 @@ fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
     if key.commit.is_none() {
         let text = crate::git::changes::diff(repo, path, key.staged)?;
         return Ok(if text.is_empty() {
-            "No changes on this side (v: staged / unstaged)".into()
+            "No changes on this side (Tab in Diff: staged / unstaged)".into()
         } else {
             text
         });
@@ -252,7 +253,7 @@ fn preview(repo: &Repository, key: &PreviewKey) -> Result<String> {
     args.push(path.as_os_str());
     let text = git_output(repo, &args)?;
     Ok(if text.is_empty() {
-        "No changes on this side (v: staged / unstaged)".into()
+        "No changes on this side (Tab in Diff: staged / unstaged)".into()
     } else {
         text
     })
@@ -621,6 +622,9 @@ impl App {
     /// Returns true for actions owned by the workspace, false for shared dialogs/operations.
     pub fn workspace_action(&mut self, action: &Action) -> Result<bool> {
         let focus = self.workspace.focus;
+        if self.context_git_action(action)? {
+            return Ok(true);
+        }
         if *action == Action::GitMenu {
             self.open_git_menu()?;
             return Ok(true);
@@ -685,7 +689,7 @@ impl App {
                 self.load_more_history()?;
                 self.workspace_graph_target();
             } else {
-                self.set_message("Use + in Graph (4) to load more history");
+                self.set_message("Use Ctrl-l in Graph (4) to load more history");
             }
             return Ok(true);
         }
@@ -1171,7 +1175,7 @@ impl App {
         }
         let operation = match action {
             Action::StageToggle => StashOperation::Apply,
-            Action::Pull => StashOperation::Pop,
+            Action::StashPop => StashOperation::Pop,
             Action::DeleteBranch => StashOperation::Drop,
             Action::Checkout | Action::EnterFileSelect => {
                 if self.workspace.stash_preview.is_some() {

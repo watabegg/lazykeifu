@@ -437,13 +437,13 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     };
     let message = if let Some(kind) = recovery_hint {
         format!(
-            "{kind}: C continue · A abort · e edit conflict · {}",
+            "{kind}: m continue / abort · e edit conflict · {}",
             app.get_message().unwrap_or("? help")
         )
     } else {
         app.get_message()
             .unwrap_or(
-                "Tab / h / l focus · 2 files · 3 refs · 4 graph · 5 stash · 6 detail · ? help",
+                "Tab / h / l focus · 2 files · 3 refs · 4 graph · 5 stash · 6 detail · @ extras · ? help",
             )
             .to_string()
     };

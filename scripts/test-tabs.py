@@ -93,12 +93,12 @@ def run():
             assert 'Diff' in tui.screen()
             assert 'read-only' in tui.screen()
             assert git(root, 'write-tree').stdout == original
-            tui.keys('<esc> 2 ] g j <enter>')
+            tui.keys('<esc> 2 ] <home> j <enter>')
             tui.loaded()
             assert Path(tui.state()['repo_path']).resolve() == linked.resolve(), tui.state()
             assert 'linked' in tui.screen().splitlines()[0]
             assert not tui.state()['workspace_diff_visible']
-            tui.keys('2 ] g <enter>')
+            tui.keys('2 ] <home> <enter>')
             tui.loaded()
             assert Path(tui.state()['repo_path']).resolve() == root.resolve()
             tui.keys('2 ] ] <enter>')

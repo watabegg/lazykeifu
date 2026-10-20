@@ -26,7 +26,7 @@ def run():
         tui = Tui(root, config)
         try:
             tui.loaded()
-            tui.keys('4 g')
+            tui.keys('4 <home>')
             screen = tui.screen()
             for text in ('Commit Detail', 'Author', 'Date', 'Parent', head[:7]):
                 assert text in screen, screen
@@ -34,7 +34,7 @@ def run():
             assert tui.state()['workspace_focus'] == 'CommitDetail'
             assert tui.state()['detail_scroll'] > 0
             assert 'Body line' in tui.screen()
-            tui.keys('G')
+            tui.keys('<end>')
             assert 'Body line 29' in tui.screen(), (tui.state(), tui.screen())
             tui.keys('4 j')
             assert 'first subject' in tui.screen()
@@ -46,7 +46,7 @@ def run():
             tui.keys('<esc>')
             assert tui.state()['workspace_focus'] == 'CommitDetail'
             assert 'Commit Detail' in tui.screen()
-            tui.keys('g')
+            tui.keys('<home>')
             screen = tui.screen()
             x, y, width, height = tui.state()['layout']['detail']
             tui.request(cmd='mouse', kind='scroll_down', x=x+2, y=y+2)
@@ -66,7 +66,7 @@ def run():
             wide_help = tui.screen()
             narrow_help = tui.screen(54, 20)
             assert 'Navigation' in narrow_help
-            tui.keys('<esc> 6 g')
+            tui.keys('<esc> 6 <home>')
             narrow_detail = tui.screen(54, 20)
             assert '4 Graph' in narrow_detail and 'Commit Detail' in narrow_detail
             if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):

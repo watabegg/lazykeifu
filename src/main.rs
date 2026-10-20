@@ -122,7 +122,7 @@ fn main() -> Result<()> {
                 match event {
                     InputEvent::Terminal(Event::Key(key)) => {
                         tracing::debug!(?key, "terminal key");
-                        if let Some(action) = map_key_to_action(key, &app.mode) {
+                        if let Some(action) = map_key_to_action(key, &app) {
                             if let Err(e) = app.handle_action(action) {
                                 // Show errors in the UI
                                 app.show_error(format!("{}", e));

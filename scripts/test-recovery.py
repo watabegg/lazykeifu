@@ -68,19 +68,20 @@ else:
             tui = Tui(root, config, env_overrides=env, stdin_pipe=True)
             try:
                 tui.loaded()
-                assert f'{name.upper()}: C continue' in tui.screen()
-                tui.keys('C')
+                assert f'{name.upper()}: m continue' in tui.screen()
+                tui.keys('m <enter>')
                 assert f'Continue {name}?' in tui.screen()
                 tui.keys('<enter>')
                 tui.wait(lambda: tui.state()['mode'] == 'error')
                 assert 'Unresolved conflicts remain' in tui.screen()
-                tui.keys('<esc> a')
+                tui.keys('<esc> 2 a')
                 assert 'Resolve conflicts individually' in tui.screen()
-                tui.keys('<esc> <enter> e')
+                tui.keys('<esc> 2 e')
                 tui.wait(lambda: ready.exists())
                 tui.proc.stdin.write(b'resolved from terminal\n')
                 tui.proc.stdin.flush()
                 tui.wait(lambda: file.read_text() == 'resolved from terminal\n')
+                tui.keys('<enter>')
                 tui.loaded()
                 assert '+resolved from terminal' in tui.screen()
                 # Actual terminal keys prove the old reader released stdin and the new reader works.
@@ -98,7 +99,7 @@ else:
                 tui.keys('<space> <enter>')
                 tui.wait(lambda: not tui.state()['workspace_busy'])
                 assert not git(root, 'ls-files', '-u').stdout
-                tui.keys('C <enter>')
+                tui.keys('m <enter> <enter>')
                 tui.wait(lambda: tui.state()['git_operation'] is None)
                 assert tui.state()['mode'] == 'normal'
                 assert used.exists()
@@ -108,7 +109,7 @@ else:
                 # A failing editor must still restore the app and its input reader.
                 fail.write_text('fail')
                 file.write_text('working edit\n')
-                tui.keys('R 2')
+                tui.keys('2 R')
                 tui.loaded()
                 tui.keys('e')
                 tui.wait(lambda: tui.state()['mode'] == 'error')
@@ -144,11 +145,11 @@ else:
             name = 'rebase' if rebase else 'merge'
             tui = Tui(root, config)
             try:
-                tui.keys('A')
+                tui.keys('m j <enter>')
                 assert f'Abort {name}?' in tui.screen()
                 tui.keys('<esc>')
                 assert tui.state()['git_operation'] == name
-                tui.keys('A <enter>')
+                tui.keys('m j <enter> <enter>')
                 tui.wait(lambda: not tui.state()['workspace_busy'])
                 assert tui.state()['git_operation'] is None
                 assert git(root, 'rev-parse', 'HEAD').stdout == original

@@ -72,6 +72,7 @@ pub enum InputAction {
     CommitMessage,
     StashMessage,
     CreateTag(Oid),
+    CreateBranchAt(Oid),
     RenameBranch(crate::git::history::Rename),
 }
 
@@ -96,6 +97,7 @@ pub struct LayoutMap {
 #[derive(Debug, Clone)]
 pub enum ConfirmAction {
     StageAllCommit,
+    CheckoutRevision(crate::git::history::Snapshot, Oid),
     Amend(crate::git::history::Snapshot, bool),
     Reset(crate::git::history::Reset),
     DeleteBranch(String),
@@ -1825,6 +1827,10 @@ impl App {
         match action {
             Action::Confirm => {
                 match input_action {
+                    InputAction::CreateBranchAt(target) => {
+                        create_branch(&self.repo.repo, input.trim(), target)?;
+                        self.refresh(true)?;
+                    }
                     InputAction::CreateTag(target) => {
                         let message =
                             crate::git::history::create_tag(&self.repo.repo, input.trim(), target)?;
@@ -1982,6 +1988,25 @@ impl App {
         match action {
             Action::Confirm => {
                 match confirm_action {
+                    ConfirmAction::CheckoutRevision(snapshot, oid) => {
+                        self.workspace_git_job(move |repo| {
+                            snapshot.verify(repo)?;
+                            crate::git::command::git_output(
+                                repo,
+                                &[
+                                    "checkout".as_ref(),
+                                    "--detach".as_ref(),
+                                    oid.to_string().as_ref(),
+                                ],
+                            )?;
+                            Ok(format!(
+                                "Checked out {} (detached HEAD)",
+                                &oid.to_string()[..7]
+                            ))
+                        });
+                        self.mode = AppMode::Normal;
+                        return Ok(());
+                    }
                     ConfirmAction::Amend(snapshot, message_only) => {
                         snapshot.verify(&self.repo.repo)?;
                         self.open_amend(message_only)?;

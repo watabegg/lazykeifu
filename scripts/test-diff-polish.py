@@ -31,14 +31,14 @@ def run():
                 screen=tui.screen(width,height)
                 assert 'STAGED' in screen and '+2  -1' in screen,screen
                 (evidence/f'diff-after-{width}.txt').write_text(screen)
-            tui.keys('<esc> 4 g');tui.wait(lambda:'+2  -1' in tui.screen())
+            tui.keys('<esc> 4 <home>');tui.wait(lambda:'+2  -1' in tui.screen())
             assert 'Uncommitted Changes' in tui.screen() and 'Changed files' in tui.screen(),tui.screen()
             (evidence/'uncommitted-detail.txt').write_text(tui.screen())
             tui.keys('j');tui.wait(lambda:'+1  -1' in tui.screen())
             assert 'Commit Detail' in tui.screen() and '1 files' in tui.screen(),tui.screen()
-            tui.keys('6 G');assert 'src/main.rs' in tui.screen()
+            tui.keys('6 <end>');assert 'src/main.rs' in tui.screen()
             (evidence/'commit-detail.txt').write_text(tui.screen())
-            tui.keys('x');screen=tui.screen(54,20);assert 'Git actions' in screen
+            tui.keys('@');screen=tui.screen(54,20);assert 'Extras' in screen
             tui.screen();tui.request(cmd='mouse',kind='click',x=119,y=0)
             assert tui.state()['mode']=='normal'
         finally:tui.close()

@@ -17,6 +17,7 @@ use ratatui::{
 #[derive(Clone, Debug)]
 pub enum Choice {
     NewCommit,
+    Action(Action),
     Amend(bool),
     Undo,
     Reset(Oid, ResetMode),
@@ -99,7 +100,7 @@ impl App {
         if self.workspace.composer.amend.is_some() {
             rows.push(("New commit · leave amend draft".into(), Choice::NewCommit));
         }
-        self.git_menu("Git actions · j/k select · Enter open".into(), rows);
+        self.git_menu("Extras · j/k select · Enter open".into(), rows);
         Ok(())
     }
     pub(crate) fn git_menu_action(&mut self, action: Action) -> Result<()> {
@@ -129,8 +130,12 @@ impl App {
         }
         Ok(())
     }
-    fn choose_git_action(&mut self, choice: Choice) -> Result<()> {
+    pub(crate) fn choose_git_action(&mut self, choice: Choice) -> Result<()> {
         match choice {
+            Choice::Action(action) => {
+                self.mode = AppMode::Normal;
+                self.handle_action(action)?;
+            }
             Choice::NewCommit => {
                 self.workspace.composer = Default::default();
                 self.mode = AppMode::Normal;
@@ -295,4 +300,234 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             .style(Style::default().fg(Color::DarkGray)),
         Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1),
     );
+}
+
+impl App {
+    fn selected_git_target(&self) -> Result<Oid> {
+        if matches!(self.workspace.focus, Panel::Graph | Panel::CommitDetail) {
+            self.graph_list_state
+                .selected()
+                .and_then(|i| self.graph_layout.nodes.get(i))
+                .and_then(|n| n.commit.as_ref())
+                .map(|c| c.oid)
+                .context("Select a commit in Graph first")
+        } else if self.workspace.focus == Panel::Branches {
+            self.workspace_selected_branch()
+                .map(|b| b.tip_oid)
+                .or(self.workspace.commit)
+                .context("Select a branch or tag first")
+        } else {
+            self.repo.repo.head()?.target().context("No HEAD commit")
+        }
+    }
+    pub(crate) fn context_git_action(&mut self, action: &Action) -> Result<bool> {
+        match action {
+            Action::StageToggle
+                if self.workspace.focus == Panel::Files
+                    && self.workspace.tabs.files == crate::workspace_tabs::FilesTab::Files
+                    && self.workspace.commit.is_none()
+                    && self
+                        .workspace
+                        .tree
+                        .selected()
+                        .is_some_and(|n| n.file.is_none()) =>
+            {
+                let path = self.workspace.tree.selected().unwrap().path.clone();
+                self.workspace.load_files(&self.repo.repo)?;
+                let rows = self
+                    .workspace
+                    .files
+                    .iter()
+                    .filter(|f| f.path.starts_with(&path))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if rows.iter().any(|f| f.conflict) {
+                    bail!("Resolve conflicts individually before staging this directory");
+                }
+                let unstage = !rows.iter().any(|f| f.unstaged);
+                for row in rows
+                    .iter()
+                    .filter(|f| if unstage { f.staged } else { f.unstaged })
+                {
+                    crate::workspace::toggle_stage(&self.repo.repo, row, unstage)?;
+                }
+                self.workspace.invalidate();
+                self.set_message(if unstage {
+                    "Directory unstaged"
+                } else {
+                    "Directory staged"
+                });
+            }
+            Action::AmendHead | Action::RewordHead => {
+                if self.workspace.focus == Panel::Graph
+                    && self.selected_git_target()? != Snapshot::capture(&self.repo.repo)?.head
+                {
+                    bail!("Only HEAD amend/reword is supported. Select HEAD; older commits require interactive rebase");
+                }
+                self.choose_git_action(Choice::Amend(*action == Action::RewordHead))?;
+            }
+            Action::RenameBranch => {
+                let branch = self
+                    .workspace_selected_branch()
+                    .filter(|b| !b.is_remote)
+                    .context("Select a local branch first")?;
+                self.choose_git_action(Choice::Rename(Rename {
+                    old: branch.name.clone(),
+                    oid: branch.tip_oid,
+                }))?;
+            }
+            Action::CreateTag => {
+                self.choose_git_action(Choice::Tag(self.selected_git_target()?))?
+            }
+            Action::CreateBranch if self.workspace.focus == Panel::Branches => {
+                self.mode = AppMode::Input {
+                    title: "New branch from selected branch".into(),
+                    input: String::new(),
+                    action: InputAction::CreateBranchAt(self.selected_git_target()?),
+                };
+            }
+            Action::ResetMenu => {
+                self.choose_git_action(Choice::ResetMenu(self.selected_git_target()?))?
+            }
+            Action::InspectBranch => {
+                let target = self.selected_git_target()?;
+                let i = self
+                    .graph_layout
+                    .nodes
+                    .iter()
+                    .position(|n| n.commit.as_ref().is_some_and(|c| c.oid == target))
+                    .ok_or_else(|| anyhow::anyhow!("Branch tip is outside the loaded graph; load more history or show remote branches first"))?;
+                self.select_node(i);
+                self.workspace_focus(Panel::Graph);
+                self.workspace_commit_target(target);
+            }
+            Action::CheckoutRevision => {
+                let oid = self.selected_git_target()?;
+                let snapshot = Snapshot::capture(&self.repo.repo)?;
+                self.mode = AppMode::Confirm {
+                    message: format!(
+                        "Check out {} in detached HEAD? Working changes must be compatible.",
+                        &oid.to_string()[..7]
+                    ),
+                    action: ConfirmAction::CheckoutRevision(snapshot, oid),
+                };
+            }
+            Action::CopyCommit => {
+                let oid = self.selected_git_target()?;
+                self.workspace.copied_commit = Some(oid);
+                self.set_message(format!(
+                    "Copied {} for cherry-pick · V paste · Ctrl-r clear",
+                    &oid.to_string()[..7]
+                ));
+            }
+            Action::ClearCopiedCommit => {
+                self.workspace.copied_commit = None;
+                self.set_message("Cherry-pick selection cleared");
+            }
+            Action::PasteCommit => {
+                let oid = self
+                    .workspace
+                    .copied_commit
+                    .context("Copy a commit with C first")?;
+                let target = crate::git::commit_operation::CommitOperation::capture(
+                    &self.repo.repo,
+                    oid,
+                    crate::git::recovery::Kind::CherryPick,
+                )?;
+                self.mode = AppMode::Confirm {
+                    message: target.message(),
+                    action: ConfirmAction::CommitOperation(target),
+                };
+            }
+            Action::RecoveryMenu => {
+                let mut rows = Vec::new();
+                if crate::git::recovery::kind(&self.repo.repo).is_some() {
+                    rows.push((
+                        "Continue current Git operation".into(),
+                        Choice::Action(Action::ContinueOperation),
+                    ));
+                    rows.push((
+                        "Abort current Git operation".into(),
+                        Choice::Action(Action::AbortOperation),
+                    ));
+                } else if self.workspace.focus == Panel::Graph {
+                    rows.push((
+                        "Merge selected branch into current".into(),
+                        Choice::Action(Action::Merge),
+                    ));
+                    rows.push((
+                        "Rebase current onto selected branch".into(),
+                        Choice::Action(Action::Rebase),
+                    ));
+                } else {
+                    bail!("No merge/rebase/cherry-pick/revert in progress");
+                }
+                self.git_menu("Merge / rebase options".into(), rows);
+            }
+            Action::LogMenu => self.git_menu(
+                "Log options".into(),
+                vec![
+                    (
+                        "Load 500 more commits".into(),
+                        Choice::Action(Action::LoadMoreHistory),
+                    ),
+                    ("HEAD reflog".into(), Choice::Reflog),
+                    (
+                        "Toggle remote branches".into(),
+                        Choice::Action(Action::ToggleRemoteBranches),
+                    ),
+                    ("Toggle tags".into(), Choice::Action(Action::ToggleTags)),
+                ],
+            ),
+            Action::ToggleStageAll => {
+                self.workspace.load_files(&self.repo.repo)?;
+                if self.workspace.files.iter().any(|f| f.conflict) {
+                    bail!("Resolve conflicts individually with Space before staging all");
+                }
+                let action = if self.workspace.files.iter().any(|f| f.unstaged) {
+                    Action::StageAll
+                } else {
+                    Action::UnstageAll
+                };
+                self.workspace_action(&action)?;
+            }
+            Action::NextFile | Action::PrevFile if self.workspace.focus == Panel::Diff => {
+                let len = self.workspace.files.len();
+                if len > 0 {
+                    let old = self.workspace.file_state.selected().unwrap_or(0);
+                    let next = if *action == Action::NextFile {
+                        (old + 1).min(len - 1)
+                    } else {
+                        old.saturating_sub(1)
+                    };
+                    let path = self.workspace.files[next].path.clone();
+                    self.workspace.tree.closed.retain(|p| !path.starts_with(p));
+                    self.workspace.tree.state.select(None);
+                    self.workspace.file_state.select(Some(next));
+                    self.tree_sync();
+                    self.workspace.staged =
+                        self.workspace.files[next].staged && !self.workspace.files[next].unstaged;
+                }
+            }
+            Action::CollapseAll | Action::ExpandAll => {
+                if *action == Action::ExpandAll {
+                    self.workspace.tree.closed.clear();
+                } else {
+                    for file in &self.workspace.files {
+                        for parent in file
+                            .path
+                            .ancestors()
+                            .skip(1)
+                            .filter(|p| !p.as_os_str().is_empty())
+                        {
+                            self.workspace.tree.closed.insert(parent.to_path_buf());
+                        }
+                    }
+                }
+                self.tree_sync();
+            }
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
 }

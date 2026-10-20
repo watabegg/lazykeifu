@@ -55,7 +55,7 @@ def run():
             assert tui.state()['layout']['graph'][3] >= 16
             assert tui.state()['layout']['detail'][3] >= 7
             (root / 'file.txt').write_text('local edit\n')
-            tui.keys('R 2 <enter>')
+            tui.keys('2 R <enter>')
             tui.loaded()
             assert '+local edit' in tui.screen()
             assert '1 changed' in tui.screen().splitlines()[0]

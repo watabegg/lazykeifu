@@ -47,7 +47,7 @@ def run():
                     tui.keys('<esc>')
                     assert git(root, 'rev-parse', 'HEAD').stdout == original
                     # Search selects the branch in the graph; the same action works there.
-                    tui.keys('/ t o p i c <enter> ' + key)
+                    tui.keys('/ t o p i c <enter> 4 m ' + ('j ' if rebase else '') + '<enter>')
                     assert tui.state()['mode'] == 'confirm', tui.screen()
                     assert "'topic'" in tui.screen()
                     tui.keys('<enter>')
@@ -55,7 +55,7 @@ def run():
                         tui.wait(lambda: tui.state()['mode'] == 'error')
                         tui.keys('<esc> 2')
                         tui.loaded()
-                        assert f'{name.upper()}: C continue' in tui.screen(), tui.screen()
+                        assert f'{name.upper()}: m continue' in tui.screen(), tui.screen()
                         file.write_text('resolved\n')
                         tui.keys('R')
                         tui.loaded()
@@ -63,16 +63,16 @@ def run():
                         assert 'Mark file resolved' in tui.screen(), tui.screen()
                         tui.keys('<enter>')
                         tui.wait(lambda: not tui.state()['workspace_busy'])
-                        tui.keys('C')
+                        tui.keys('m <enter>')
                         assert f'Continue {name}?' in tui.screen()
                         tui.keys('<enter>')
                     tui.wait(lambda: git(root, 'rev-parse', 'HEAD').stdout != original)
                     tui.wait(lambda: tui.state()['mode'] == 'normal')
-                    assert f'{name.upper()}: C continue' not in tui.screen()
+                    assert f'{name.upper()}: m continue' not in tui.screen()
                     assert git(root, 'branch', '--show-current').stdout.strip() == 'main'
                     assert git(root, 'rev-parse', 'topic').stdout == target
                     # A stale confirmation cannot operate after another process moves the branch.
-                    tui.keys('3 g j ' + key)
+                    tui.keys('3 <home> j ' + key)
                     assert tui.state()['mode'] == 'confirm', tui.screen()
                     git(root, 'update-ref', 'refs/heads/topic', 'HEAD')
                     tui.keys('<enter>')

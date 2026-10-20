@@ -9,10 +9,10 @@ pub fn line(app: &App) -> Line<'static> {
         match slot {
             0 | 1 => &[("Enter", "open repo"), ("[ / ]", "tabs"), ("R", "refresh")],
             2 => &[
-                ("Enter", "checkout"),
-                ("M", "merge"),
-                ("r", "rebase"),
-                ("[ / ]", "tabs"),
+                ("Space", "checkout"),
+                ("Enter", "history"),
+                ("M/r", "merge/rebase"),
+                ("T", "tag"),
             ],
             _ => &[
                 ("Enter", "inspect tag"),
@@ -31,21 +31,22 @@ pub fn line(app: &App) -> Line<'static> {
             {
                 if app.workspace.commit.is_some() {
                     &[
-                        ("Enter / Space", "fold"),
-                        ("← / →", "tree"),
+                        ("Enter", "fold"),
+                        ("- / =", "fold/unfold all"),
                         ("2", "working files"),
                     ]
                 } else {
                     &[
-                        ("Enter / Space", "fold"),
-                        ("← / →", "tree"),
+                        ("Enter", "fold"),
+                        ("Space", "stage directory"),
+                        ("a", "stage/unstage all"),
                         ("c", "commit"),
-                        ("a / u", "stage all / none"),
+                        ("A", "amend"),
                     ]
                 }
             }
             Panel::Files if app.workspace.commit.is_some() => {
-                &[("Enter", "diff"), ("← / →", "tree"), ("2", "working files")]
+                &[("Enter", "diff"), ("2", "working files")]
             }
             Panel::Files => &[
                 (
@@ -58,40 +59,33 @@ pub fn line(app: &App) -> Line<'static> {
                 ),
                 ("Enter", "diff"),
                 ("c", "commit"),
+                ("A", "amend"),
                 ("d", "discard"),
-                ("e", "edit"),
-                ("← / →", "tree"),
-                ("[ / ]", "tabs"),
+                ("r", "refresh"),
             ],
             Panel::Branches => &[
-                ("Enter", "checkout"),
-                ("b", "new"),
+                ("Space", "checkout"),
+                ("Enter", "history"),
+                ("n", "new"),
+                ("R", "rename"),
+                ("T", "tag"),
                 ("d", "delete"),
-                ("M", "merge"),
-                ("r", "rebase"),
-                ("[ / ]", "tabs"),
+                ("M/r", "merge/rebase"),
             ],
             Panel::Graph => &[
                 ("Enter", "diff"),
-                ("y", "pick"),
-                ("V", "revert"),
-                ("M", "merge"),
-                ("r", "rebase"),
-                (
-                    "+",
-                    if app.history_has_more {
-                        "load more"
-                    } else {
-                        "all loaded"
-                    },
-                ),
+                ("r", "reword HEAD"),
+                ("g", "reset"),
+                ("T", "tag"),
+                ("C/V", "copy/paste"),
+                ("t", "revert"),
+                ("Ctrl-l", "log"),
             ],
             Panel::Stashes => &[
                 ("Space", "apply"),
-                ("p", "pop"),
+                ("g", "pop"),
                 ("d", "drop"),
                 ("Enter", "diff"),
-                ("s", "save"),
             ],
             Panel::CommitDetail => &[("j/k", "scroll"), ("Enter", "diff"), ("4", "graph")],
             Panel::Diff
@@ -106,13 +100,18 @@ pub fn line(app: &App) -> Line<'static> {
                             "stage hunk"
                         },
                     ),
-                    ("[ / ]", "hunk"),
-                    ("v", "side"),
-                    ("H/L", "pan"),
+                    ("h/l", "hunk"),
+                    ("Tab", "side"),
+                    ("n/N", "file"),
                     ("Esc", "close"),
                 ]
             }
-            Panel::Diff => &[("j/k", "scroll"), ("H/L", "pan"), ("Esc", "close")],
+            Panel::Diff => &[
+                ("j/k", "scroll"),
+                ("h/l", "hunk"),
+                ("n/N", "file"),
+                ("Esc", "close"),
+            ],
             Panel::Status => &[
                 ("f", "fetch"),
                 ("p", "pull"),
@@ -121,15 +120,7 @@ pub fn line(app: &App) -> Line<'static> {
             ],
         }
     };
-    let mut spans = vec![
-        Span::styled(
-            "x",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(" Git actions · "),
-    ];
+    let mut spans = Vec::new();
     for (i, (key, label)) in keys.iter().enumerate() {
         if i > 0 {
             spans.push(Span::styled(" · ", Style::default().fg(Color::DarkGray)));
