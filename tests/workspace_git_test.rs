@@ -9,6 +9,10 @@ use tempfile::TempDir;
 fn repo() -> (TempDir, Repository) {
     let temp = TempDir::new().unwrap();
     let repo = Repository::init(temp.path()).unwrap();
+    repo.config()
+        .unwrap()
+        .set_bool("core.autocrlf", false)
+        .unwrap();
     repo.config().unwrap().set_str("user.name", "Test").unwrap();
     repo.config()
         .unwrap()

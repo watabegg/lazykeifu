@@ -6,6 +6,10 @@ use tempfile::TempDir;
 fn fixture() -> (TempDir, Repository) {
     let temp = tempfile::tempdir().unwrap();
     let repo = Repository::init(temp.path()).unwrap();
+    repo.config()
+        .unwrap()
+        .set_bool("core.autocrlf", false)
+        .unwrap();
     repo.set_head("refs/heads/main").unwrap();
     let mut config = repo.config().unwrap();
     config.set_str("user.name", "Test").unwrap();
@@ -174,6 +178,10 @@ fn apply_refuses_to_overwrite_dirty_working_files() {
 fn unborn_save_fails_without_removing_files() {
     let temp = tempfile::tempdir().unwrap();
     let repo = Repository::init(temp.path()).unwrap();
+    repo.config()
+        .unwrap()
+        .set_bool("core.autocrlf", false)
+        .unwrap();
     fs::write(temp.path().join("new"), "unsaved\n").unwrap();
     assert!(stash::save(&repo, "initial").is_err());
     assert!(stash::list(&repo).unwrap().is_empty());

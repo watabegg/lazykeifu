@@ -10,6 +10,10 @@ fn original() -> String {
 fn fixture() -> (TempDir, Repository) {
     let temp = tempfile::tempdir().unwrap();
     let repo = Repository::init(temp.path()).unwrap();
+    repo.config()
+        .unwrap()
+        .set_bool("core.autocrlf", false)
+        .unwrap();
     repo.set_head("refs/heads/main").unwrap();
     fs::write(temp.path().join(FILE), original()).unwrap();
     stage(&repo);

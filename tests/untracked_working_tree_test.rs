@@ -12,6 +12,10 @@ use tempfile::TempDir;
 fn init_repo() -> (TempDir, Repository) {
     let tempdir = tempfile::tempdir().unwrap();
     let repo = Repository::init(tempdir.path()).unwrap();
+    repo.config()
+        .unwrap()
+        .set_bool("core.autocrlf", false)
+        .unwrap();
 
     fs::write(tempdir.path().join("tracked.txt"), "tracked\n").unwrap();
 
@@ -33,6 +37,10 @@ fn init_repo() -> (TempDir, Repository) {
 fn init_unborn_repo() -> (TempDir, Repository) {
     let tempdir = tempfile::tempdir().unwrap();
     let repo = Repository::init(tempdir.path()).unwrap();
+    repo.config()
+        .unwrap()
+        .set_bool("core.autocrlf", false)
+        .unwrap();
     (tempdir, repo)
 }
 

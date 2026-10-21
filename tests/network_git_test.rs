@@ -49,6 +49,11 @@ impl Fixture {
         remote.set_head("refs/heads/main").unwrap();
         let push_remote = Repository::init_bare(temp.path().join("publish.git")).unwrap();
         let local = Repository::init(temp.path().join("local")).unwrap();
+        local
+            .config()
+            .unwrap()
+            .set_bool("core.autocrlf", false)
+            .unwrap();
         local.set_head("refs/heads/main").unwrap();
         local
             .remote("team", remote.path().to_str().unwrap())
