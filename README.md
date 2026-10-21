@@ -74,7 +74,7 @@ cargo install lazykeifu --locked
 ### Using mise
 
 ```sh
-mise use -g cargo:lazykeifu@latest
+mise use -g cargo:lazykeifu@0.1.1
 ```
 
 ### Usage

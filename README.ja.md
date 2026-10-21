@@ -60,7 +60,7 @@ cargo install lazykeifu --locked
 
 mise を使用する場合:
 ```bash
-mise use -g cargo:lazykeifu@latest
+mise use -g cargo:lazykeifu@0.1.1
 ```
 
 インストール後、Git リポジトリのディレクトリへ移動して起動します。
