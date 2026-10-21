@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags: ['lazykeifu-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yaml
+    permissions:
+      contents: read
+      checks: write
+
+  build:
+    name: Binary (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+    env:
+      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+      - name: Check release tag
+        run: python scripts/package-release.py --tag "$RELEASE_TAG" --check-only
+      - name: Build locked source
+        run: cargo build --release --locked --bin lzkf --target ${{ matrix.target }}
+      - name: Smoke test and package binary
+        run: python scripts/package-release.py --tag "$RELEASE_TAG" --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v5
+        with:
+          name: lzkf-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [checks, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Verify and publish archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd dist
+          cat *.sha256 > SHA256SUMS
+          sha256sum --check SHA256SUMS
+          version="${RELEASE_TAG#lazykeifu-v}"
+          gh release create "$RELEASE_TAG" --verify-tag --draft --title "lazykeifu $version" --notes 'Prebuilt lzkf binaries for Linux, macOS, and Windows. Install Git, select the archive matching your OS and architecture, extract it, and place lzkf on PATH. SHA256SUMS and license notices are included. Plain v* tags belong to the preserved keifu history.'
+          gh release upload "$RELEASE_TAG" *.tar.gz *.zip SHA256SUMS
+          gh release edit "$RELEASE_TAG" --draft=false --latest

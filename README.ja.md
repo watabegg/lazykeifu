@@ -49,25 +49,54 @@ Files パネルで `Space` を押して対象をステージし、`c` でコミ�
 
 ## インストール
 
-パッケージ名は `lazykeifu`、起動コマンドは **`lzkf`** です。
+`lazykeifu`（実行バイナリ名: `lzkf`）のビルド済みアーカイブは、[GitHub Releases](https://github.com/watabegg/lazykeifu/releases) から入手できます。なお、本プロジェクトのリリースタグには `lazykeifu-v0.1.2` のように `lazykeifu-vVERSION` という形式が使われます。リポジトリ内に存在する `v*` 形式のタグは上流である keifu の履歴を保持したものであり、本プロジェクトのリリースを示すものではありません。
 
-lazykeifu は crates.io を通じて提供されています。ソースコードからビルドしてインストールするため、Rust/Cargo、Git、および C 言語のビルドツールチェーン（同梱される OpenSSL のビルドに必要な `make` や `Perl` を含む）が必要です。
+### ビルド済みバイナリの利用
 
-Cargo を使用する場合:
+以下の環境向けにビルド済みアーカイブが提供されています。
+
+- Linux x86_64（Ubuntu 22.04 / glibc 2.35 以降）
+- Linux aarch64（Ubuntu 24.04 / glibc 2.39 以降）
+- macOS x86_64 および aarch64（macOS 14 以降を基準）
+- Windows x86_64
+
+アーカイブ名は `lzkf-0.1.2-TARGET.tar.gz`（Windows は `.zip`）です。各アーカイブにはバイナリ本体に加え、`LICENSE`、`LICENSE.lazygit`、`THIRD_PARTY.json`、`README.md` が同梱されます。また、リリースアセットとして `SHA256SUMS` が提供されます。
+
+バイナリの実行には Git がインストールされ PATH に通っている必要がありますが、Rust や C コンパイラは不要です。ただし、Windows 環境でエディタを起動するには Git for Windows に同梱されている `sh` が PATH に通っている必要があります。macOS 向けバイナリは署名や公証が行われていない点にご留意ください。
+
+利用環境の OS とアーキテクチャに対応したアーカイブを展開し、`lzkf`（Windows では `lzkf.exe`）を PATH の通ったディレクトリに配置してください。Linux や macOS では、展開後に次のコマンドで配置できます（`~/.local/bin` が PATH に含まれていることを確認してください）。
+
+```bash
+mkdir -p ~/.local/bin
+install -m755 lzkf ~/.local/bin/lzkf
+```
+
+### ソースコードからのインストール
+
+ソースコードからビルドしてインストールする場合は、Cargo または mise を利用できます。
+
 ```bash
 cargo install lazykeifu --locked
 ```
 
-mise を使用する場合:
+または
+
 ```bash
-mise use -g cargo:lazykeifu@0.1.1
+mise use -g cargo:lazykeifu@0.1.2
 ```
 
-インストール後、Git リポジトリのディレクトリへ移動して起動します。
+ソースビルドを行うには、Rust/Cargo と Git に加え、同梱される OpenSSL のビルドに必要な make や Perl などのネイティブビルドツールが必要です。mise を利用する場合も cargo バックエンドでビルドされるため、バイナリが直接ダウンロードされるわけではありません。また、mise では公開からの経過期間ポリシーによって最新版が `latest` から除外される場合があるため、バージョンを固定して指定します。
+
+### 起動と不具合報告
+
+インストール後、操作対象の Git リポジトリへ移動して起動します。
+
 ```bash
 cd path/to/repo
 lzkf
 ```
+
+不具合が発生した場合は、[GitHub Issues](https://github.com/watabegg/lazykeifu/issues) へ報告してください。報告の際は、バージョン、OS、使用している端末（ターミナル）、再現手順を記載してください。
 
 ## 多言語対応
 

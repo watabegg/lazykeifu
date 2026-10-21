@@ -37,4 +37,4 @@ after a fix.
 - `origin` is `watabegg/lazykeifu`; `upstream` is `trasta298/keifu`.
 - Preserve upstream copyright notices and graph regression tests.
 - The crate is `lazykeifu` and the executable is `lzkf`; use `LAZYKEIFU_LOG` and the `lazykeifu` config directory.
-- Distribution uses crates.io and the mise Cargo backend. Follow `.agents/skills/release/SKILL.md`. GitHub binary release automation remains disabled in `.github/workflows/release.yaml.disabled`.
+- Distribution uses crates.io and the mise Cargo backend. Follow `.agents/skills/release/SKILL.md`. GitHub binary releases use `.github/workflows/release.yaml` and `lazykeifu-vVERSION` tags; plain `v*` tags belong to upstream keifu.

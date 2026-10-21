@@ -55,36 +55,59 @@ Press `Space` to stage files, then press `c` in the Files panel to open the comm
 
 ## Installation
 
-The package is `lazykeifu`; the command is **`lzkf`**.
+The `lazykeifu` crate provides the `lzkf` binary.
 
-lazykeifu is distributed through crates.io and builds from source.
+### Prebuilt Binaries
 
-### Requirements
+Prebuilt archives are available on [GitHub Releases](https://github.com/watabegg/lazykeifu/releases). Official releases use the tag namespace `lazykeifu-v<VERSION>` (such as `lazykeifu-v0.1.2`). Existing tags with plain `v*` prefixes are preserved upstream history from `keifu` and do not represent releases of this project.
 
-- Rust and Cargo
-- Git
-- Native C build toolchain (including `make` and `Perl` for bundled OpenSSL)
+Prebuilt archives are provided for:
+- Linux x86_64 (Ubuntu 22.04 / glibc 2.35+)
+- Linux aarch64 (Ubuntu 24.04 / glibc 2.39+)
+- macOS x86_64 and aarch64 (macOS 14+ baseline)
+- Windows x86_64
 
-### Using cargo
+Archives are named `lzkf-0.1.2-<TARGET>.tar.gz` (or `.zip` for Windows) and contain `LICENSE`, `LICENSE.lazygit`, `THIRD_PARTY.json`, and `README.md`. Checksums are provided in `SHA256SUMS` among the release assets.
 
+**Requirements and Platform Notes:**
+- Git must be installed and on your `PATH`. Prebuilt binaries do not require a Rust or C compiler.
+- **Windows:** Editor launching requires `sh` from Git for Windows to be present on your `PATH`.
+- **macOS:** Binaries are unsigned and not notarized.
+
+To install, download the archive for your architecture, extract it, and place `lzkf` (or `lzkf.exe`) on your `PATH`. For example, on Linux and macOS:
+
+```sh
+mkdir -p ~/.local/bin
+install -m755 lzkf ~/.local/bin/lzkf
+```
+
+Ensure `~/.local/bin` is in your `PATH`.
+
+### Building from Source
+
+Alternatively, install from source using Cargo or mise. Source builds require Git, Rust/Cargo, and native build tools including `make` and `Perl` (required to compile the bundled OpenSSL dependency).
+
+Via Cargo:
 ```sh
 cargo install lazykeifu --locked
 ```
 
-### Using mise
-
+Via mise (builds from source via Cargo; pin the version explicitly because age policies exclude fresh releases from `latest`):
 ```sh
-mise use -g cargo:lazykeifu@0.1.1
+mise use -g cargo:lazykeifu@0.1.2
 ```
 
 ### Usage
 
-Navigate to any Git repository and launch:
-
+Run `lzkf` inside any Git repository:
 ```sh
 cd path/to/repo
 lzkf
 ```
+
+### Reporting Issues
+
+Report bugs on [GitHub Issues](https://github.com/watabegg/lazykeifu/issues). Please include your `lzkf` version, operating system, terminal emulator, and steps to reproduce.
 
 ## Localization & Documentation
 
