@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Drive the real diff renderer, changed-file statistics and tree status indentation."""
+import os
 import runpy
 import tempfile
 from pathlib import Path
@@ -25,7 +26,7 @@ def run():
             assert '+2  -1' in screen and 'src/main.rs' in screen,screen
             assert 'diff --git' not in screen and 'index ' not in screen,screen
             assert '   2' in screen and '+    println!("working")' in screen,screen
-            evidence=Path('/home/watabegg/.cache/lazykeifu/history-ui-evidence');evidence.mkdir(exist_ok=True)
+            evidence=Path(os.environ.get('LAZYKEIFU_TEST_ARTIFACTS', str(base / 'evidence')));evidence.mkdir(parents=True, exist_ok=True)
             (evidence/'diff-after-120.txt').write_text(screen)
             for width,height in ((80,24),(54,20)):
                 screen=tui.screen(width,height)
