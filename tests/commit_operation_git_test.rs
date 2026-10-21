@@ -26,6 +26,7 @@ fn fixture() -> (TempDir, Repository, Oid) {
         ("user.name", "Test"),
         ("user.email", "test@example.invalid"),
         ("commit.gpgsign", "false"),
+        ("core.autocrlf", "false"),
         ("core.hooksPath", ".git/test-hooks"),
     ] {
         git(root, &["config", key, value]);

@@ -45,6 +45,8 @@ jobs:
             target: x86_64-pc-windows-msvc
     env:
       RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+      LIBZ_SYS_STATIC: '1'
+      RUSTFLAGS: ${{ matrix.target == 'x86_64-pc-windows-msvc' && '-C target-feature=+crt-static' || '' }}
       MACOSX_DEPLOYMENT_TARGET: '14.0'
     steps:
       - uses: actions/checkout@v5
@@ -60,7 +62,7 @@ jobs:
       - name: Check release tag
         run: python scripts/package-release.py --tag "$RELEASE_TAG" --check-only
       - name: Build locked source
-        run: cargo build --release --locked --bin lzkf --target ${{ matrix.target }}
+        run: cargo build --release --locked --features git2/vendored-libgit2 --bin lzkf --target ${{ matrix.target }}
       - name: Smoke test and package binary
         run: python scripts/package-release.py --tag "$RELEASE_TAG" --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v5

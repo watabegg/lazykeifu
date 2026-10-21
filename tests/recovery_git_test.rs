@@ -26,6 +26,7 @@ fn conflict(rebase: bool) -> (TempDir, Repository, String) {
     ok(root, &["config", "user.name", "Test"]);
     ok(root, &["config", "user.email", "test@example.invalid"]);
     ok(root, &["config", "commit.gpgsign", "false"]);
+    ok(root, &["config", "core.autocrlf", "false"]);
     ok(
         root,
         &[
