@@ -35,6 +35,10 @@ tail -30 /tmp/lazykeifu.log
 
 ## Remote control server
 
+The server accepts loopback addresses only (`127.0.0.1`, `::1`, or
+`localhost`). It has no authentication: local processes can read repository
+state and perform Git operations while it is enabled.
+
 ```bash
 lzkf --debug-listen 127.0.0.1:7167
 ```

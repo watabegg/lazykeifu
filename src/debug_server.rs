@@ -11,12 +11,12 @@
 //!   {"cmd":"state"}                             app state summary
 
 use std::io::{BufRead, BufReader, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, ToSocketAddrs};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{backend::TestBackend, Terminal};
 use serde::Deserialize;
@@ -55,10 +55,27 @@ pub struct DebugCommand {
     pub reply: Sender<Value>,
 }
 
+/// Resolve once, validate every address, then bind only the validated addresses.
+fn bind_loopback(addr: &str) -> Result<TcpListener> {
+    let addresses: Vec<_> = addr
+        .to_socket_addrs()
+        .with_context(|| format!("Invalid debug server address {addr}"))?
+        .collect();
+    ensure!(
+        !addresses.is_empty(),
+        "No addresses found for debug server {addr}"
+    );
+    ensure!(
+        addresses.iter().all(|address| address.ip().is_loopback()),
+        "Debug server must listen on a loopback address (127.0.0.1 or ::1): {addr}"
+    );
+    TcpListener::bind(addresses.as_slice())
+        .with_context(|| format!("Failed to bind debug server to {addr}"))
+}
+
 /// Bind the listener and spawn the server thread.
 pub fn spawn(addr: &str) -> Result<Receiver<DebugCommand>> {
-    let listener = TcpListener::bind(addr)
-        .with_context(|| format!("Failed to bind debug server to {addr}"))?;
+    let listener = bind_loopback(addr)?;
     let (tx, rx) = mpsc::channel::<DebugCommand>();
 
     thread::spawn(move || {
@@ -363,5 +380,44 @@ mod tests {
     fn rejects_unknown_tokens() {
         assert!(parse_key_sequence("<bogus>").is_err());
         assert!(parse_key_sequence("ab").is_err());
+    }
+}
+
+#[cfg(test)]
+mod binding_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_non_loopback_addresses_before_binding() {
+        for addr in [
+            "0.0.0.0:0",
+            "[::]:0",
+            "192.0.2.1:0",
+            "[2001:db8::1]:0",
+            "[::ffff:192.0.2.1]:0",
+        ] {
+            let error = bind_loopback(addr).unwrap_err();
+            assert!(error.to_string().contains("loopback"), "{addr}: {error}");
+        }
+    }
+
+    #[test]
+    fn permits_ipv4_loopback_and_localhost() {
+        for addr in ["127.0.0.1:0", "localhost:0"] {
+            let listener = bind_loopback(addr).unwrap();
+            assert!(listener.local_addr().unwrap().ip().is_loopback());
+        }
+    }
+
+    #[test]
+    fn permits_ipv6_loopback_when_available() {
+        if TcpListener::bind("[::1]:0").is_ok() {
+            assert!(bind_loopback("[::1]:0")
+                .unwrap()
+                .local_addr()
+                .unwrap()
+                .ip()
+                .is_loopback());
+        }
     }
 }

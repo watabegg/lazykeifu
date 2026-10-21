@@ -34,14 +34,14 @@ struct Cli {
     #[arg(long, value_name = "PATH")]
     log_file: Option<PathBuf>,
 
-    /// Listen for debug commands (NDJSON over TCP, e.g. 127.0.0.1:7167)
+    /// Listen for debug commands on loopback only (e.g. 127.0.0.1:7167)
     #[arg(long, value_name = "ADDR")]
     debug_listen: Option<String>,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let config = lazykeifu::config::Config::load();
+    let config = lazykeifu::config::Config::load()?;
     lazykeifu::i18n::init(cli.language.as_deref().unwrap_or(&config.ui.language))?;
 
     if let Some(path) = &cli.log_file {

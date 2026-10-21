@@ -322,7 +322,7 @@ impl App {
     }
 
     pub fn from_repository(repo: GitRepository) -> Result<Self> {
-        let config = Config::load();
+        let config = Config::load()?;
         let now = Instant::now();
 
         let repo_path = repo.path.clone();

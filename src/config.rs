@@ -1,6 +1,8 @@
 //! Configuration management
 
-use std::fs;
+use std::{fs, io::ErrorKind, path::Path};
+
+use anyhow::{Context, Result};
 
 use serde::Deserialize;
 
@@ -104,21 +106,24 @@ where
 }
 
 impl Config {
-    /// Load config from ~/.config/lazykeifu/config.toml
-    /// Returns default config if file doesn't exist or is invalid
-    pub fn load() -> Self {
-        let path = dirs::config_dir()
-            .map(|p| p.join("lazykeifu/config.toml"))
-            .filter(|p| p.exists());
+    /// Load config, using defaults only when the file is absent.
+    pub fn load() -> Result<Self> {
+        match dirs::config_dir() {
+            Some(dir) => Self::load_path(&dir.join("lazykeifu/config.toml")),
+            None => Ok(Self::default()),
+        }
+    }
 
-        let Some(path) = path else {
-            return Self::default();
+    fn load_path(path: &Path) -> Result<Self> {
+        let content = match fs::read_to_string(path) {
+            Ok(content) => content,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Self::default()),
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("Failed to read config {}", path.display()));
+            }
         };
-
-        fs::read_to_string(&path)
-            .ok()
-            .and_then(|content| toml::from_str(&content).ok())
-            .unwrap_or_default()
+        toml::from_str(&content).with_context(|| format!("Invalid config {}", path.display()))
     }
 }
 
@@ -132,5 +137,43 @@ mod language_tests {
         let config: Config = toml::from_str("[ui]\nlanguage = 'zh-TW'\n").unwrap();
         assert_eq!(config.ui.language, "zh-TW");
         assert!(matches!(config.ui.file_view, FileView::Fullscreen));
+    }
+}
+
+#[cfg(test)]
+mod loading_tests {
+    use super::*;
+
+    #[test]
+    fn absent_config_uses_defaults_but_valid_config_preserves_preferences() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        assert!(Config::load_path(&path).unwrap().refresh.auto_fetch);
+        fs::write(&path, "[refresh]\nauto_fetch=false\n").unwrap();
+        assert!(!Config::load_path(&path).unwrap().refresh.auto_fetch);
+    }
+
+    #[test]
+    fn invalid_config_reports_path_and_cause_instead_of_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        for content in [
+            "[refresh",
+            "[refresh]\nauto_fetch=false\nfetch_interval='broken'",
+            "\0",
+        ] {
+            fs::write(&path, content).unwrap();
+            let error = Config::load_path(&path).unwrap_err();
+            assert!(error.to_string().contains(&path.display().to_string()));
+            assert!(error.chain().count() > 1);
+        }
+    }
+
+    #[test]
+    fn unreadable_config_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let error = Config::load_path(dir.path()).unwrap_err();
+        assert!(error.to_string().contains("Failed to read config"));
+        assert!(error.chain().count() > 1);
     }
 }
