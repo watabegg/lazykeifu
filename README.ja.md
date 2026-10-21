@@ -49,7 +49,7 @@ Files パネルで `Space` を押して対象をステージし、`c` でコミ�
 
 ## インストール
 
-`lazykeifu`（実行バイナリ名: `lzkf`）のビルド済みアーカイブは、[GitHub Releases](https://github.com/watabegg/lazykeifu/releases) から入手できます。なお、本プロジェクトのリリースタグには `lazykeifu-v0.1.3` のように `lazykeifu-vVERSION` という形式が使われます。リポジトリ内に存在する `v*` 形式のタグは上流である keifu の履歴を保持したものであり、本プロジェクトのリリースを示すものではありません。
+`lazykeifu`（実行バイナリ名: `lzkf`）のビルド済みアーカイブは、[GitHub Releases](https://github.com/watabegg/lazykeifu/releases) から入手できます。なお、本プロジェクトのリリースタグには `lazykeifu-v0.1.4` のように `lazykeifu-vVERSION` という形式が使われます。リポジトリ内に存在する `v*` 形式のタグは上流である keifu の履歴を保持したものであり、本プロジェクトのリリースを示すものではありません。
 
 ### ビルド済みバイナリの利用
 
@@ -60,7 +60,7 @@ Files パネルで `Space` を押して対象をステージし、`c` でコミ�
 - macOS x86_64 および aarch64（macOS 14 以降を基準）
 - Windows x86_64
 
-アーカイブ名は `lzkf-0.1.3-TARGET.tar.gz`（Windows は `.zip`）です。各アーカイブにはバイナリ本体に加え、`LICENSE`、`LICENSE.lazygit`、`THIRD_PARTY.json`、`README.md` が同梱されます。また、リリースアセットとして `SHA256SUMS` が提供されます。
+アーカイブ名は `lzkf-0.1.4-TARGET.tar.gz`（Windows は `.zip`）です。各アーカイブにはバイナリ本体に加え、`LICENSE`、`LICENSE.lazygit`、`THIRD_PARTY.json`、`README.md` が同梱されます。また、リリースアセットとして `SHA256SUMS` が提供されます。
 
 バイナリの実行には Git がインストールされ PATH に通っている必要がありますが、Rust や C コンパイラは不要です。ただし、Windows 環境でエディタを起動するには Git for Windows に同梱されている `sh` が PATH に通っている必要があります。macOS 向けバイナリは署名や公証が行われていない点にご留意ください。
 
@@ -82,7 +82,7 @@ cargo install lazykeifu --locked
 または
 
 ```bash
-mise use -g cargo:lazykeifu@0.1.3
+mise use -g cargo:lazykeifu@0.1.4
 ```
 
 ソースビルドを行うには、Rust/Cargo と Git に加え、同梱される OpenSSL のビルドに必要な make や Perl などのネイティブビルドツールが必要です。mise を利用する場合も cargo バックエンドでビルドされるため、バイナリが直接ダウンロードされるわけではありません。また、mise では公開からの経過期間ポリシーによって最新版が `latest` から除外される場合があるため、バージョンを固定して指定します。
