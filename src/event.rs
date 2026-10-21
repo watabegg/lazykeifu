@@ -78,7 +78,7 @@ impl EventReader {
         let stop = Arc::new(AtomicBool::new(false));
         let reader_stop = Arc::clone(&stop);
         let reader_thread = thread::Builder::new()
-            .name("pedigit-input".to_string())
+            .name("lazykeifu-input".to_string())
             .spawn(move || {
                 let mut scroll = ScrollNormalizer::default();
                 while !reader_stop.load(Ordering::Acquire) {

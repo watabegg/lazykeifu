@@ -13,5 +13,5 @@ translation keys. Arguments are interpolated once, without translating their tex
 Common terminology and matching translations are based on
 [Lazygit](https://github.com/jesseduffield/lazygit/tree/4e1eebe278790f257a875da6633234391a5a85b3/pkg/i18n),
 under the retained [MIT license](LICENSE.lazygit). Other translations cover
-pedigit's own UI and operation messages. The language set matches that upstream
+lazykeifu's own UI and operation messages. The language set matches that upstream
 revision; it is not fetched at runtime.

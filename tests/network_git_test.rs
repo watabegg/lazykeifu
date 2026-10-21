@@ -1,5 +1,5 @@
 use git2::{Repository, Signature};
-use pedigit::git::operations::{fetch_configured, pull_branch, push_branch};
+use lazykeifu::git::operations::{fetch_configured, pull_branch, push_branch};
 use std::{fs, path::Path, process::Command};
 use tempfile::TempDir;
 

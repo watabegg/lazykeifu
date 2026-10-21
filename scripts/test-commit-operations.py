@@ -8,11 +8,11 @@ Tui, git, init = (w[name] for name in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-commit-ops-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-commit-ops-') as temp:
         base = Path(temp)
         config = base / 'config'
-        (config / 'pedigit').mkdir(parents=True)
-        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'lazykeifu').mkdir(parents=True)
+        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         for revert in (False, True):
             for outcome in ('clean', 'continue', 'abort'):
                 root = base / f'repo-{revert}-{outcome}'

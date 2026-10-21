@@ -9,7 +9,7 @@ Tui, git, init = (w[name] for name in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-layout-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-layout-') as temp:
         base = Path(temp)
         root = base / 'project'
         root.mkdir()
@@ -20,8 +20,8 @@ def run():
             git(root, 'commit', '-m', f'Change {i:02}: graph remains the main view')
         git(root, 'branch', 'feature/long-branch-with-a-useful-description')
         config = base / 'config'
-        (config / 'pedigit').mkdir(parents=True)
-        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'lazykeifu').mkdir(parents=True)
+        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             tui.loaded()
@@ -67,8 +67,8 @@ def run():
             for width, height in ((180, 40), (120, 32), (80, 24), (54, 20)):
                 screen = tui.screen(width, height)
                 assert '4 Graph' in screen and '0 Diff' in screen, screen
-                if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
-                    dest = Path(os.environ['PEDIGIT_TEST_ARTIFACTS'])
+                if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
+                    dest = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
                     dest.mkdir(parents=True, exist_ok=True)
                     (dest / f'layout-diff-{width}.txt').write_text(screen)
             assert 'Terminal too small' in tui.screen(20, 6)
@@ -89,7 +89,7 @@ def run():
             tui.keys('4')
             final = tui.screen()
             assert '0 Diff' not in final
-            if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
+            if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
                 (dest / 'layout-graph.txt').write_text(final)
                 (dest / 'layout-clean.txt').write_text(closed)
         finally:

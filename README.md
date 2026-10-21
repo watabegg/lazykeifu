@@ -1,15 +1,15 @@
-# pedigit
+# lazykeifu
 
-[![Crates.io](https://img.shields.io/crates/v/pedigit.svg)](https://crates.io/crates/pedigit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/watabegg/pedigit/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/lazykeifu.svg)](https://crates.io/crates/lazykeifu)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/watabegg/lazykeifu/blob/main/LICENSE)
 
-[日本語の README](https://github.com/watabegg/pedigit/blob/main/README.ja.md)
+[日本語の README](https://github.com/watabegg/lazykeifu/blob/main/README.ja.md)
 
-**pedigit** (pedigree + git) is a Git terminal user interface (TUI) written in Rust. It combines the commit graph visualization foundation of [keifu](https://github.com/trasta298/keifu) with keyboard-driven workflows inspired by [lazygit](https://github.com/jesseduffield/lazygit).
+**lazykeifu** is a Git terminal user interface (TUI) written in Rust. It combines the commit graph visualization foundation of [keifu](https://github.com/trasta298/keifu) with keyboard-driven workflows inspired by [lazygit](https://github.com/jesseduffield/lazygit).
 
-pedigit keeps the Git commit graph visible while you work, opening diff views only on demand. It is an independent project built upon keifu rather than a complete lazygit replacement.
+lazykeifu keeps the Git commit graph visible while you work, opening diff views only on demand. It is an independent project built upon keifu rather than a complete lazygit replacement.
 
-![pedigit overview](https://raw.githubusercontent.com/watabegg/pedigit/main/docs/demo/overview.png)
+![lazykeifu overview](https://raw.githubusercontent.com/watabegg/lazykeifu/main/docs/demo/overview.png)
 *Real application session with a synthetic trail repository.*
 
 ## Features
@@ -21,16 +21,16 @@ pedigit keeps the Git commit graph visible while you work, opening diff views on
 
 Press `Enter` in the Files panel to open the diff view, and press `Esc` to close it.
 
-![pedigit diff](https://raw.githubusercontent.com/watabegg/pedigit/main/docs/demo/diff.png)
+![lazykeifu diff](https://raw.githubusercontent.com/watabegg/lazykeifu/main/docs/demo/diff.png)
 
 - Syntax highlighting, line numbers, and word-level change indicators.
 - Stage whole files or stage modified UTF-8 text hunks directly from the diff.
 
 ### Side-by-Side Commit Dialog
 
-Press `Space` to stage files, then press `c` in the Files panel to open the commit dialog. If no files are staged, pedigit prompts for confirmation to stage all changes first.
+Press `Space` to stage files, then press `c` in the Files panel to open the commit dialog. If no files are staged, lazykeifu prompts for confirmation to stage all changes first.
 
-![pedigit commit](https://raw.githubusercontent.com/watabegg/pedigit/main/docs/demo/commit.png)
+![lazykeifu commit](https://raw.githubusercontent.com/watabegg/lazykeifu/main/docs/demo/commit.png)
 
 - Inspect staged files and their diff side-by-side with your commit message editor.
 - Press `Tab` to navigate between fields and the file list.
@@ -55,7 +55,9 @@ Press `Space` to stage files, then press `c` in the Files panel to open the comm
 
 ## Installation
 
-pedigit is distributed through crates.io and builds from source.
+The package is `lazykeifu`; the command is **`lzkf`**.
+
+lazykeifu is distributed through crates.io and builds from source.
 
 ### Requirements
 
@@ -66,13 +68,13 @@ pedigit is distributed through crates.io and builds from source.
 ### Using cargo
 
 ```sh
-cargo install pedigit --locked
+cargo install lazykeifu --locked
 ```
 
 ### Using mise
 
 ```sh
-mise use -g cargo:pedigit@latest
+mise use -g cargo:lazykeifu@latest
 ```
 
 ### Usage
@@ -81,22 +83,22 @@ Navigate to any Git repository and launch:
 
 ```sh
 cd path/to/repo
-pedigit
+lzkf
 ```
 
 ## Localization & Documentation
 
-pedigit supports 9 UI languages and automatically detects your terminal locale. You can also specify a language manually:
+lazykeifu supports 9 UI languages and automatically detects your terminal locale. You can also specify a language manually:
 
 ```sh
-pedigit --language ja
+lzkf --language ja
 ```
 
-- [Configuration Documentation](https://github.com/watabegg/pedigit/blob/main/docs/configuration.md)
-- [Usage Guide (Japanese)](https://github.com/watabegg/pedigit/blob/main/docs/usage.md)
+- [Configuration Documentation](https://github.com/watabegg/lazykeifu/blob/main/docs/configuration.md)
+- [Usage Guide (Japanese)](https://github.com/watabegg/lazykeifu/blob/main/docs/usage.md)
 
 ## Credits & License
 
-Distributed under the [MIT License](https://github.com/watabegg/pedigit/blob/main/LICENSE).
+Distributed under the [MIT License](https://github.com/watabegg/lazykeifu/blob/main/LICENSE).
 
-pedigit builds upon the graph foundation and initial codebase of [keifu](https://github.com/trasta298/keifu). Interaction workflows are inspired by [lazygit](https://github.com/jesseduffield/lazygit), and UI translations reuse its translations. Original copyright notices are preserved; localized translations follow the [lazygit translation license](https://github.com/watabegg/pedigit/blob/main/locales/LICENSE.lazygit).
+lazykeifu builds upon the graph foundation and initial codebase of [keifu](https://github.com/trasta298/keifu). Interaction workflows are inspired by [lazygit](https://github.com/jesseduffield/lazygit), and UI translations reuse its translations. Original copyright notices are preserved; localized translations follow the [lazygit translation license](https://github.com/watabegg/lazykeifu/blob/main/locales/LICENSE.lazygit).

@@ -7,14 +7,14 @@ w=runpy.run_path(str(Path(__file__).with_name('test-workspace.py')))
 Tui,git,init=(w[n] for n in ('Tui','git','init'))
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-diff-polish-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-diff-polish-') as temp:
         base=Path(temp);root=base/'repo';root.mkdir();init(root);(root/'src').mkdir()
         file=root/'src/main.rs';file.write_text('fn main() {\n    println!("old");\n}\n')
         git(root,'add','.');git(root,'commit','-m','base')
         file.write_text('fn main() {\n    println!("new");\n}\n');git(root,'commit','-am','change greeting')
         file.write_text('fn main() {\n    println!("working");\n    println!("extra");\n}\n')
-        config=base/'config';(config/'pedigit').mkdir(parents=True)
-        (config/'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        config=base/'config';(config/'lazykeifu').mkdir(parents=True)
+        (config/'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui=Tui(root,config)
         try:
             tui.loaded();screen=tui.screen()
@@ -25,7 +25,7 @@ def run():
             assert '+2  -1' in screen and 'src/main.rs' in screen,screen
             assert 'diff --git' not in screen and 'index ' not in screen,screen
             assert '   2' in screen and '+    println!("working")' in screen,screen
-            evidence=Path('/home/watabegg/.cache/pedigit/history-ui-evidence');evidence.mkdir(exist_ok=True)
+            evidence=Path('/home/watabegg/.cache/lazykeifu/history-ui-evidence');evidence.mkdir(exist_ok=True)
             (evidence/'diff-after-120.txt').write_text(screen)
             for width,height in ((80,24),(54,20)):
                 screen=tui.screen(width,height)

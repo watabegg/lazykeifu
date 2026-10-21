@@ -9,7 +9,7 @@ Tui, git, init = (w[n] for n in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-polish-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-polish-') as temp:
         base = Path(temp)
         root = base / 'project'
         root.mkdir()
@@ -18,8 +18,8 @@ def run():
         git(root, 'add', '.')
         git(root, 'commit', '-m', 'base')
         config = base / 'config'
-        (config / 'pedigit').mkdir(parents=True)
-        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'lazykeifu').mkdir(parents=True)
+        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             tui.loaded()
@@ -68,8 +68,8 @@ def run():
             tui.keys(' '.join(['j'] * 180))
             assert 'Conflicted file' in tui.screen()
             tui.keys('<esc> 2')
-            if os.environ.get('PEDIGIT_TEST_ARTIFACTS'):
-                dest = Path(os.environ['PEDIGIT_TEST_ARTIFACTS'])
+            if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
+                dest = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
                 dest.mkdir(parents=True, exist_ok=True)
                 (dest / 'help-wide.txt').write_text(help_wide)
                 (dest / 'help-narrow.txt').write_text(help_narrow)

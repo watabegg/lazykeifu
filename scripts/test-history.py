@@ -9,7 +9,7 @@ Tui, git, init = (w[name] for name in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-history-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-history-') as temp:
         base = Path(temp)
         root = base / 'repo'
         root.mkdir()
@@ -17,8 +17,8 @@ def run():
         stream = ''.join(f'commit refs/heads/main\ncommitter Test <test@example.invalid> {1700000000+i} +0000\ndata {len(str(i))}\n{i}\n\n' for i in range(1051))
         subprocess.run(['git', 'fast-import', '--quiet'], cwd=root, input=stream, text=True, check=True)
         config = base / 'config'
-        (config / 'pedigit').mkdir(parents=True)
-        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'lazykeifu').mkdir(parents=True)
+        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             tui.loaded()

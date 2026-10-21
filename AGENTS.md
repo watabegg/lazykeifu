@@ -1,6 +1,6 @@
-# pedigit development notes
+# lazykeifu development notes
 
-pedigit is a Rust TUI (ratatui + crossterm) that visualizes Git commit graphs.
+lazykeifu is a Rust TUI (ratatui + crossterm) that visualizes Git commit graphs.
 
 ## Build / test
 
@@ -13,7 +13,7 @@ cargo fmt --check
 
 ## Debugging the TUI yourself
 
-pedigit has a remote-control debug server (`--debug-listen`), so you can drive
+lazykeifu has a remote-control debug server (`--debug-listen`), so you can drive
 the real app and see its screen without a human. Use the **debug-tui** skill
 (`.claude/skills/debug-tui/SKILL.md`) for the full workflow and its gotchas;
 the wire protocol is documented in docs/debugging.md. Always reproduce
@@ -34,7 +34,7 @@ after a fix.
 ## Fork development
 
 - Read `docs/development-plan.md` before non-trivial implementation.
-- `origin` is `watabegg/pedigit`; `upstream` is `trasta298/keifu`.
+- `origin` is `watabegg/lazykeifu`; `upstream` is `trasta298/keifu`.
 - Preserve upstream copyright notices and graph regression tests.
-- The executable/crate is `pedigit`; use `PEDIGIT_LOG` and the `pedigit` config directory.
+- The crate is `lazykeifu` and the executable is `lzkf`; use `LAZYKEIFU_LOG` and the `lazykeifu` config directory.
 - Distribution uses crates.io and the mise Cargo backend. Follow `.agents/skills/release/SKILL.md`. GitHub binary release automation remains disabled in `.github/workflows/release.yaml.disabled`.

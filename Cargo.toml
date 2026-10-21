@@ -1,15 +1,19 @@
 [package]
-name = "pedigit"
+name = "lazykeifu"
 version = "0.1.0"
 edition = "2021"
 description = "A graph-first Git TUI with lazygit-inspired workflows"
 license = "MIT"
 authors = ["trasta298", "watabegg"]
-repository = "https://github.com/watabegg/pedigit"
+repository = "https://github.com/watabegg/lazykeifu"
 include = ["src/**", "locales/**", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE"]
 readme = "README.md"
 keywords = ["git", "tui", "cli", "graph", "visualization"]
 categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "lzkf"
+path = "src/main.rs"
 
 [dependencies]
 # TUI

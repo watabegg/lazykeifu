@@ -8,7 +8,7 @@ Tui, git, init = (w[n] for n in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-tree-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-tree-') as temp:
         base = Path(temp); root = base / 'project'; root.mkdir(); init(root)
         for name in ('src/a', 'src/nested/b', 'z'):
             path = root / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_text('base\n')
@@ -16,8 +16,8 @@ def run():
         for name in ('src/a', 'src/nested/b', 'z'):
             (root / name).write_text('changed-' + name + '\n')
         (root / 'new').write_text('untracked\n')
-        config = base / 'config'; (config / 'pedigit').mkdir(parents=True)
-        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        config = base / 'config'; (config / 'lazykeifu').mkdir(parents=True)
+        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             tui.keys('2 <home> j'); tui.loaded()

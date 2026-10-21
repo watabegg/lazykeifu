@@ -1,6 +1,6 @@
-# pedigit 開発計画書
+# lazykeifu 開発計画書
 
-> 正式名称は **pedigit** に決定しました。以下の初期計画にある `lazykeifu` は当時の仮称です。現在の実行名・設定は[README](../README.md)を参照してください。
+> 正式名称は **lazykeifu** に決定しました。以下の初期計画にある `lazykeifu` は当時の仮称です。現在の実行名・設定は[README](../README.md)を参照してください。
 
 > M0は完了しています。M1の初回実装と現時点の制約は[workspace-m1.md](workspace-m1.md)を参照してください。M2はfetch／pull／pushのGit設定対応とstashの保存・apply／pop／dropまで実装済みです。確認付きの未stage変更破棄と、変更済みUTF-8通常ファイルのhunk単位stage／unstageも実装済みです。外部エディタへの切り替え、競合ファイルの確認付きstage、merge／rebaseのcontinue・abortも実装済みです。Branches／Graphからの確認付きmerge・rebase開始もGit CLI経由で実装済みです。単一コミットのcherry-pick／revertと続行・中止、500件単位の履歴追加読み込みも実装済みです。以下は初期化時に定めた計画です。
 

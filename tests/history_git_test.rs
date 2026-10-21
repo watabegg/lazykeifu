@@ -1,5 +1,5 @@
 use git2::{Oid, Repository};
-use pedigit::git::history::{self, Rename, Reset, ResetMode, Snapshot};
+use lazykeifu::git::history::{self, Rename, Reset, ResetMode, Snapshot};
 use std::{fs, process::Command};
 fn git(repo: &Repository, args: &[&str]) -> String {
     let o = Command::new("git")

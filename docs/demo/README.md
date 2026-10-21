@@ -1,6 +1,6 @@
 # README screenshots
 
-Real pedigit PTY output, replayed in xterm.js and captured with Chrome. The `trail` repository and Mina's commits are synthetic. The capture script drives the debug server and asserts the screen contents before rendering.
+Real lazykeifu PTY output, replayed in xterm.js and captured with Chrome. The `trail` repository and Mina's commits are synthetic. The capture script drives the debug server and asserts the screen contents before rendering.
 
 Adapted from keifu's [capture tools](../screenshots/README.md); the original screenshots remain there for the archived upstream README.
 

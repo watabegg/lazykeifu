@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture the real pedigit TUI against a disposable Git repository (Linux/macOS)."""
+"""Capture the real lazykeifu TUI against a disposable Git repository (Linux/macOS)."""
 
 import argparse
 import fcntl
@@ -118,7 +118,7 @@ class Capture:
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             self.port = probe.getsockname()[1]
-        config = root / "config" / "pedigit"
+        config = root / "config" / "lazykeifu"
         config.mkdir(parents=True, exist_ok=True)
         (config / "config.toml").write_text("[refresh]\nauto_refresh = false\nauto_fetch = false\n")
         env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", TZ="UTC",
@@ -141,7 +141,7 @@ class Capture:
                 time.sleep(0.05)
         else:
             self.close()
-            raise RuntimeError("pedigit debug server did not start")
+            raise RuntimeError("lazykeifu debug server did not start")
 
     def read(self):
         try:
@@ -193,14 +193,14 @@ class Capture:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=Path("target/debug/pedigit"))
+    parser.add_argument("--binary", type=Path, default=Path("target/debug/lzkf"))
     parser.add_argument("--node-modules", type=Path, required=True)
     parser.add_argument("--chrome", type=Path, required=True)
     parser.add_argument("--font-dir", type=Path, required=True,
                         help="directory containing Moralerspace Argon Regular/Bold and NotoColorEmoji.ttf")
     parser.add_argument("--output", type=Path, default=Path(__file__).parent)
     args = parser.parse_args()
-    root = Path(tempfile.mkdtemp(prefix="pedigit-screenshots-"))
+    root = Path(tempfile.mkdtemp(prefix="lazykeifu-screenshots-"))
     repo = create_demo(root)
     shots = []
     # Uncommitted work: a mix of modified, removed, and new files.

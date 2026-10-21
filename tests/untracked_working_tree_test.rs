@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use git2::{Repository, Signature};
-use pedigit::git::{CommitDiffInfo, FileChangeKind, GitRepository};
+use lazykeifu::git::{CommitDiffInfo, FileChangeKind, GitRepository};
 use tempfile::TempDir;
 
 fn init_repo() -> (TempDir, Repository) {

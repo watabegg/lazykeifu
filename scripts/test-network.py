@@ -9,7 +9,7 @@ Tui, git, init = (workspace[name] for name in ('Tui', 'git', 'init'))
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-network-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-network-') as temp:
         base = Path(temp)
         root = base / 'local'
         root.mkdir()
@@ -29,8 +29,8 @@ def run():
             git(repo, 'config', 'commit.gpgsign', 'false')
             git(repo, 'config', 'pull.ff', 'only')
         config = base / 'config'
-        (config / 'pedigit').mkdir(parents=True)
-        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'lazykeifu').mkdir(parents=True)
+        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         tui = Tui(root, config)
         try:
             assert 'main' in tui.screen()

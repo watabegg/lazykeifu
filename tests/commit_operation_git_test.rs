@@ -1,5 +1,5 @@
 use git2::{Oid, Repository};
-use pedigit::git::{
+use lazykeifu::git::{
     commit_operation::CommitOperation,
     recovery::{Kind, Operation, Resolution},
 };

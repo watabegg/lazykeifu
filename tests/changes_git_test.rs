@@ -1,5 +1,5 @@
 use git2::{Repository, Signature};
-use pedigit::git::changes;
+use lazykeifu::git::changes;
 use std::{fs, path::Path};
 use tempfile::TempDir;
 

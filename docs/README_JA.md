@@ -1,4 +1,4 @@
-> この文書はkeifu由来の操作マニュアルです。pedigitの実行名・設定・開発状況は[ルートREADME](../README.md)を参照してください。
+> この文書はkeifu由来の操作マニュアルです。lazykeifuの実行名・設定・開発状況は[ルートREADME](../README.md)を参照してください。
 
 # 🧬 keifu
 

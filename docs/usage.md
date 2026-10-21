@@ -1,4 +1,4 @@
-# pedigit 操作ガイド
+# lazykeifu 操作ガイド
 
 [README](../README.md) / [設定](configuration.md)
 
@@ -8,9 +8,9 @@
 
 ファイル状態はGitの2列表示です。左がstage済み、右が未stageです。`M`変更（黄）、`A`追加（緑）、`D`削除（赤）、`R`rename（水色）、`??`未追跡（紫）、`UU`などの競合（明るい赤）で種類を区別します。部分stageは`MM`のように両方を表示します。
 
-設定はOSの設定ディレクトリ内の `pedigit/config.toml`（Linuxでは通常 `~/.config/pedigit/config.toml`）、ログレベルは `PEDIGIT_LOG` を使用します。既存のkeifuの設定は読みません。現在の既定動作では60秒ごとにGit設定に従ってfetchします。変更方法は設定ドキュメントを参照してください。
+設定はOSの設定ディレクトリ内の `lazykeifu/config.toml`（Linuxでは通常 `~/.config/lazykeifu/config.toml`）、ログレベルは `LAZYKEIFU_LOG` を使用します。既存のkeifuの設定は読みません。現在の既定動作では60秒ごとにGit設定に従ってfetchします。変更方法は設定ドキュメントを参照してください。
 
-UIはlazygitと同じ9言語に対応します。`[ui]`の`language = "ja"`、または`pedigit --language ja`で日本語にできます。既定の`auto`は端末の言語設定を使います。
+UIはlazygitと同じ9言語に対応します。`[ui]`の`language = "ja"`、または`lzkf --language ja`で日本語にできます。既定の`auto`は端末の言語設定を使います。
 
 ```sh
 cargo fmt --check

@@ -30,11 +30,11 @@ def conflict(root, rebase):
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-recovery-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-recovery-') as temp:
         base = Path(temp)
         config = base / 'config'
-        (config / 'pedigit').mkdir(parents=True)
-        (config / 'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        (config / 'lazykeifu').mkdir(parents=True)
+        (config / 'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         editor = base / 'fake editor.py'
         ready = base / 'editor-ready'
         used = base / 'commit-editor-used'

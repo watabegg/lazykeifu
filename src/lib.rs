@@ -1,4 +1,4 @@
-//! pedigit library
+//! lazykeifu library
 
 pub mod action;
 pub mod app;

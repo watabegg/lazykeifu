@@ -1,6 +1,6 @@
 # Configuration
 
-pedigit can be configured via `~/.config/pedigit/config.toml`. All settings are optional.
+lazykeifu can be configured via `~/.config/lazykeifu/config.toml`. All settings are optional.
 
 ## Language
 
@@ -23,7 +23,7 @@ identical in every language.
 
 ## Auto-refresh
 
-By default, pedigit automatically refreshes the commit graph every 10 seconds and fetches using Git remote configuration every 60 seconds.
+By default, lazykeifu automatically refreshes the commit graph every 10 seconds and fetches using Git remote configuration every 60 seconds.
 
 ```toml
 [refresh]
@@ -42,7 +42,7 @@ fetch_interval = 60
 
 ## Graph display
 
-By default, pedigit shows remote branches and commits that are reachable only from
+By default, lazykeifu shows remote branches and commits that are reachable only from
 remote branches. You can hide them by default:
 
 ```toml
@@ -53,7 +53,7 @@ show_remote_branches = false
 
 Press `o` in the TUI to toggle remote branches for the current session.
 
-By default, pedigit shows tag labels on commits. You can hide them by default:
+By default, lazykeifu shows tag labels on commits. You can hide them by default:
 
 ```toml
 [graph]

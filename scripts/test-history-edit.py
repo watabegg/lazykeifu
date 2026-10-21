@@ -13,14 +13,14 @@ def choose(tui,label):
     tui.keys('<home> '+'j '*i+'<enter>')
 
 def run():
-    with tempfile.TemporaryDirectory(prefix='pedigit-history-edit-') as temp:
+    with tempfile.TemporaryDirectory(prefix='lazykeifu-history-edit-') as temp:
         base=Path(temp);root=base/'repo';root.mkdir();hooks=init(root)
         file=root/'file';file.write_text('base\n');git(root,'add','.');git(root,'commit','-m','base')
         parent=git(root,'rev-parse','HEAD').stdout.strip()
         file.write_text('second\n');git(root,'add','.');git(root,'commit','-m','second')
         original=git(root,'rev-parse','HEAD').stdout.strip()
-        config=base/'config';(config/'pedigit').mkdir(parents=True)
-        (config/'pedigit/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
+        config=base/'config';(config/'lazykeifu').mkdir(parents=True)
+        (config/'lazykeifu/config.toml').write_text('[refresh]\nauto_fetch=false\nauto_refresh=false\n')
         file.write_text('staged\n');git(root,'add','file');file.write_text('unstaged\n')
         tui=Tui(root,config)
         try:
