@@ -38,8 +38,8 @@ def run():
             git(peer, 'commit', '-am', 'remote-update')
             git(peer, 'push')
             old = git(root, 'rev-parse', 'HEAD').stdout
-            tui.keys('p')
-            assert 'Pull' in tui.screen() and 'Git configuration?' in tui.screen()
+            tui.keys('4 <end> p')
+            assert "Pull current branch 'main'?" in tui.screen()
             tui.keys('<esc>')
             assert git(root, 'rev-parse', 'HEAD').stdout == old
             tui.keys('p <enter>')
@@ -54,8 +54,8 @@ def run():
             hook = root / '.git' / 'test-hooks' / 'pre-push'
             hook.write_text('#!/bin/sh\nsleep 1\n')
             hook.chmod(0o755)
-            tui.keys('R P')
-            assert 'Push' in tui.screen() and 'Git configuration?' in tui.screen()
+            tui.keys('2 R 4 <end> P')
+            assert "Push current branch 'main'?" in tui.screen()
             tui.keys('<enter>')
             tui.wait(lambda: tui.state()['is_pushing'])
             tui.keys('b c p')
@@ -72,7 +72,7 @@ def run():
             git(root, 'commit', '-am', 'conflicting-local')
             git(root, 'config', 'pull.ff', 'true')
             git(root, 'config', 'pull.rebase', 'false')
-            tui.keys('R p <enter>')
+            tui.keys('2 R 4 p <enter>')
             tui.wait(lambda: not tui.state()['workspace_busy'])
             assert tui.state()['mode'] == 'error'
             assert 'CONFLICT' in tui.screen()

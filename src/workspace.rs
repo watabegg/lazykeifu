@@ -545,7 +545,7 @@ impl App {
         let (tx, rx) = mpsc::channel();
         self.workspace.job = Some(rx);
         let path = self.repo_path.clone();
-        self.set_message(crate::tr!("Pulling using Git configuration…"));
+        self.set_message(crate::tr!("Pulling…"));
         thread::spawn(move || {
             let result = Repository::open(path)
                 .map_err(anyhow::Error::from)

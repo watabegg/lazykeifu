@@ -96,6 +96,14 @@ def run():
                     assert screen.strip(), screen
                 tui.keys('<esc>')
                 assert tui.state()['mode'] == 'normal'
+                # Graph sync targets the checked-out branch, in every language.
+                for key, message in [('p', "Pull current branch '{branch}'?"),
+                                     ('P', "Push current branch '{branch}'?")]:
+                    tui.keys('4 <end> ' + key)
+                    assert tui.state()['mode'] == 'confirm', render(tui)
+                    expected = catalog[message].replace('{branch}', 'main')
+                    assert expected in render(tui), render(tui)
+                    tui.keys('<esc>')
                 # Stage through keyboard, then inspect localized commit composer.
                 tui.keys('2 <space> c')
                 tui.loaded()

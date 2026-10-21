@@ -102,8 +102,8 @@ pub fn map_key_to_action(key: KeyEvent, app: &crate::app::App) -> Option<Action>
         (Panel::Graph, KeyCode::Char('V')) => Some(Action::PasteCommit),
         (Panel::Graph, KeyCode::Char(' ')) => Some(Action::CheckoutRevision),
         (Panel::Graph, KeyCode::Char('n')) => Some(Action::CreateBranch),
-        // These have other meanings in Lazygit; never refresh/rebase/pull instead.
-        (Panel::Graph, KeyCode::Char('R' | 'p' | 'y')) => None,
+        // These have other meanings in Lazygit; do not map them to global actions.
+        (Panel::Graph, KeyCode::Char('R' | 'y')) => None,
         (Panel::Stashes, KeyCode::Char('g')) => Some(Action::StashPop),
         (Panel::Stashes, KeyCode::Char('d')) => Some(Action::DeleteBranch),
         (Panel::Diff, KeyCode::Left | KeyCode::Char('h')) => Some(Action::PrevHunk),

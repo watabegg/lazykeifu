@@ -908,10 +908,7 @@ impl App {
     fn start_push(&mut self, branch: String) {
         let (tx, rx) = mpsc::channel();
         let repo_path = self.repo_path.clone();
-        let message = crate::trf!(
-            "Pushing '{branch}' using Git configuration...",
-            branch = branch
-        );
+        let message = crate::trf!("Pushing '{branch}'…", branch = branch);
 
         thread::spawn(move || {
             let result = push_branch(&repo_path, &branch).map_err(|e| e.to_string());
@@ -981,7 +978,7 @@ impl App {
         self.fetch_receiver = Some(rx);
         self.fetch_silent = silent;
         if show_message {
-            self.set_message(crate::tr!("Fetching using Git configuration..."));
+            self.set_message(crate::tr!("Fetching…"));
         }
     }
 
@@ -1435,9 +1432,9 @@ impl App {
                     let push = action == Action::Push;
                     self.mode = AppMode::Confirm {
                         message: if push {
-                            crate::trf!("Push '{branch}' using Git configuration?", branch = branch)
+                            crate::trf!("Push current branch '{branch}'?", branch = branch)
                         } else {
-                            crate::trf!("Pull '{branch}' using Git configuration?", branch = branch)
+                            crate::trf!("Pull current branch '{branch}'?", branch = branch)
                         },
                         action: if push {
                             ConfirmAction::Push(branch)

@@ -168,10 +168,7 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
                     "Enter",
                     crate::tr!("Tags: inspect commit; Worktrees / Submodules: open repository"),
                 ),
-                (
-                    "f / p / P",
-                    crate::tr!("Fetch / pull / push using Git configuration"),
-                ),
+                ("f / p / P", crate::tr!("Fetch / pull / push")),
                 ("R", crate::tr!("Refresh repository")),
             ],
         ),
