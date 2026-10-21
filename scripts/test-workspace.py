@@ -123,6 +123,7 @@ def run():
             assert git(root, 'show', ':a.txt').stdout == 'staged-only\n'
             assert app.state()['workspace_file_count'] == 61
             app.keys('0 2')
+            app.loaded()  # Focusing Files invalidates the preview asynchronously.
             assert '+worktree-only' in app.screen()
             if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):
                 evidence = Path(os.environ['LAZYKEIFU_TEST_ARTIFACTS'])
