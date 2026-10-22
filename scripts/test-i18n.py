@@ -96,14 +96,25 @@ def run():
                     assert screen.strip(), screen
                 tui.keys('<esc>')
                 assert tui.state()['mode'] == 'normal'
-                # Graph sync targets the checked-out branch, in every language.
-                for key, message in [('p', "Pull current branch '{branch}'?"),
-                                     ('P', "Push current branch '{branch}'?")]:
-                    tui.keys('4 <end> ' + key)
-                    assert tui.state()['mode'] == 'confirm', render(tui)
-                    expected = catalog[message].replace('{branch}', 'main')
-                    assert expected in render(tui), render(tui)
-                    tui.keys('<esc>')
+                # Pull starts immediately; this repository has no upstream.
+                tui.keys('4 <end> p')
+                assert tui.state()['mode'] != 'confirm', render(tui)
+                tui.wait(lambda: not tui.state()['workspace_busy'])
+                assert tui.state()['mode'] == 'error', render(tui)
+                tui.keys('<esc> P')
+                assert tui.state()['mode'] == 'confirm', render(tui)
+                expected = catalog["Push current branch '{branch}'?"].replace('{branch}', 'main')
+                assert expected in render(tui), render(tui)
+                tui.keys('<esc> <space>')
+                assert tui.state()['mode'] == 'git_menu', render(tui)
+                screen = render(tui)
+                for message in ('Cancel', 'Stash changes and switch', 'Discard all changes and switch'):
+                    assert catalog[message] in screen, screen
+                assert '› ' + catalog['Cancel'] in screen, screen
+                tui.keys('<enter>')
+                assert tui.state()['mode'] == 'normal', render(tui)
+                assert (root / filename).read_text() == 'modified\n'
+                assert git(root, 'symbolic-ref', '--short', 'HEAD').stdout.strip() == 'main'
                 # Stage through keyboard, then inspect localized commit composer.
                 tui.keys('2 <space> c')
                 tui.loaded()

@@ -19,8 +19,8 @@ use crate::{
         build_graph,
         graph::GraphLayout,
         operations::{
-            checkout_branch, checkout_commit, checkout_remote_branch, create_branch, delete_branch,
-            fetch_configured, push_branch, stage_all, stage_path, unstage_all, unstage_path,
+            create_branch, delete_branch, fetch_configured, push_branch, stage_all, stage_path,
+            unstage_all, unstage_path,
         },
         BranchInfo, CommitDiffInfo, CommitInfo, FileDiffContent, FileDiffInfo, GitRepository,
         StageState, TagInfo, WorkingTreeStatus,
@@ -91,20 +91,19 @@ pub struct LayoutMap {
     pub commit_detail: Rect,
     pub files: Rect,
     pub status_bar: Rect,
+    pub overlay: Rect,
 }
 
 /// Confirmation action kinds
 #[derive(Debug, Clone)]
 pub enum ConfirmAction {
     StageAllCommit,
-    CheckoutRevision(crate::git::history::Snapshot, Oid),
     Amend(crate::git::history::Snapshot, bool),
     Reset(crate::git::history::Reset),
     DeleteBranch(String),
     Integrate(crate::git::integrate::Integration),
     CommitOperation(crate::git::commit_operation::CommitOperation),
     Push(String),
-    Pull(String),
     Discard(crate::git::changes::Discard),
     Recovery(crate::git::recovery::Operation, bool),
     Resolve(crate::git::recovery::Resolution),
@@ -1429,19 +1428,17 @@ impl App {
                     .ok()
                     .and_then(|h| h.shorthand().map(str::to_owned))
                 {
-                    let push = action == Action::Push;
-                    self.mode = AppMode::Confirm {
-                        message: if push {
-                            crate::trf!("Push current branch '{branch}'?", branch = branch)
-                        } else {
-                            crate::trf!("Pull current branch '{branch}'?", branch = branch)
-                        },
-                        action: if push {
-                            ConfirmAction::Push(branch)
-                        } else {
-                            ConfirmAction::Pull(branch)
-                        },
-                    };
+                    if action == Action::Push {
+                        self.mode = AppMode::Confirm {
+                            message: crate::trf!(
+                                "Push current branch '{branch}'?",
+                                branch = branch
+                            ),
+                            action: ConfirmAction::Push(branch),
+                        };
+                    } else {
+                        self.workspace_pull(branch);
+                    }
                 } else {
                     self.set_message(crate::tr!("Cannot sync: no current branch"));
                 }
@@ -1991,10 +1988,7 @@ impl App {
         };
         let confirm_action = confirm_action.clone();
         if action == Action::Confirm
-            && matches!(
-                confirm_action,
-                ConfirmAction::Push(_) | ConfirmAction::Pull(_)
-            )
+            && matches!(confirm_action, ConfirmAction::Push(_))
             && self.is_fetching()
         {
             self.set_message(crate::tr!("Wait for fetch to finish"));
@@ -2004,25 +1998,6 @@ impl App {
         match action {
             Action::Confirm => {
                 match confirm_action {
-                    ConfirmAction::CheckoutRevision(snapshot, oid) => {
-                        self.workspace_git_job(move |repo| {
-                            snapshot.verify(repo)?;
-                            crate::git::command::git_output(
-                                repo,
-                                &[
-                                    "checkout".as_ref(),
-                                    "--detach".as_ref(),
-                                    oid.to_string().as_ref(),
-                                ],
-                            )?;
-                            Ok(crate::trf!(
-                                "Checked out {oid} (detached HEAD)",
-                                oid = &oid.to_string()[..7]
-                            ))
-                        });
-                        self.mode = AppMode::Normal;
-                        return Ok(());
-                    }
                     ConfirmAction::Amend(snapshot, message_only) => {
                         snapshot.verify(&self.repo.repo)?;
                         self.open_amend(message_only)?;
@@ -2075,11 +2050,6 @@ impl App {
                     }
                     ConfirmAction::Discard(target) => {
                         self.workspace_discard(target);
-                        self.mode = AppMode::Normal;
-                        return Ok(());
-                    }
-                    ConfirmAction::Pull(branch) => {
-                        self.workspace_pull(branch);
                         self.mode = AppMode::Normal;
                         return Ok(());
                     }
@@ -2376,20 +2346,19 @@ impl App {
     }
 
     fn do_checkout(&mut self) -> Result<()> {
+        use crate::git::checkout::Target;
         if let Some(branch) = self.selected_branch() {
-            let branch_name = branch.name.clone();
-            if branch_name.starts_with("origin/") {
-                // For remote branches, create a local branch and check it out
-                checkout_remote_branch(&self.repo.repo, &branch_name)?;
+            let target = if branch.is_remote {
+                Target::Remote(branch.name.clone())
             } else {
-                checkout_branch(&self.repo.repo, &branch_name)?;
-            }
-            self.refresh(true)?;
-        } else if let Some(node) = self.selected_commit_node() {
-            if let Some(commit) = &node.commit {
-                checkout_commit(&self.repo.repo, commit.oid)?;
-                self.refresh(true)?;
-            }
+                Target::Branch(branch.name.clone())
+            };
+            self.request_checkout(target)?;
+        } else if let Some(commit) = self
+            .selected_commit_node()
+            .and_then(|node| node.commit.as_ref())
+        {
+            self.request_checkout(Target::Commit(commit.oid))?;
         }
         Ok(())
     }
@@ -2421,6 +2390,154 @@ mod tests {
 
     use super::*;
     use crate::git::graph::{CellType, GraphNode};
+
+    #[test]
+    fn overlay_drag_copies_only_its_content() {
+        use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+        use ratatui::{backend::TestBackend, Terminal};
+        let (_temp, repo) = init_repo();
+        commit_file(&repo.repo, "file", "one", "first");
+        let mut app = make_app_from_repo(repo);
+        for width in [54, 110] {
+            for mode in [
+                AppMode::Confirm {
+                    message: "A long message that wraps across multiple lines in this dialog. "
+                        .repeat(3),
+                    action: ConfirmAction::Push("main".into()),
+                },
+                AppMode::Error {
+                    message: "A long error message spanning several lines. ".repeat(4),
+                },
+            ] {
+                app.mode = mode;
+                let mut terminal = Terminal::new(TestBackend::new(width, 30)).unwrap();
+                terminal
+                    .draw(|frame| crate::ui::draw(frame, &mut app))
+                    .unwrap();
+                let inner = app.layout.overlay.inner(ratatui::layout::Margin::new(1, 1));
+                for (kind, x, y) in [
+                    (MouseEventKind::Down(MouseButton::Left), inner.x, inner.y),
+                    (
+                        MouseEventKind::Drag(MouseButton::Left),
+                        inner.right() - 1,
+                        inner.bottom() - 1,
+                    ),
+                ] {
+                    crate::mouse::handle_mouse(
+                        &mut app,
+                        MouseEvent {
+                            kind,
+                            column: x,
+                            row: y,
+                            modifiers: KeyModifiers::NONE,
+                        },
+                    );
+                }
+                let text = app.text_selection.as_ref().unwrap().text();
+                assert!(text.contains("message"), "{text}");
+                assert!(!text.contains(['│', '╭', '╰', '─']), "{text}");
+            }
+        }
+    }
+
+    #[test]
+    fn dirty_checkout_defaults_to_stay_and_menu_drag_does_not_execute() {
+        use crate::git::checkout::Target;
+        use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+        use ratatui::{backend::TestBackend, Terminal};
+        let (_temp, repo) = init_repo();
+        let first = commit_file(&repo.repo, "file", "one", "first");
+        let head = commit_file(&repo.repo, "file", "two", "second");
+        fs::write(repo.repo.workdir().unwrap().join("file"), "dirty").unwrap();
+        let mut app = make_app_from_repo(repo);
+        app.request_checkout(Target::Commit(first)).unwrap();
+        assert!(matches!(&app.mode, AppMode::GitMenu(menu) if menu.selected == 0));
+        app.handle_action(Action::Confirm).unwrap();
+        assert!(matches!(app.mode, AppMode::Normal));
+        assert!(!app.workspace.busy());
+        assert_eq!(app.repo.repo.head().unwrap().target(), Some(head));
+        assert_eq!(
+            fs::read_to_string(app.repo.repo.workdir().unwrap().join("file")).unwrap(),
+            "dirty"
+        );
+        app.request_checkout(Target::Commit(first)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(110, 30)).unwrap();
+        terminal
+            .draw(|frame| crate::ui::draw(frame, &mut app))
+            .unwrap();
+        let rect = app.layout.overlay;
+        for (kind, x, y) in [
+            (
+                MouseEventKind::Down(MouseButton::Left),
+                rect.x + 3,
+                rect.y + 1,
+            ),
+            (
+                MouseEventKind::Drag(MouseButton::Left),
+                rect.right() + 5,
+                rect.y + 3,
+            ),
+        ] {
+            crate::mouse::handle_mouse(
+                &mut app,
+                MouseEvent {
+                    kind,
+                    column: x,
+                    row: y,
+                    modifiers: KeyModifiers::NONE,
+                },
+            );
+        }
+        assert!(matches!(&app.mode, AppMode::GitMenu(menu) if menu.selected == 0));
+        let text = app.text_selection.as_ref().unwrap().text();
+        assert!(text.contains("Stash"), "{text}");
+        assert!(!text.contains(['│', '╭', '╰', '─']), "{text}");
+        assert!(!app.workspace.busy());
+    }
+
+    #[test]
+    fn checkout_and_pull_start_without_confirmation_but_push_confirms() {
+        let (_temp, repo) = init_repo();
+        let first = commit_file(&repo.repo, "file", "one", "first");
+        commit_file(&repo.repo, "file", "two", "second");
+        let mut app = make_app_from_repo(repo);
+        app.handle_action(Action::Push).unwrap();
+        assert!(matches!(
+            app.mode,
+            AppMode::Confirm {
+                action: ConfirmAction::Push(_),
+                ..
+            }
+        ));
+        app.handle_action(Action::Cancel).unwrap();
+        app.handle_action(Action::Pull).unwrap();
+        assert!(matches!(app.mode, AppMode::Normal));
+        assert!(app.workspace.busy());
+        wait_for_workspace_job(&mut app);
+        app.mode = AppMode::Normal;
+        let index = app
+            .graph_layout
+            .nodes
+            .iter()
+            .position(|node| node.commit.as_ref().is_some_and(|c| c.oid == first))
+            .unwrap();
+        app.select_node(index);
+        app.handle_action(Action::CheckoutRevision).unwrap();
+        assert!(matches!(app.mode, AppMode::Normal));
+        assert!(app.workspace.busy());
+        wait_for_workspace_job(&mut app);
+        assert!(app.repo.repo.head_detached().unwrap());
+        assert_eq!(app.repo.repo.head().unwrap().target(), Some(first));
+    }
+
+    fn wait_for_workspace_job(app: &mut App) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while app.workspace.busy() {
+            assert!(Instant::now() < deadline, "Git job timed out");
+            std::thread::sleep(Duration::from_millis(10));
+            app.workspace_tick();
+        }
+    }
 
     fn init_repo() -> (TempDir, GitRepository) {
         let tempdir = tempfile::tempdir().unwrap();

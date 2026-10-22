@@ -353,8 +353,7 @@ impl App {
                     next.set_message(crate::trf!("Opened {path}", path = path.display()));
                     *self = next;
                 } else if let Some(branch) = row.branch {
-                    crate::git::operations::checkout_remote_branch(&self.repo.repo, &branch.name)?;
-                    self.refresh(true)?;
+                    self.request_checkout(crate::git::checkout::Target::Remote(branch.name))?;
                 } else if let Some(oid) = row.oid {
                     self.workspace.commit = Some(oid);
                     self.workspace.tabs.files = FilesTab::Files;

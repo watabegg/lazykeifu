@@ -129,6 +129,7 @@ pub fn render_placeholder_block(area: Rect, buf: &mut Buffer) {
 
 /// Render the main UI
 pub fn draw(frame: &mut Frame, app: &mut App) {
+    app.layout.overlay = Rect::default();
     if matches!(
         app.mode,
         AppMode::FileSelect { .. } | AppMode::FileDiff { .. } | AppMode::Help
@@ -212,6 +213,7 @@ fn draw_content(frame: &mut Frame, app: &mut App) {
         commit_detail: commit_area,
         files: files_area,
         status_bar: status_area,
+        overlay: Rect::default(),
     };
 
     // Update detail viewport size and clamp the scroll before rendering
@@ -264,6 +266,7 @@ fn draw_content(frame: &mut Frame, app: &mut App) {
     match &app.mode {
         AppMode::Help => {
             let popup_area = centered_rect(60, 70, area);
+            app.layout.overlay = popup_area;
             let viewport_height = popup_area.height.saturating_sub(2) as usize;
             let line_count = HelpPopup::line_count(popup_area.width);
             let max_scroll = line_count.saturating_sub(viewport_height) as u16;
@@ -283,13 +286,13 @@ fn draw_content(frame: &mut Frame, app: &mut App) {
             ..
         } => {
             // Search dropdown at bottom of screen
-            let results = app.search_results();
-            let height = calculate_dropdown_height(results.len());
+            let height = calculate_dropdown_height(app.search_results().len());
             let popup_area = bottom_rect(60, height, area);
+            app.layout.overlay = popup_area;
             frame.render_widget(
                 SearchDropdown::new(
                     input,
-                    results,
+                    app.search_results(),
                     &app.branch_positions,
                     app.search_selection(),
                 ),
@@ -298,10 +301,12 @@ fn draw_content(frame: &mut Frame, app: &mut App) {
         }
         AppMode::Input { title, input, .. } => {
             let popup_area = centered_rect(50, 20, area);
+            app.layout.overlay = popup_area;
             frame.render_widget(InputDialog::new(title, input), popup_area);
         }
         AppMode::Confirm { message, .. } => {
             let popup_area = centered_rect(50, 20, area);
+            app.layout.overlay = popup_area;
             frame.render_widget(ConfirmDialog::new(message), popup_area);
         }
         _ => {}

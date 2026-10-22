@@ -910,16 +910,11 @@ impl App {
                 }
                 Panel::Branches => {
                     if let Some(branch) = self.workspace_selected_branch().cloned() {
-                        if branch.is_remote {
-                            crate::git::operations::checkout_remote_branch(
-                                &self.repo.repo,
-                                &branch.name,
-                            )?;
+                        self.request_checkout(if branch.is_remote {
+                            crate::git::checkout::Target::Remote(branch.name)
                         } else {
-                            crate::git::operations::checkout_branch(&self.repo.repo, &branch.name)?;
-                        }
-                        self.refresh(true)?;
-                        self.workspace.invalidate();
+                            crate::git::checkout::Target::Branch(branch.name)
+                        })?;
                     }
                 }
                 _ => {}
