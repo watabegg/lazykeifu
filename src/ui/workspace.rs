@@ -522,6 +522,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             action: InputAction::Search,
         } => {
             let rect = super::bottom_rect(70, 12, area);
+            app.layout.overlay = rect;
             frame.render_widget(
                 super::search_dropdown::SearchDropdown::new(
                     input,
@@ -541,6 +542,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         }
         AppMode::Input { title, input, .. } => {
             let rect = super::centered_rect(80, 30, area);
+            app.layout.overlay = rect;
             frame.render_widget(InputDialog::new(title, input), rect);
         }
         AppMode::Confirm { message, .. } => {
@@ -555,10 +557,12 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                 width,
                 height,
             );
+            app.layout.overlay = rect;
             frame.render_widget(ConfirmDialog::new(message), rect);
         }
         AppMode::Error { message } => {
             let rect = super::centered_rect(85, 60, area);
+            app.layout.overlay = rect;
             frame.render_widget(Clear, rect);
             frame.render_widget(
                 Paragraph::new(crate::trf!(
@@ -583,6 +587,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             height,
         );
         app.workspace.help_rect = rect;
+        app.layout.overlay = rect;
         frame.render_widget(Clear, rect);
         let lines = super::workspace_help::lines(rect.width.saturating_sub(2) as usize);
         let max_scroll = lines

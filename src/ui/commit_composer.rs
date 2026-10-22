@@ -24,6 +24,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         height,
     );
     app.workspace.composer.rect = rect;
+    app.layout.overlay = rect;
     frame.render_widget(Clear, rect);
     let busy = app.workspace.busy();
     let title = if busy {

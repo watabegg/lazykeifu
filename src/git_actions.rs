@@ -17,6 +17,11 @@ use ratatui::{
 #[derive(Clone, Debug)]
 pub enum Choice {
     NewCommit,
+    Stay,
+    Checkout(
+        Box<crate::git::checkout::Checkout>,
+        crate::git::checkout::Changes,
+    ),
     Action(Action),
     Amend(bool),
     Undo,
@@ -35,6 +40,33 @@ pub struct Menu {
     pub rect: Rect,
 }
 impl App {
+    pub(crate) fn request_checkout(&mut self, target: crate::git::checkout::Target) -> Result<()> {
+        use crate::git::checkout::{Changes, Checkout};
+        let checkout = Checkout::prepare(&self.repo.repo, target)?;
+        if checkout.dirty() {
+            self.git_menu(
+                crate::trf!(
+                    "Uncommitted changes · switch to {target}",
+                    target = checkout.target.label()
+                ),
+                vec![
+                    (crate::tr!("Cancel").into(), Choice::Stay),
+                    (
+                        crate::tr!("Stash changes and switch").into(),
+                        Choice::Checkout(Box::new(checkout.clone()), Changes::Stash),
+                    ),
+                    (
+                        crate::tr!("Discard all changes and switch").into(),
+                        Choice::Checkout(Box::new(checkout), Changes::Discard),
+                    ),
+                ],
+            );
+        } else {
+            self.workspace_git_job(move |repo| checkout.execute(repo, None));
+        }
+        Ok(())
+    }
+
     fn git_menu(&mut self, title: String, rows: Vec<(String, Choice)>) {
         self.mode = AppMode::GitMenu(Menu {
             title,
@@ -138,6 +170,11 @@ impl App {
     }
     pub(crate) fn choose_git_action(&mut self, choice: Choice) -> Result<()> {
         match choice {
+            Choice::Stay => self.mode = AppMode::Normal,
+            Choice::Checkout(checkout, changes) => {
+                self.mode = AppMode::Normal;
+                self.workspace_git_job(move |repo| checkout.execute(repo, Some(changes)));
+            }
             Choice::Action(action) => {
                 self.mode = AppMode::Normal;
                 self.handle_action(action)?;
@@ -304,6 +341,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         height,
     );
     menu.rect = rect;
+    app.layout.overlay = rect;
     frame.render_widget(Clear, rect);
     frame.render_widget(crate::ui::pane_block(&menu.title, true), rect);
     let inner = rect.inner(Margin::new(1, 1));
@@ -449,14 +487,7 @@ impl App {
             }
             Action::CheckoutRevision => {
                 let oid = self.selected_git_target()?;
-                let snapshot = Snapshot::capture(&self.repo.repo)?;
-                self.mode = AppMode::Confirm {
-                    message: crate::trf!(
-                        "Check out {oid} in detached HEAD? Working changes must be compatible.",
-                        oid = &oid.to_string()[..7]
-                    ),
-                    action: ConfirmAction::CheckoutRevision(snapshot, oid),
-                };
+                self.request_checkout(crate::git::checkout::Target::Commit(oid))?;
             }
             Action::CopyCommit => {
                 let oid = self.selected_git_target()?;

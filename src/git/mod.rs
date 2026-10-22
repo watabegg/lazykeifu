@@ -33,3 +33,5 @@ pub mod integrate;
 pub mod commit_operation;
 
 pub mod history;
+
+pub mod checkout;

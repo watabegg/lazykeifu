@@ -18,34 +18,6 @@ use crate::{
 const DOUBLE_CLICK_WINDOW: Duration = Duration::from_millis(400);
 
 pub fn handle_mouse(app: &mut App, event: MouseEvent) {
-    if let AppMode::GitMenu(menu) = &mut app.mode {
-        let action = match event.kind {
-            MouseEventKind::ScrollDown => Some(Action::MoveDown),
-            MouseEventKind::ScrollUp => Some(Action::MoveUp),
-            MouseEventKind::Down(MouseButton::Left) => {
-                let pos = Position::new(event.column, event.row);
-                if !menu.rect.contains(pos) {
-                    Some(Action::Cancel)
-                } else if event.row > menu.rect.y
-                    && event.row < menu.rect.bottom().saturating_sub(2)
-                {
-                    menu.selected = (menu.offset + (event.row - menu.rect.y - 1) as usize)
-                        .min(menu.rows.len().saturating_sub(1));
-                    Some(Action::Checkout)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-        if let Some(action) = action {
-            if let Err(e) = app.handle_action(action) {
-                app.set_message(e.to_string());
-            }
-        }
-        return;
-    }
-
     match event.kind {
         MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => handle_scroll(app, event, 1),
         MouseEventKind::Down(MouseButton::Left) => {
@@ -105,6 +77,27 @@ pub fn handle_scroll(app: &mut App, event: MouseEvent, steps: usize) {
 }
 
 fn selection_area(app: &App, position: Position) -> Rect {
+    // Overlays own selection even where they cover the underlying panes.
+    if app.layout.overlay != Rect::default() {
+        let overlay = app.layout.overlay.intersection(app.screen.area);
+        if app.composing() {
+            let composer = &app.workspace.composer;
+            for area in composer
+                .fields
+                .into_iter()
+                .chain([composer.diff_rect, composer.error_rect])
+            {
+                if area.contains(position) {
+                    return selection_inner(area, position);
+                }
+            }
+        }
+        return if overlay.contains(position) {
+            selection_inner(overlay, position)
+        } else {
+            Rect::new(position.x, position.y, 1, 1)
+        };
+    }
     let panes = match app.mode {
         AppMode::FileDiff { .. } if !app.file_view_replace() => vec![Rect::new(
             app.screen.area.x,
@@ -129,15 +122,17 @@ fn selection_area(app: &App, position: Position) -> Rect {
         .into_iter()
         .map(|area| area.intersection(app.screen.area))
         .find(|area| area.contains(position))
-        .map(|area| {
-            let inner = area.inner(Margin::new(1, 1));
-            if inner.contains(position) {
-                inner
-            } else {
-                area
-            }
-        })
+        .map(|area| selection_inner(area, position))
         .unwrap_or(app.screen.area)
+}
+
+fn selection_inner(area: Rect, position: Position) -> Rect {
+    let inner = area.inner(Margin::new(1, 1));
+    if inner.contains(position) {
+        inner
+    } else {
+        area
+    }
 }
 
 fn dispatch(app: &mut App, action: Action) {
@@ -166,6 +161,19 @@ fn offset_index(current: usize, max: usize, delta: i32) -> usize {
 }
 
 fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
+    if matches!(app.mode, AppMode::GitMenu(_)) {
+        for _ in 0..delta.unsigned_abs().min(100) {
+            dispatch(
+                app,
+                if delta < 0 {
+                    Action::MoveUp
+                } else {
+                    Action::MoveDown
+                },
+            );
+        }
+        return;
+    }
     if app.composing() {
         app.composer_scroll(delta, x, y);
         return;
@@ -268,6 +276,19 @@ fn handle_scroll_delta(app: &mut App, delta: i32, x: u16, y: u16) {
 }
 
 fn handle_click(app: &mut App, x: u16, y: u16) {
+    if let AppMode::GitMenu(menu) = &mut app.mode {
+        let pos = Position::new(x, y);
+        if !menu.rect.contains(pos) {
+            dispatch(app, Action::Cancel);
+        } else if y > menu.rect.y && y < menu.rect.bottom().saturating_sub(2) {
+            let index = menu.offset + (y - menu.rect.y - 1) as usize;
+            if index < menu.rows.len() {
+                menu.selected = index;
+                dispatch(app, Action::Checkout);
+            }
+        }
+        return;
+    }
     if app.composing() {
         app.composer_click(x, y);
         return;

@@ -133,7 +133,7 @@ pub struct Discard {
     content: Content,
 }
 
-fn snapshot(repo: &Repository, path: &Path) -> Result<Discard> {
+pub(crate) fn snapshot(repo: &Repository, path: &Path) -> Result<Discard> {
     if path.as_os_str().is_empty()
         || path
             .components()
