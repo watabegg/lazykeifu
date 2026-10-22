@@ -37,12 +37,8 @@ def run():
             (peer / 'file').write_text('remote update\n')
             git(peer, 'commit', '-am', 'remote-update')
             git(peer, 'push')
-            old = git(root, 'rev-parse', 'HEAD').stdout
             tui.keys('4 <end> p')
-            assert "Pull current branch 'main'?" in tui.screen()
-            tui.keys('<esc>')
-            assert git(root, 'rev-parse', 'HEAD').stdout == old
-            tui.keys('p <enter>')
+            assert tui.state()['mode'] != 'confirm', tui.screen()
             tui.wait(lambda: not tui.state()['workspace_busy'])
             tui.loaded()
             assert git(root, 'rev-parse', 'HEAD').stdout == git(peer, 'rev-parse', 'HEAD').stdout
@@ -72,7 +68,7 @@ def run():
             git(root, 'commit', '-am', 'conflicting-local')
             git(root, 'config', 'pull.ff', 'true')
             git(root, 'config', 'pull.rebase', 'false')
-            tui.keys('2 R 4 p <enter>')
+            tui.keys('2 R 4 p')
             tui.wait(lambda: not tui.state()['workspace_busy'])
             assert tui.state()['mode'] == 'error'
             assert 'CONFLICT' in tui.screen()
@@ -84,7 +80,7 @@ def run():
             git(root, 'merge', '--abort')
             tui.keys('R')
             assert 'MERGING' not in tui.screen()
-            print('PASS: pull confirmation/cancel, non-origin pull/push, push lock, conflict visibility and external abort refresh')
+            print('PASS: pull without confirmation, non-origin pull/push, push lock, conflict visibility and external abort refresh')
         finally:
             tui.close()
 

@@ -58,6 +58,9 @@ def run():
             tui.keys('<esc> <c-r> V')
             assert tui.state()['mode'] == 'error', tui.screen()
             tui.keys('<esc> <home> <space>')
+            tui.wait(lambda: not tui.state()['workspace_busy'])
+            assert tui.state()['mode'] == 'normal', tui.screen()
+            assert git(root, 'symbolic-ref', '-q', 'HEAD', check=False).returncode != 0
             assert 'detached HEAD' in tui.screen(), tui.screen()
             tui.keys('<esc> 3 R')
             assert tui.state()['mode'] == 'input' and 'Rename' in tui.screen(), tui.screen()

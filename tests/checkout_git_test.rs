@@ -18,6 +18,7 @@ fn git(root: &TempDir, args: &[&str]) -> String {
 fn fixture() -> (TempDir, git2::Repository, git2::Oid) {
     let root = tempfile::tempdir().unwrap();
     git(&root, &["init", "-b", "main"]);
+    git(&root, &["config", "core.autocrlf", "false"]);
     git(&root, &["config", "user.name", "Test"]);
     git(&root, &["config", "user.email", "test@example.com"]);
     fs::write(root.path().join("tracked"), "old\n").unwrap();
