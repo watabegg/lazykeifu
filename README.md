@@ -59,7 +59,7 @@ The `lazykeifu` crate provides the `lzkf` binary.
 
 ### Prebuilt Binaries
 
-Prebuilt archives are available on [GitHub Releases](https://github.com/watabegg/lazykeifu/releases). Official releases use the tag namespace `lazykeifu-v<VERSION>` (such as `lazykeifu-v0.1.5`). Existing tags with plain `v*` prefixes are preserved upstream history from `keifu` and do not represent releases of this project.
+Prebuilt archives are available on [GitHub Releases](https://github.com/watabegg/lazykeifu/releases). Official releases use the tag namespace `lazykeifu-v<VERSION>` (such as `lazykeifu-v0.1.6`). Existing tags with plain `v*` prefixes are preserved upstream history from `keifu` and do not represent releases of this project.
 
 Prebuilt archives are provided for:
 - Linux x86_64 (Ubuntu 22.04 / glibc 2.35+)
@@ -67,7 +67,7 @@ Prebuilt archives are provided for:
 - macOS x86_64 and aarch64 (macOS 14+ baseline)
 - Windows x86_64
 
-Archives are named `lzkf-0.1.5-<TARGET>.tar.gz` (or `.zip` for Windows) and contain `LICENSE`, `LICENSE.lazygit`, `THIRD_PARTY.json`, and `README.md`. Checksums are provided in `SHA256SUMS` among the release assets.
+Archives are named `lzkf-0.1.6-<TARGET>.tar.gz` (or `.zip` for Windows) and contain `LICENSE`, `LICENSE.lazygit`, `THIRD_PARTY.json`, and `README.md`. Checksums are provided in `SHA256SUMS` among the release assets.
 
 **Requirements and Platform Notes:**
 - Git must be installed and on your `PATH`. Prebuilt binaries do not require a Rust or C compiler.
@@ -94,7 +94,7 @@ cargo install lazykeifu --locked
 
 Via mise (builds from source via Cargo; pin the version explicitly because age policies exclude fresh releases from `latest`):
 ```sh
-mise use -g cargo:lazykeifu@0.1.5
+mise use -g cargo:lazykeifu@0.1.6
 ```
 
 ### Usage
