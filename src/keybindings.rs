@@ -51,6 +51,7 @@ pub fn map_key_to_action(key: KeyEvent, app: &crate::app::App) -> Option<Action>
         .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER);
     if modified {
         return match (key.modifiers, key.code, focus) {
+            (KeyModifiers::ALT, KeyCode::Char(' '), Panel::Graph) => Some(Action::CheckoutRevision),
             (KeyModifiers::CONTROL, KeyCode::Char('l'), Panel::Graph) => Some(Action::LogMenu),
             (KeyModifiers::CONTROL, KeyCode::Char('r'), Panel::Graph) => {
                 Some(Action::ClearCopiedCommit)
@@ -100,7 +101,7 @@ pub fn map_key_to_action(key: KeyEvent, app: &crate::app::App) -> Option<Action>
         (Panel::Graph, KeyCode::Char('t')) => Some(Action::Revert),
         (Panel::Graph, KeyCode::Char('C')) => Some(Action::CopyCommit),
         (Panel::Graph, KeyCode::Char('V')) => Some(Action::PasteCommit),
-        (Panel::Graph, KeyCode::Char(' ')) => Some(Action::CheckoutRevision),
+        (Panel::Graph, KeyCode::Char(' ')) => Some(Action::CheckoutGraphBranch),
         (Panel::Graph, KeyCode::Char('n')) => Some(Action::CreateBranch),
         // These have other meanings in Lazygit; do not map them to global actions.
         (Panel::Graph, KeyCode::Char('R' | 'y')) => None,

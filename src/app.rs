@@ -542,6 +542,7 @@ impl App {
     /// Whether a diff is debouncing or loading, so the UI should poll eagerly
     pub fn has_pending_diff(&self) -> bool {
         self.workspace.preview_loading()
+            || self.workspace.stats_loading()
             || self.workspace.busy()
             || self.has_in_flight_diff()
             || Instant::now() < self.diff_debounce_until
@@ -3571,6 +3572,13 @@ mod tests {
         app.set_file_view(FileView::Replace);
         app.diff_cache = Some(CommitDiffInfo::from_commit(&repo, oid).unwrap());
         app.diff_cache_oid = Some(oid);
+        app.workspace_tick();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while app.workspace.stats_loading() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(1));
+            app.workspace_tick();
+        }
+        assert!(!app.workspace.stats_loading());
         let terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(110, 30)).unwrap();
         (tempdir, app, terminal)
     }

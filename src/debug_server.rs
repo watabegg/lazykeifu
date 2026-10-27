@@ -290,6 +290,7 @@ fn state_json(app: &App) -> Value {
         "is_fetching": app.is_fetching(),
         "is_pushing": app.is_pushing(),
     });
+    state["workspace_stats_loading"] = json!(app.workspace.stats_loading());
     state["git_menu"] = if let AppMode::GitMenu(menu) = &app.mode {
         json!({"title":menu.title,"items":menu.rows.iter().map(|(label,_)|label).collect::<Vec<_>>(),"selected":menu.selected})
     } else {
@@ -338,6 +339,9 @@ fn parse_key_token(token: &str) -> std::result::Result<KeyEvent, String> {
         return Err(format!("invalid ctrl key token: {token}"));
     }
 
+    if inner == "a-space" {
+        return Ok(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::ALT));
+    }
     let code = match inner.as_str() {
         "enter" => KeyCode::Enter,
         "esc" => KeyCode::Esc,

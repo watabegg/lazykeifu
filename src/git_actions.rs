@@ -23,6 +23,7 @@ pub enum Choice {
         crate::git::checkout::Changes,
     ),
     Action(Action),
+    SwitchBranch(crate::git::checkout::Target),
     Amend(bool),
     Undo,
     Reset(Oid, ResetMode),
@@ -174,6 +175,10 @@ impl App {
             Choice::Checkout(checkout, changes) => {
                 self.mode = AppMode::Normal;
                 self.workspace_git_job(move |repo| checkout.execute(repo, Some(changes)));
+            }
+            Choice::SwitchBranch(target) => {
+                self.mode = AppMode::Normal;
+                self.request_checkout(target)?;
             }
             Choice::Action(action) => {
                 self.mode = AppMode::Normal;
@@ -484,6 +489,33 @@ impl App {
                 self.select_node(i);
                 self.workspace_focus(Panel::Graph);
                 self.workspace_commit_target(target);
+            }
+            Action::CheckoutGraphBranch => {
+                use crate::git::checkout::Target;
+                let names = self.selected_node_branches();
+                let targets: Vec<_> = names
+                    .iter()
+                    .filter_map(|name| {
+                        self.branches
+                            .iter()
+                            .find(|b| b.name == *name)
+                            .map(|branch| {
+                                let target = if branch.is_remote {
+                                    Target::Remote(branch.name.clone())
+                                } else {
+                                    Target::Branch(branch.name.clone())
+                                };
+                                (branch.name.clone(), Choice::SwitchBranch(target))
+                            })
+                    })
+                    .collect();
+                match targets.as_slice() {
+                    [] => self.set_message(crate::tr!(
+                        "No branch at this commit · Alt+Space: checkout commit"
+                    )),
+                    [(_, Choice::SwitchBranch(target))] => self.request_checkout(target.clone())?,
+                    _ => self.git_menu(crate::tr!("Checkout branch").into(), targets),
+                }
             }
             Action::CheckoutRevision => {
                 let oid = self.selected_git_target()?;

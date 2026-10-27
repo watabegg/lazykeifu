@@ -652,6 +652,16 @@ fn from_working_tree_total_files_not_capped_by_display_limit() {
     assert_eq!(diff.files.len(), 50);
     // "...and N more files" should show 5
     assert_eq!(diff.total_files - diff.files.len(), 5);
+
+    let complete = CommitDiffInfo::all_working_files(&repo).unwrap();
+    assert_eq!(complete.files.len(), 55);
+    assert!(!complete.truncated);
+    let last = complete
+        .files
+        .iter()
+        .find(|file| file.path == Path::new("untracked_054.txt"))
+        .unwrap();
+    assert_eq!((last.insertions, last.deletions), (1, 0));
 }
 
 #[test]

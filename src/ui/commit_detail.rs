@@ -106,12 +106,10 @@ impl CommitDetailWidget {
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             )];
-            lines.push(Self::change_summary(app));
             lines.push(Line::styled(
                 crate::tr!(" Working tree + index · untracked included"),
                 Style::default().fg(Color::DarkGray),
             ));
-            Self::changed_files(app, &mut lines);
             return lines;
         }
 
@@ -154,8 +152,6 @@ impl CommitDetailWidget {
             ]),
         ];
 
-        lines.insert(1, Self::change_summary(app));
-
         // Parent commits
         if !commit.parent_oids.is_empty() {
             let parents: Vec<String> = commit
@@ -191,84 +187,7 @@ impl CommitDetailWidget {
             lines.push(Line::from(Span::raw(format!(" {}", line))));
         }
 
-        Self::changed_files(app, &mut lines);
         lines
-    }
-    fn change_summary(app: &App) -> Line<'static> {
-        if let Some(diff) = app.cached_diff() {
-            let mut line = super::patch::totals(
-                Some(diff.total_files),
-                diff.total_insertions,
-                diff.total_deletions,
-            );
-            line.spans.insert(0, Span::raw(" "));
-            line
-        } else {
-            Line::styled(
-                crate::tr!(" Changes · loading…"),
-                Style::default().fg(Color::DarkGray),
-            )
-        }
-    }
-    fn changed_files(app: &App, lines: &mut Vec<Line<'static>>) {
-        if let Some(diff) = app.cached_diff() {
-            lines.push(Line::styled(
-                crate::tr!(" Changed files"),
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ));
-            let add_width = diff
-                .files
-                .iter()
-                .map(|f| f.insertions.to_string().len() + 1)
-                .max()
-                .unwrap_or(2);
-            let del_width = diff
-                .files
-                .iter()
-                .map(|f| f.deletions.to_string().len() + 1)
-                .max()
-                .unwrap_or(2);
-            let binary = crate::tr!("binary");
-            let stat_width = (add_width + 2 + del_width).max(binary.width());
-            for file in &diff.files {
-                let mut spans = if file.is_binary {
-                    vec![Span::styled(
-                        format!(
-                            "{}{}",
-                            " ".repeat(stat_width.saturating_sub(binary.width())),
-                            binary
-                        ),
-                        Style::default().fg(Color::Yellow),
-                    )]
-                } else {
-                    vec![
-                        Span::styled(
-                            format!("{:>add_width$}", format!("+{}", file.insertions)),
-                            Style::default().fg(Color::Green),
-                        ),
-                        Span::raw("  "),
-                        Span::styled(
-                            format!("{:>del_width$}", format!("-{}", file.deletions)),
-                            Style::default().fg(Color::Red),
-                        ),
-                        Span::raw(" ".repeat(stat_width - (add_width + 2 + del_width))),
-                    ]
-                };
-                spans.push(Span::raw(format!("  {}", file.path.display())));
-                lines.push(Line::from(spans));
-            }
-            if diff.truncated {
-                lines.push(Line::styled(
-                    crate::trf!(
-                        " … {count} more files; open Files to inspect",
-                        count = diff.total_files.saturating_sub(diff.files.len())
-                    ),
-                    Style::default().fg(Color::DarkGray),
-                ));
-            }
-        }
     }
 }
 

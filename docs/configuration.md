@@ -31,7 +31,7 @@ By default, lazykeifu automatically refreshes the commit graph every 10 seconds 
 auto_refresh = true
 
 # Interval in seconds for local refresh (default: 10, minimum: 1)
-refresh_interval = 10
+refresh_interval = 1
 
 # Enable auto-fetch using Git remote configuration (default: true)
 auto_fetch = true
@@ -77,7 +77,7 @@ The `--file-view` CLI option has been removed.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `auto_refresh` | bool | `true` | Enable auto-refresh for local state (commits, branches, working tree) |
-| `refresh_interval` | integer | `10` | Interval in seconds for local refresh (minimum: 1) |
+| `refresh_interval` | integer | `1` | Interval in seconds for local refresh (minimum: 1) |
 | `auto_fetch` | bool | `true` | Enable auto-fetch using Git remote configuration |
 | `fetch_interval` | integer | `60` | Interval in seconds for remote fetch (minimum: 10) |
 | `graph.show_remote_branches` | bool | `true` | Show remote branches and commits reachable only from remote branches |

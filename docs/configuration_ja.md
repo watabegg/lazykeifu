@@ -12,7 +12,7 @@ keifu は `~/.config/keifu/config.toml` で設定できます。すべての設�
 auto_refresh = true
 
 # ローカル更新の間隔（秒）（デフォルト: 10、最小: 1）
-refresh_interval = 10
+refresh_interval = 1
 
 # origin からの自動 fetch を有効にする（デフォルト: true）
 auto_fetch = true
@@ -62,7 +62,7 @@ file_view = "replace"
 | キー | 型 | デフォルト | 説明 |
 | --- | --- | --- | --- |
 | `auto_refresh` | bool | `true` | ローカル状態（コミット、ブランチ、ワーキングツリー）の自動更新を有効にする |
-| `refresh_interval` | integer | `10` | ローカル更新の間隔（秒）（最小: 1） |
+| `refresh_interval` | integer | `1` | ローカル更新の間隔（秒）（最小: 1） |
 | `auto_fetch` | bool | `true` | origin からの自動 fetch を有効にする |
 | `fetch_interval` | integer | `60` | リモート fetch の間隔（秒）（最小: 10） |
 | `graph.show_remote_branches` | bool | `true` | リモートブランチと、リモートブランチからのみ到達可能なコミットを表示する |

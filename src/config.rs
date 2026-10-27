@@ -82,7 +82,7 @@ impl Default for RefreshConfig {
     fn default() -> Self {
         Self {
             auto_refresh: true,
-            refresh_interval: 10,
+            refresh_interval: 1,
             auto_fetch: true,
             fetch_interval: 60,
         }

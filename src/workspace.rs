@@ -1,8 +1,10 @@
 //! Persistent panels and background Git jobs for the integrated workspace.
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::mpsc::{self, Receiver},
     thread,
+    time::{Duration, Instant},
 };
 
 use crate::git::command::git_output;
@@ -49,6 +51,8 @@ struct PreviewKey {
     staged: bool,
 }
 
+type StatsResult = Result<crate::git::CommitDiffInfo, String>;
+
 type PreviewResult = (
     PreviewKey,
     Result<(String, crate::ui::patch::PatchView), String>,
@@ -67,6 +71,11 @@ pub struct Workspace {
     pub stash_preview: Option<Oid>,
     stashes_loaded: bool,
     pub files: Vec<FileRow>,
+    pub stats: Option<crate::git::CommitDiffInfo>,
+    stats_paths: HashMap<PathBuf, usize>,
+    stats_key: Option<(Option<Oid>, u64)>,
+    stats_rx: Option<Receiver<StatsResult>>,
+    stats_due: Option<Instant>,
     pub file_state: ListState,
     pub tree: crate::file_tree::Tree,
     pub branch_state: ListState,
@@ -326,6 +335,81 @@ impl Workspace {
         };
         !self.loaded || self.preview_rx.is_some() || self.preview_key.as_ref() != Some(&key)
     }
+    pub fn stats_loading(&self) -> bool {
+        self.stats_rx.is_some() || self.stats_due.is_some()
+    }
+
+    pub fn file_stats(&self, path: &std::path::Path) -> Option<&crate::git::FileDiffInfo> {
+        self.stats_paths
+            .get(path)
+            .and_then(|i| self.stats.as_ref()?.files.get(*i))
+    }
+
+    /// Commit statistics are immutable; worktree statistics follow the refresh revision.
+    fn update_stats(&mut self, repo_path: &str) -> Option<String> {
+        let key = (
+            self.commit,
+            if self.commit.is_some() {
+                0
+            } else {
+                self.revision
+            },
+        );
+        if self.stats_key != Some(key) {
+            let same_context = self.stats_key.is_some_and(|old| old.0 == key.0);
+            if !same_context {
+                self.stats = None;
+                self.stats_paths.clear();
+            }
+            self.stats_key = Some(key);
+            self.stats_rx = None;
+            self.stats_due = Some(Instant::now() + Duration::from_millis(120));
+        }
+        if let Some(due) = self.stats_due {
+            if Instant::now() < due {
+                return None;
+            }
+            self.stats_due = None;
+            let path = repo_path.to_owned();
+            let (tx, rx) = mpsc::channel();
+            self.stats_rx = Some(rx);
+            thread::spawn(move || {
+                let result = Repository::open(path)
+                    .map_err(anyhow::Error::from)
+                    .and_then(|repo| match key.0 {
+                        Some(oid) => crate::git::CommitDiffInfo::all_commit_files(&repo, oid),
+                        None => crate::git::CommitDiffInfo::all_working_files(&repo),
+                    });
+                let _ = tx.send(result.map_err(|error| error.to_string()));
+            });
+        }
+        let result = match self.stats_rx.as_ref()?.try_recv() {
+            Ok(result) => result,
+            Err(mpsc::TryRecvError::Empty) => return None,
+            Err(mpsc::TryRecvError::Disconnected) => {
+                Err(crate::tr!("Statistics worker stopped unexpectedly").into())
+            }
+        };
+        self.stats_rx = None;
+        match result {
+            Ok(stats) => {
+                self.stats_paths = stats
+                    .files
+                    .iter()
+                    .enumerate()
+                    .map(|(i, file)| (file.path.clone(), i))
+                    .collect();
+                self.stats = Some(stats);
+                None
+            }
+            Err(error) => {
+                self.stats = None;
+                self.stats_paths.clear();
+                Some(error)
+            }
+        }
+    }
+
     pub fn invalidate(&mut self) {
         self.tabs.invalidate();
         self.stashes_loaded = false;
@@ -439,6 +523,9 @@ impl App {
             self.workspace.patch =
                 crate::ui::patch::PatchView::build(&self.workspace.preview, None);
             return;
+        }
+        if let Some(error) = self.workspace.update_stats(&self.repo_path) {
+            self.set_message(error);
         }
         if !self.composing() {
             self.tree_sync();
@@ -1109,7 +1196,11 @@ impl App {
         if y <= rect.y || y >= rect.bottom().saturating_sub(1) {
             return;
         }
-        let index = offset + (y - rect.y - 1) as usize;
+        let header = if panel == Panel::Files { 2 } else { 1 };
+        if y < rect.y + header {
+            return;
+        }
+        let index = offset + (y - rect.y - header) as usize;
         if index >= len {
             return;
         }

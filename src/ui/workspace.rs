@@ -172,78 +172,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         }),
         header,
     );
-    let rows: Vec<ListItem> = app
-        .workspace
-        .tree
-        .nodes
-        .iter()
-        .map(|node| {
-            let indent = "  ".repeat(node.depth);
-            let name = node.path.file_name().unwrap_or_default().to_string_lossy();
-            let Some(index) = node.file else {
-                let marker = if app.workspace.tree.closed.contains(&node.path) {
-                    "▸"
-                } else {
-                    "▾"
-                };
-                return ListItem::new(Line::styled(
-                    format!("{indent}{marker} {name}/"),
-                    Style::default().fg(Color::Cyan),
-                ));
-            };
-            let Some(row) = app.workspace.files.get(index) else {
-                return ListItem::new("");
-            };
-            let history = app.workspace.commit.is_some();
-            let status_color = |status| {
-                if row.conflict {
-                    Color::LightRed
-                } else {
-                    change_color(status)
-                }
-            };
-            let index_color = status_color(row.index_status);
-            let worktree_color = status_color(row.worktree_status);
-            let path_color = if row.conflict {
-                Color::Red
-            } else if !history && row.staged && !row.unstaged {
-                Color::Green
-            } else {
-                Color::Reset
-            };
-            ListItem::new(Line::from(vec![
-                Span::raw(indent),
-                Span::styled(
-                    row.index_status.to_string(),
-                    Style::default().fg(index_color),
-                ),
-                Span::styled(
-                    row.worktree_status.to_string(),
-                    Style::default().fg(worktree_color),
-                ),
-                Span::styled(format!(" {name}"), Style::default().fg(path_color)),
-            ]))
-        })
-        .collect();
-    frame.render_stateful_widget(
-        List::new(rows)
-            .block(pane_block("", focus == Panel::Files))
-            .highlight_style(selection_style(focus == Panel::Files))
-            .highlight_symbol(if focus == Panel::Files { "› " } else { "  " }),
-        app.layout.files,
-        &mut app.workspace.tree.state,
-    );
-    if app.workspace.files.is_empty() {
-        let text = if app.workspace.commit.is_some() {
-            crate::tr!("No file changes")
-        } else {
-            crate::tr!("Clean working tree")
-        };
-        frame.render_widget(
-            Paragraph::new(text).style(Style::default().fg(Color::Gray)),
-            app.layout.files.inner(ratatui::layout::Margin::new(1, 1)),
-        );
-    }
+    draw_files(frame, app);
     let rows: Vec<ListItem> = app
         .branches
         .iter()
@@ -315,21 +244,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                     rect.inner(ratatui::layout::Margin::new(1, 1)),
                 );
             }
-        }
-    }
-    if app.workspace.tabs.files == FilesTab::Files {
-        if let Some(oid) = app.workspace.commit {
-            frame.render_widget(
-                pane_block("", focus == Panel::Files).title_bottom(Line::styled(
-                    crate::trf!(
-                        " {id} · {read_only} ",
-                        id = format!("{:.7}", oid),
-                        read_only = crate::tr!("read-only")
-                    ),
-                    Style::default().fg(Color::Gray),
-                )),
-                app.layout.files,
-            );
         }
     }
     render_tabs(
@@ -604,6 +518,173 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         ));
         app.help_scroll = app.help_scroll.min(max_scroll);
         frame.render_widget(help.scroll((app.help_scroll, 0)), rect);
+    }
+}
+
+fn draw_files(frame: &mut Frame, app: &mut App) {
+    let rect = app.layout.files;
+    if rect.width < 3 || rect.height < 3 {
+        return;
+    }
+    let focused = app.workspace.focus == Panel::Files;
+    let context = match app.workspace.commit {
+        Some(oid) => crate::trf!("Commit {oid}", oid = &oid.to_string()[..7]),
+        None => crate::tr!("Uncommitted").into(),
+    };
+    let color = if app.workspace.commit.is_some() {
+        Color::Cyan
+    } else {
+        Color::Yellow
+    };
+    let mut header = vec![
+        Span::styled(
+            context,
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" · "),
+    ];
+    if let Some(stats) = &app.workspace.stats {
+        header.extend(
+            super::patch::totals(
+                Some(app.workspace.files.len()),
+                stats.total_insertions,
+                stats.total_deletions,
+            )
+            .spans,
+        );
+    } else {
+        header.push(Span::raw(crate::trf!(
+            "{count} files",
+            count = app.workspace.files.len()
+        )));
+    }
+    frame.render_widget(pane_block("", focused), rect);
+    frame.render_widget(
+        Paragraph::new(Line::from(header)),
+        Rect::new(rect.x + 1, rect.y + 1, rect.width - 2, 1),
+    );
+    let list_rect = Rect::new(
+        rect.x + 1,
+        rect.y + 2,
+        rect.width - 2,
+        rect.height.saturating_sub(3),
+    );
+    let width = list_rect.width.saturating_sub(2) as usize;
+    let (add_width, del_width) = app.workspace.stats.as_ref().map_or((2, 2), |stats| {
+        stats.files.iter().fold((2, 2), |(add, del), file| {
+            (
+                add.max(file.insertions.to_string().len() + 1),
+                del.max(file.deletions.to_string().len() + 1),
+            )
+        })
+    });
+    let stats_width = (add_width + 2 + del_width).max(crate::tr!("binary").width());
+    let rows: Vec<ListItem> = app
+        .workspace
+        .tree
+        .nodes
+        .iter()
+        .map(|node| {
+            let indent = "  ".repeat(node.depth);
+            let name = node.path.file_name().unwrap_or_default().to_string_lossy();
+            let Some(index) = node.file else {
+                let marker = if app.workspace.tree.closed.contains(&node.path) {
+                    "▸"
+                } else {
+                    "▾"
+                };
+                return ListItem::new(Line::styled(
+                    format!("{indent}{marker} {name}/"),
+                    Style::default().fg(Color::Cyan),
+                ));
+            };
+            let row = &app.workspace.files[index];
+            let stats = app.workspace.file_stats(&row.path);
+            let stat_width = if stats.is_some() { stats_width } else { 0 };
+            let show_stats = stat_width > 0 && width >= indent.width() + 3 + stat_width + 5;
+            let name_width = width
+                .saturating_sub(indent.width() + 3 + if show_stats { stat_width + 1 } else { 0 });
+            let name = super::graph_view::truncate_with_ellipsis(&name, name_width);
+            let status_color = |status| {
+                if row.conflict {
+                    Color::LightRed
+                } else {
+                    change_color(status)
+                }
+            };
+            let path_color = if row.conflict {
+                Color::Red
+            } else if app.workspace.commit.is_none() && row.staged && !row.unstaged {
+                Color::Green
+            } else {
+                Color::Reset
+            };
+            let mut spans = vec![
+                Span::raw(indent.clone()),
+                Span::styled(
+                    row.index_status.to_string(),
+                    Style::default().fg(status_color(row.index_status)),
+                ),
+                Span::styled(
+                    row.worktree_status.to_string(),
+                    Style::default().fg(status_color(row.worktree_status)),
+                ),
+                Span::styled(format!(" {name}"), Style::default().fg(path_color)),
+            ];
+            if show_stats {
+                spans.push(Span::raw(" ".repeat(
+                    width.saturating_sub(indent.width() + 3 + name.width() + stat_width),
+                )));
+                if let Some(file) = stats {
+                    if !file.is_binary {
+                        spans.push(Span::raw(
+                            " ".repeat(stats_width.saturating_sub(add_width + 2 + del_width)),
+                        ));
+                    }
+                    if file.is_binary {
+                        spans.push(Span::styled(
+                            format!(
+                                "{}{}",
+                                " ".repeat(
+                                    stats_width.saturating_sub(crate::tr!("binary").width())
+                                ),
+                                crate::tr!("binary")
+                            ),
+                            Style::default().fg(Color::DarkGray),
+                        ));
+                    } else {
+                        spans.push(Span::styled(
+                            format!("{:>add_width$}", format!("+{}", file.insertions)),
+                            Style::default().fg(Color::Green),
+                        ));
+                        spans.push(Span::raw("  "));
+                        spans.push(Span::styled(
+                            format!("{:>del_width$}", format!("-{}", file.deletions)),
+                            Style::default().fg(Color::Red),
+                        ));
+                    }
+                }
+            }
+            ListItem::new(Line::from(spans))
+        })
+        .collect();
+    frame.render_stateful_widget(
+        List::new(rows)
+            .highlight_style(selection_style(focused))
+            .highlight_symbol(if focused { "› " } else { "  " }),
+        list_rect,
+        &mut app.workspace.tree.state,
+    );
+    if app.workspace.files.is_empty() {
+        let text = if app.workspace.commit.is_some() {
+            crate::tr!("No file changes")
+        } else {
+            crate::tr!("Clean working tree")
+        };
+        frame.render_widget(
+            Paragraph::new(text).style(Style::default().fg(Color::Gray)),
+            list_rect,
+        );
     }
 }
 

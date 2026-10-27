@@ -49,6 +49,7 @@ pub enum Action {
     ClearCopiedCommit,
     PasteCommit,
     CheckoutRevision,
+    CheckoutGraphBranch,
     InspectBranch,
     ToggleStageAll,
     CollapseAll,

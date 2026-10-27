@@ -66,6 +66,7 @@ jobs:
           python3 scripts/test-tree-workflow.py
           python3 scripts/test-history-edit.py
           python3 scripts/test-diff-polish.py
+          python3 scripts/test-files-context.py
           python3 scripts/test-keybindings.py
           python3 scripts/test-graph-navigation.py
 

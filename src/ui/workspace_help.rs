@@ -132,6 +132,10 @@ pub(super) fn lines(width: usize) -> Vec<Line<'static>> {
                 ),
                 (
                     "Space",
+                    crate::tr!("Graph: checkout branch at selected commit"),
+                ),
+                (
+                    "Alt+Space",
                     crate::tr!("Graph: checkout selected commit (detached HEAD)"),
                 ),
                 (

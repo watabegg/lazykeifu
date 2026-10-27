@@ -103,7 +103,7 @@ def run():
             tui.loaded()
             index = git(root, 'write-tree').stdout
             tui.keys('<space>')
-            assert 'read-only' in tui.screen()
+            assert 'Commit ' in tui.screen()
             assert git(root, 'write-tree').stdout == index
             print('PASS: hunk selection/stage/unstage, stale diff refusal, discard/cancel/index retention, stale confirmation, literal untracked deletion, history read-only')
         finally:

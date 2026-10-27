@@ -30,8 +30,9 @@ def run():
         tui = Tui(root, config)
         try:
             tui.keys('4 <home>')
+            tui.loaded()
             tui.wait(lambda: '+126' in tui.screen() and '-1001' in tui.screen())
-            tui.keys('6 <end>')
+            tui.keys('<enter> <end>')
             screen = tui.screen()
             positions = []
             for name in ('small.txt', 'large.txt', 'binary.dat'):
@@ -57,7 +58,7 @@ def run():
             assert git(root, 'rev-parse', 'HEAD').stdout.strip() == head
             tui.keys('<esc> <c-r> V')
             assert tui.state()['mode'] == 'error', tui.screen()
-            tui.keys('<esc> <home> <space>')
+            tui.keys('<esc> <home> <a-space>')
             tui.wait(lambda: not tui.state()['workspace_busy'])
             assert tui.state()['mode'] == 'normal', tui.screen()
             assert git(root, 'symbolic-ref', '-q', 'HEAD', check=False).returncode != 0

@@ -258,7 +258,7 @@ fn file_status_columns_match_git_porcelain_and_preserve_change_kind_colors() {
         ("unknown", 0, "?", Color::Magenta),
     ] {
         let y = app.layout.files.y
-            + 1
+            + 2
             + rows.iter().position(|r| r.path == Path::new(name)).unwrap() as u16;
         assert_eq!(buffer[(x + column, y)].symbol(), symbol);
         assert_eq!(buffer[(x + column, y)].fg, color);

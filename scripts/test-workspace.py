@@ -88,7 +88,7 @@ class Tui:
         raise AssertionError('Timed out waiting for TUI state')
 
     def loaded(self):
-        self.wait(lambda: not self.state()['workspace_preview_loading'])
+        self.wait(lambda: not self.state()['workspace_preview_loading'] and not self.state()['workspace_stats_loading'])
 
     def close(self):
         if self.proc.poll() is None:
@@ -186,7 +186,7 @@ def run():
             before = git(root, 'diff', '--cached').stdout
             app.keys('<space>')
             assert git(root, 'diff', '--cached').stdout == before
-            assert 'read-only' in app.screen()
+            assert 'Commit ' in app.screen()
             app.keys('0')
             assert 'Diff' in app.screen(54, 20)
             if os.environ.get('LAZYKEIFU_TEST_ARTIFACTS'):

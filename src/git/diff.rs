@@ -76,6 +76,15 @@ impl DiffScan {
 impl CommitDiffInfo {
     /// Get diff info for working tree (staged + unstaged + untracked changes)
     pub fn from_working_tree(repo: &Repository) -> Result<Self> {
+        Self::working_tree_with_limit(repo, MAX_FILES_TO_DISPLAY)
+    }
+
+    /// Complete statistics for the workspace file tree, computed off the UI thread.
+    pub fn all_working_files(repo: &Repository) -> Result<Self> {
+        Self::working_tree_with_limit(repo, usize::MAX)
+    }
+
+    fn working_tree_with_limit(repo: &Repository, limit: usize) -> Result<Self> {
         let head_tree = match repo.head() {
             Ok(head) => Some(head.peel_to_tree()?),
             Err(err)
@@ -103,7 +112,7 @@ impl CommitDiffInfo {
             .intersection(&unstaged_result.all_paths)
             .cloned()
             .collect();
-        let untracked_display_limit = MAX_FILES_TO_DISPLAY;
+        let untracked_display_limit = limit;
         let untracked_result = Self::scan_untracked_worktree(repo, untracked_display_limit)?;
         let mut worktree_refresh_paths = HashSet::new();
         let mut scan = Self::merge_scans(
@@ -120,7 +129,7 @@ impl CommitDiffInfo {
             &worktree_refresh_paths,
             &staged_diff,
         )?;
-        Self::build_info(scan, Some((total_insertions, total_deletions)))
+        Self::build_info(scan, Some((total_insertions, total_deletions)), limit)
     }
 
     /// Get diff info for a commit
@@ -128,6 +137,14 @@ impl CommitDiffInfo {
     /// - Merge commit: diff vs first parent
     /// - Initial commit: diff vs empty tree
     pub fn from_commit(repo: &Repository, commit_oid: Oid) -> Result<Self> {
+        Self::commit_with_limit(repo, commit_oid, MAX_FILES_TO_DISPLAY)
+    }
+
+    pub fn all_commit_files(repo: &Repository, commit_oid: Oid) -> Result<Self> {
+        Self::commit_with_limit(repo, commit_oid, usize::MAX)
+    }
+
+    fn commit_with_limit(repo: &Repository, commit_oid: Oid, limit: usize) -> Result<Self> {
         let commit = repo.find_commit(commit_oid)?;
         let new_tree = commit.tree()?;
 
@@ -146,7 +163,7 @@ impl CommitDiffInfo {
 
         let diff = repo.diff_tree_to_tree(old_tree.as_ref(), Some(&new_tree), Some(&mut opts))?;
 
-        Self::build_info(Self::scan_diff(&diff)?, None)
+        Self::build_info(Self::scan_diff(&diff)?, None, limit)
     }
 
     fn scan_diff(diff: &Diff) -> Result<DiffScan> {
@@ -410,11 +427,11 @@ impl CommitDiffInfo {
         Ok((total_insertions, total_deletions))
     }
 
-    fn build_info(scan: DiffScan, totals: Option<(usize, usize)>) -> Result<Self> {
+    fn build_info(scan: DiffScan, totals: Option<(usize, usize)>, limit: usize) -> Result<Self> {
         let total_files = scan.all_paths.len();
         let (total_insertions, total_deletions) = totals.unwrap_or_else(|| scan.line_totals());
-        let truncated = total_files > MAX_FILES_TO_DISPLAY;
-        let files = scan.files.into_iter().take(MAX_FILES_TO_DISPLAY).collect();
+        let truncated = total_files > limit;
+        let files = scan.files.into_iter().take(limit).collect();
 
         Ok(Self {
             files,

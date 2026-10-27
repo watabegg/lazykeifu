@@ -78,6 +78,8 @@ pub fn line(app: &App) -> Line<'static> {
                 ("M/r", crate::tr!("merge/rebase")),
             ],
             Panel::Graph => &[
+                ("Space", crate::tr!("branch")),
+                ("Alt+Space", crate::tr!("commit")),
                 ("Enter", crate::tr!("diff")),
                 ("r", crate::tr!("reword HEAD")),
                 ("g", crate::tr!("reset")),

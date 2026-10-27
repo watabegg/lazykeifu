@@ -91,7 +91,7 @@ def run():
             tui.loaded()
             assert tui.state()['workspace_commit'] == git(root, 'rev-parse', 'v1.0').stdout.strip()
             assert 'Diff' in tui.screen()
-            assert 'read-only' in tui.screen()
+            assert 'Commit ' in tui.screen()
             assert git(root, 'write-tree').stdout == original
             tui.keys('<esc> 2 ] <home> j <enter>')
             tui.loaded()
