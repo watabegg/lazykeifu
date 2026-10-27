@@ -255,7 +255,7 @@
   "Next / previous pane (also h / l)": "Следующая / предыдущая панель (также h / l)",
   "No HEAD commit": "Нет коммита HEAD",
   "No HEAD reflog entries": "В журнале HEAD нет записей",
-  "No branch at this commit · Alt+Space: checkout commit": "У этого коммита нет ветки · Alt+Space: перейти на коммит",
+  "No branch at this commit · o: checkout commit": "У этого коммита нет ветки · o: перейти на коммит",
   "No branch selected": "Ветка не выбрана",
   "No changed files": "Нет изменённых файлов",
   "No changed files in this diff": "В этом diff нет изменённых файлов",

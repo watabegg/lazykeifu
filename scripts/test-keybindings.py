@@ -58,7 +58,7 @@ def run():
             assert git(root, 'rev-parse', 'HEAD').stdout.strip() == head
             tui.keys('<esc> <c-r> V')
             assert tui.state()['mode'] == 'error', tui.screen()
-            tui.keys('<esc> <home> <a-space>')
+            tui.keys('<esc> <home> o')
             tui.wait(lambda: not tui.state()['workspace_busy'])
             assert tui.state()['mode'] == 'normal', tui.screen()
             assert git(root, 'symbolic-ref', '-q', 'HEAD', check=False).returncode != 0

@@ -69,7 +69,7 @@ is unauthenticated.
   the real terminal size is used (falling back to sane bounds when headless).
 - `state` — mode, focused pane, selection, selected text, HEAD, async operation status.
 
-Keys also accepts `<a-space>` for Alt+Space (Graph: checkout commit).
+In Graph, Space checks out a branch and `o` checks out the selected commit.
 
 For performance questions, use the log instead (see above).
 

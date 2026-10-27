@@ -255,7 +255,7 @@
   "Next / previous pane (also h / l)": "다음 / 이전 창 (h / l도 사용 가능)",
   "No HEAD commit": "HEAD 커밋이 없습니다",
   "No HEAD reflog entries": "HEAD reflog 항목이 없습니다",
-  "No branch at this commit · Alt+Space: checkout commit": "이 커밋에 브랜치가 없습니다 · Alt+Space: 커밋으로 전환",
+  "No branch at this commit · o: checkout commit": "이 커밋에 브랜치가 없습니다 · o: 커밋으로 전환",
   "No branch selected": "선택한 브랜치가 없습니다",
   "No changed files": "변경된 파일이 없습니다.",
   "No changed files in this diff": "이 diff에 변경된 파일이 없습니다",

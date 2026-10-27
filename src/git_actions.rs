@@ -510,9 +510,8 @@ impl App {
                     })
                     .collect();
                 match targets.as_slice() {
-                    [] => self.set_message(crate::tr!(
-                        "No branch at this commit · Alt+Space: checkout commit"
-                    )),
+                    [] => self
+                        .set_message(crate::tr!("No branch at this commit · o: checkout commit")),
                     [(_, Choice::SwitchBranch(target))] => self.request_checkout(target.clone())?,
                     _ => self.git_menu(crate::tr!("Checkout branch").into(), targets),
                 }

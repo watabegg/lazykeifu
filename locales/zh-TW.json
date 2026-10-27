@@ -255,7 +255,7 @@
   "Next / previous pane (also h / l)": "下一個／上一個窗格（也可用 h / l）",
   "No HEAD commit": "沒有 HEAD 提交",
   "No HEAD reflog entries": "HEAD reflog 沒有記錄",
-  "No branch at this commit · Alt+Space: checkout commit": "此提交上沒有分支 · Alt+Space: 切換至提交",
+  "No branch at this commit · o: checkout commit": "此提交上沒有分支 · o: 切換至提交",
   "No branch selected": "未選取分支",
   "No changed files": "沒有變更的檔案",
   "No changed files in this diff": "此差異中沒有變更的檔案",

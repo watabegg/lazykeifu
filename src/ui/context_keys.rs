@@ -79,7 +79,7 @@ pub fn line(app: &App) -> Line<'static> {
             ],
             Panel::Graph => &[
                 ("Space", crate::tr!("branch")),
-                ("Alt+Space", crate::tr!("commit")),
+                ("o", crate::tr!("commit")),
                 ("Enter", crate::tr!("diff")),
                 ("r", crate::tr!("reword HEAD")),
                 ("g", crate::tr!("reset")),

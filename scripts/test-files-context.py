@@ -76,8 +76,8 @@ def run():
             tui.keys('4 <end> <space>')
             assert tui.state()['mode'] == 'normal', tui.screen()
             assert git(root, 'symbolic-ref', '--short', 'HEAD').stdout.strip() == 'topic'
-            # Exercise the real terminal parser too: Alt+Space is ESC followed by space.
-            tui.proc.stdin.write(b'\x1b ')
+            # Exercise the real terminal parser too: the plain o key detaches at the selected commit.
+            tui.proc.stdin.write(b'o')
             tui.proc.stdin.flush()
             tui.wait(lambda: git(root, 'symbolic-ref', '-q', 'HEAD', check=False).returncode != 0)
             tui.wait(lambda: not tui.state()['workspace_busy'])
@@ -114,7 +114,7 @@ def run():
             elapsed = time.monotonic() - start
             assert elapsed < 3, elapsed
             assert 'Clean working tree' in tui.screen(), tui.screen()
-            print(f'PASS: commit/worktree context, 56-file stats, mouse, push, branch picker, branchless Space, terminal Alt+Space; external refresh {elapsed:.2f}s')
+            print(f'PASS: commit/worktree context, 56-file stats, mouse, push, branch picker, branchless Space, terminal o; external refresh {elapsed:.2f}s')
         finally:
             tui.close()
         # Linked worktrees have their own index and HEAD; refresh must use those.

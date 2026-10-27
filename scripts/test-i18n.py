@@ -105,7 +105,7 @@ def run():
                 assert tui.state()['mode'] == 'confirm', render(tui)
                 expected = catalog["Push current branch '{branch}'?"].replace('{branch}', 'main')
                 assert expected in render(tui), render(tui)
-                tui.keys('<esc> <a-space>')
+                tui.keys('<esc> o')
                 assert tui.state()['mode'] == 'git_menu', render(tui)
                 screen = render(tui)
                 for message in ('Cancel', 'Stash changes and switch', 'Discard all changes and switch'):

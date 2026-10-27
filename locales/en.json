@@ -255,7 +255,7 @@
   "Next / previous pane (also h / l)": "Next / previous pane (also h / l)",
   "No HEAD commit": "No HEAD commit",
   "No HEAD reflog entries": "No HEAD reflog entries",
-  "No branch at this commit · Alt+Space: checkout commit": "No branch at this commit · Alt+Space: checkout commit",
+  "No branch at this commit · o: checkout commit": "No branch at this commit · o: checkout commit",
   "No branch selected": "No branch selected",
   "No changed files": "No changed files",
   "No changed files in this diff": "No changed files in this diff",
