@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
     sync::mpsc::{self, Receiver},
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use crate::git::command::git_output;
@@ -49,6 +49,35 @@ struct PreviewKey {
     commit: Option<Oid>,
     path: Option<PathBuf>,
     staged: bool,
+}
+
+/// Changes to HEAD, the index, or any listed working file invalidate its preview.
+#[derive(PartialEq, Eq)]
+struct WorkingFilesVersion {
+    head: Option<Oid>,
+    index: Option<(SystemTime, u64)>,
+    files: Vec<Option<(SystemTime, u64)>>,
+}
+
+impl WorkingFilesVersion {
+    fn capture(repo: &Repository, files: &[FileRow]) -> Result<Self> {
+        fn stamp(path: &std::path::Path) -> Result<Option<(SystemTime, u64)>> {
+            match std::fs::symlink_metadata(path) {
+                Ok(meta) => Ok(Some((meta.modified()?, meta.len()))),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+                Err(error) => Err(error.into()),
+            }
+        }
+        let index = repo.index()?;
+        Ok(Self {
+            head: repo.head().ok().and_then(|head| head.target()),
+            index: index.path().map(stamp).transpose()?.flatten(),
+            files: files
+                .iter()
+                .map(|file| stamp(&repo.workdir().unwrap_or(repo.path()).join(&file.path)))
+                .collect::<Result<_>>()?,
+        })
+    }
 }
 
 type StatsResult = Result<crate::git::CommitDiffInfo, String>;
@@ -98,6 +127,7 @@ pub struct Workspace {
     revision: u64,
     loaded: bool,
     files_commit: Option<Oid>,
+    files_version: Option<WorkingFilesVersion>,
     preview_key: Option<PreviewKey>,
     preview_rx: Option<Receiver<PreviewResult>>,
     job: Option<Receiver<Result<String, String>>>,
@@ -410,10 +440,14 @@ impl Workspace {
         }
     }
 
-    pub fn invalidate(&mut self) {
+    pub(crate) fn refresh_files(&mut self) {
         self.tabs.invalidate();
         self.stashes_loaded = false;
         self.loaded = false;
+    }
+
+    pub fn invalidate(&mut self) {
+        self.refresh_files();
         self.revision = self.revision.wrapping_add(1);
     }
     pub(crate) fn load_files(&mut self, repo: &Repository) -> Result<()> {
@@ -426,10 +460,18 @@ impl Workspace {
             .and_then(|i| self.files.get(i))
             .map(|r| r.path.clone());
         let same = self.files_commit == self.commit;
-        self.files = match self.commit {
+        let files = match self.commit {
             Some(oid) => commit_files(repo, oid)?,
             None => working_files(repo)?,
         };
+        if self.commit.is_none() {
+            let version = WorkingFilesVersion::capture(repo, &files)?;
+            if self.files_version.as_ref() != Some(&version) || self.files != files {
+                self.revision = self.revision.wrapping_add(1);
+            }
+            self.files_version = Some(version);
+        }
+        self.files = files;
         let index = if same {
             selected
                 .and_then(|p| self.files.iter().position(|r| r.path == p))
@@ -568,7 +610,12 @@ impl App {
             self.workspace.preview_key = Some(key);
             return;
         }
-        if self.workspace.preview_key.as_ref() != Some(&key) {
+        let same_target = self.workspace.preview_key.as_ref().is_some_and(|previous| {
+            let mut previous = previous.clone();
+            previous.revision = key.revision;
+            previous == key
+        });
+        if self.workspace.preview_key.as_ref() != Some(&key) && !same_target {
             // Once the visible text is cleared, the former key no longer describes it.
             // Returning to that file while another result is in flight must reload it.
             self.workspace.preview_key = None;
@@ -588,6 +635,17 @@ impl App {
                             let patch = crate::ui::patch::PatchView::build(&e, None);
                             (e, patch)
                         });
+                        self.workspace.scroll = self.workspace.scroll.min(
+                            patch
+                                .lines
+                                .len()
+                                .saturating_sub(self.workspace.diff_height as usize)
+                                .min(u16::MAX as usize) as u16,
+                        );
+                        self.workspace.hunk_index = self
+                            .workspace
+                            .hunk_index
+                            .min(patch.hunks.len().saturating_sub(1));
                         self.workspace.preview = text;
                         self.workspace.patch = patch;
                         self.workspace.preview_key = Some(received);

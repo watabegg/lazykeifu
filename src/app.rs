@@ -745,7 +745,11 @@ impl App {
                 })
                 .or_else(|| (!self.branches.is_empty()).then_some(0)),
         );
-        self.workspace.invalidate();
+        if force {
+            self.workspace.invalidate();
+        } else {
+            self.workspace.refresh_files();
+        }
         self.perf.record("refresh", refresh_started.elapsed());
         self.pending_refresh = false;
         self.last_refresh_time = Instant::now();
